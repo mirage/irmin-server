@@ -1,0 +1,1 @@
+include Irmin_server_intf.Irmin_server
