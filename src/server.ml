@@ -31,29 +31,33 @@ module Make (X : Command.S) = struct
           let* Request.Header.{ command; n_args } =
             Request.Read.header conn.Conn.ic
           in
-          let req_args, res_count, cmd = Hashtbl.find commands command in
-          if n_args < req_args then
-            let* () = Conn.consume conn n_args in
-            let* () =
-              Conn.err conn
-                (Format.sprintf "ERROR expected %d arguments but got %d"
-                   req_args n_args)
-            in
-            loop repo conn client
-          else
-            let args = Args.v ~count:n_args conn in
-            let* return =
-              Lwt.catch
-                (fun () -> cmd conn client args)
-                (function
-                  | Error.Error (a, b) -> raise (Error.Error (a, b))
-                  | exn ->
-                      raise
-                        (Error.Error
-                           (Args.remaining args - 1, Printexc.to_string exn)))
-            in
-            let () = Return.check return res_count in
-            Lwt_io.flush conn.Conn.oc)
+          match Hashtbl.find_opt commands command with
+          | None ->
+              let* () = Conn.err conn "ERROR unknown command" in
+              loop repo conn client
+          | Some (req_args, res_count, cmd) ->
+              if n_args < req_args then
+                let* () = Conn.consume conn n_args in
+                let* () =
+                  Conn.err conn
+                    (Format.sprintf "ERROR expected %d arguments but got %d"
+                       req_args n_args)
+                in
+                loop repo conn client
+              else
+                let args = Args.v ~count:n_args conn in
+                let* return =
+                  Lwt.catch
+                    (fun () -> cmd conn client args)
+                    (function
+                      | Error.Error (a, b) -> raise (Error.Error (a, b))
+                      | exn ->
+                          raise
+                            (Error.Error
+                               (Args.remaining args - 1, Printexc.to_string exn)))
+                in
+                let () = Return.check return res_count in
+                Lwt_io.flush conn.Conn.oc)
         (function
           | Error.Error (remaining, s) ->
               let* () = Conn.consume conn remaining in
