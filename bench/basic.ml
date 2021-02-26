@@ -14,7 +14,7 @@ let rec add master n =
   else
     let s = random_string (Random.int 1024) in
     let key = [ random_key () ] in
-    let* _ = Rpc.Client.set master key s ~info:(Irmin_unix.info "test") in
+    let* _ = Rpc.Client.Store.set master key s ~info:(Irmin_unix.info "test") in
     add master (n - 1)
 
 let rpc count =

@@ -1,6 +1,24 @@
 # irmin-server
 
-A high-performance server for [irmin](https://github.com/mirage/irmin)
+A high-performance server for [irmin](https://github.com/mirage/irmin) using a custom wire [protocol](#protocol).
+
+## Command-line
+
+To run the server:
+
+```shell
+$ dune exec bin/main.exe -- --root ./data
+```
+
+For more information:
+
+```shell
+$ dune exec bin/main.exe --help
+```
+
+## OCaml client
+
+See [src/client_intf.ml](https://github.com/zshipko/irmin-server/blob/master/src/client_intf.ml)
 
 ## Protocol
 

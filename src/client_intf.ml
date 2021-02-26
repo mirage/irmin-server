@@ -19,12 +19,14 @@ module type S = sig
 
   val set_branch : t -> branch -> (unit, Error.t) result Lwt.t
 
-  val find : t -> key -> (contents option, Error.t) result Lwt.t
+  module Store : sig
+    val find : t -> key -> (contents option, Error.t) result Lwt.t
 
-  val set :
-    t -> info:Irmin.Info.f -> key -> contents -> (unit, Error.t) result Lwt.t
+    val set :
+      t -> info:Irmin.Info.f -> key -> contents -> (unit, Error.t) result Lwt.t
 
-  val remove : t -> info:Irmin.Info.f -> key -> (unit, Error.t) result Lwt.t
+    val remove : t -> info:Irmin.Info.f -> key -> (unit, Error.t) result Lwt.t
+  end
 end
 
 module type Client = sig
