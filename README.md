@@ -4,33 +4,43 @@ A high-performance server for [irmin](https://github.com/mirage/irmin)
 
 ## Protocol
 
-### Item
+### Message
 
-| Field | Type |
-| ----- | ---- |
-| Length | int32, little-endian |
-| Data   | Bytes |
+Message `data` is encoded using `Irmin.Type.to_bin_string`
+
+| Field  | Type                 |
+| ------ | -------------------- |
+| length | int32, little-endian |
+| data   | Bytes                |
 
 
 ### Request
 
-| Field     | Type     |
-| -------- | -------- |
-| Command  | Newline delimited string    |
-| Number of arguments | int32, little-endian |
-| Arguments | Zero or more `Item` |
+A request is sent from the client to the server
+
+| Field               | Type                        |
+| ------------------- | --------------------------- |
+| command             | Newline delimited string    |
+| message count       | int32, little-endian        |
+| messages            | Zero or more `Message`      |
 
 ### Response
 
-| Field | Type |
-| ----- | ---- |
-| Number of items | int32, little-endian |
-| Items | Zero or more `Item` |
+A `response` is sent from the server back to the client after a `request` has been handled
+
+Responses with no messages (i.e. `message count` = 0) are used to signal an `OK` response with no data
+
+| Field           | Type                   |
+| --------------- | ---------------------- |
+| message count   | int32, little-endian   |
+| messages        | Zero or more `Message` |
 
 ### Handshake
 
+A handshake is performed when a client connects to the server
+
 #### V1
-| Field | Type |
-| ----- | ---- |
-| Version | Newline delimited string |
+| Field   | Type                     |
+| ------- | ------------------------ |
+| version | Newline delimited string |
 

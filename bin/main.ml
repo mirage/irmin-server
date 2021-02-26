@@ -1,18 +1,41 @@
 open Lwt.Syntax
-module Rpc = Irmin_server.Make (Irmin.Hash.BLAKE2B) (Irmin.Contents.String)
+module Rpc =
+  Irmin_server.Make (Irmin.Hash.BLAKE2B) (Irmin.Contents.String)
+    (Irmin.Branch.String)
 
-let main =
+let () = Logs.set_level (Some Logs.App)
+
+let main ~root ~addr ~port ~level =
   let open Rpc in
-  if Array.length Sys.argv > 1 && Sys.argv.(1) = "client" then (
-    let conf = Client.conf ~port:8888 () in
-    let* client = Client.connect conf in
-    let* x = Client.ping client in
-    assert (Result.is_ok x);
-    let+ x = Client.ping client in
-    assert (Result.is_ok x))
-  else
-    let config = Irmin_pack.config "./data" in
-    let* server = Server.v ~port:8888 config in
-    Server.serve server
+  let () = Logs.set_level (Logs.level_of_string level |> Result.get_ok) in
+  let config = Irmin_pack.config root in
+  let* ctx = Conduit_lwt_unix.init ~src:addr () in
+  let* server = Server.v ~ctx ~port config in
+  Logs.app (fun l -> l "Listening on: %s:%d" addr port);
+  Server.serve server
 
-let () = Lwt_main.run main
+let main root addr port level = Lwt_main.run @@ main ~root ~addr ~port ~level
+
+open Cmdliner
+
+let port =
+  let doc = Arg.info ~doc:"Port to listen on" [ "p"; "port" ] in
+  Arg.(value @@ opt int 8888 doc)
+
+let root =
+  let doc = Arg.info ~doc:"Irmin store path" [ "r"; "root" ] in
+  Arg.(value @@ opt string "/tmp/irmin-server" doc)
+
+let addr =
+  let doc = Arg.info ~doc:"Address to listen on" [ "addr"; "a" ] in
+  Arg.(value @@ opt string "127.0.0.1" doc)
+
+let level =
+  let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
+  Arg.(value @@ opt string "app" doc)
+
+let main_term = Term.(const main $ root $ addr $ port $ level)
+
+let () =
+  let info = Term.info "irmin-server" in
+  Term.exit @@ Term.eval (main_term, info)

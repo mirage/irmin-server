@@ -8,9 +8,9 @@ type t = {
 
 let v flow ic oc = { flow; ic; oc }
 
-let read_arg t ty = Item.read t.ic ty
+let read_arg t ty = Message.read t.ic ty
 
-let write_arg t ty x = Item.write t.oc ty x
+let write_arg t ty x = Message.write t.oc ty x
 
 let begin_response t n = Response.Write.header t.oc { n_items = n }
 
@@ -19,13 +19,13 @@ let ok t = begin_response t 0
 let err t msg =
   let header = Response.Header.v ~n_items:(-1) in
   let* () = Response.Write.header t.oc header in
-  Item.write t.oc Irmin.Type.string msg
+  Message.write t.oc Irmin.Type.string msg
 
 let consume t n =
   let rec aux t n =
     if n = 0 then Lwt.return_unit
     else
-      let _ = Item.read_raw in
+      let* _ = Message.read_raw t.ic in
       aux t (n - 1)
   in
   aux t n

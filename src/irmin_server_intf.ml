@@ -1,40 +1,42 @@
 module type S = sig
-  type branch = string
+  module Store : Irmin.S with type key = string list
 
-  type hash
+  module Command : Command.S with module Store = Store
 
-  type contents
+  module Server : Server.S with module Store = Store
 
-  module Server : sig
-    type t
-
-    val v : ?ctx:Conduit_lwt_unix.ctx -> port:int -> Irmin.config -> t Lwt.t
-
-    val serve : t -> unit Lwt.t
-  end
-
-  module Client : sig
-    type conf
-
-    type t
-
-    val conf : ?host:string -> port:int -> unit -> conf
-
-    val connect : ?ctx:Conduit_lwt_unix.ctx -> conf -> t Lwt.t
-
-    val ping : t -> (unit, Error.t) result Lwt.t
-
-    val set_branch : t -> branch -> (unit, Error.t) result Lwt.t
-  end
+  module Client :
+    Client.S
+      with type hash = Store.hash
+       and type contents = Store.contents
+       and type branch = Store.branch
+       and type key = Store.key
 end
 
-module Command = Command
+module Conf = struct
+  let entries = 32
+
+  let stable_hash = 256
+end
 
 module type Irmin_server = sig
   module Command = Command
   module Args = Args
   module Error = Error
+  module Server = Server
+  module Client = Client
 
-  module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) :
-    S with type hash = H.t and type contents = C.t
+  module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) :
+    S
+      with type Store.hash = H.t
+       and type Store.contents = C.t
+       and type Store.branch = B.t
+       and type Store.key = string list
+
+  module KV (C : Irmin.Contents.S) :
+    S
+      with type Store.hash = Irmin.Hash.BLAKE2B.t
+       and type Store.contents = C.t
+       and type Store.branch = string
+       and type Store.key = string list
 end

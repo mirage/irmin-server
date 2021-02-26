@@ -1,0 +1,16 @@
+(library
+ (name bench_common)
+ (modules bench_common)
+ (libraries irmin-server))
+
+;; Require the above executables to compile during tests
+
+(executable
+ (name basic)
+ (modules basic)
+ (public_name basic)
+ (package irmin-server)
+ (preprocess
+  (pps ppx_deriving_yojson ppx_repr))
+ (libraries irmin-server lwt unix cmdliner logs
+   memtrace repr ppx_repr bench_common))

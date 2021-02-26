@@ -1,19 +1,21 @@
-open Lwt.Syntax
 open Error
+open Lwt.Syntax
 
 type t = { last_index : int; mutable index : int; conn : Conn.t }
 
-let v ~count conn = { last_index = count - 1; index = 0; conn }
+let v ~count conn = { last_index = count; index = 0; conn }
 
 let next_raw t =
-  if t.index >= t.last_index then raise_error 0 "ERROR expected argument"
+  if t.index > t.last_index then
+    raise_error 0 "ERROR expected argument in Message.next_raw"
   else
-    let+ x = Item.read_raw t.conn.ic in
+    let+ x = Message.read_raw t.conn.ic in
     t.index <- t.index + 1;
     x
 
 let next t ty =
-  if t.index >= t.last_index then raise_error 0 "ERROR expected argument"
+  if t.index > t.last_index then
+    raise_error 0 "ERROR expected argument in Message.next"
   else
     let+ x = Conn.read_arg t.conn ty in
     t.index <- t.index + 1;
