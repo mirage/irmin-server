@@ -12,13 +12,38 @@ jobs:
         os:
           - macos-latest
           - ubuntu-latest
-          - windows-latest
         ocaml-version:
           - 4.12.0
           - 4.11.0
           - 4.10.1
           - 4.09.1
           - 4.08.1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Use OCaml ${{ matrix.ocaml-version }}
+        uses: avsm/setup-ocaml@v1
+        with:
+          ocaml-version: ${{ matrix.ocaml-version }}
+
+      - run: opam pin add irmin-server.dev . --no-action
+      - run: opam depext irmin-server --yes --with-doc
+      - run: opam install irmin-server --deps-only --with-doc --with-test
+      - run: opam exec -- dune build -p irmin-server
+      - run: opam exec -- dune runtest -p irmin-server
+
+  bench:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+        ocaml-version:
+          - 4.12.0
+          - 4.11.0
 
     runs-on: ${{ matrix.os }}
 
@@ -32,18 +57,14 @@ jobs:
           ocaml-version: ${{ matrix.ocaml-version }}
 
       - run: opam pin add irmin-server.dev . --no-action
-
-      - run: opam depext irmin-server --yes --with-doc
-
-      - run: opam install . --deps-only --with-doc --with-test
-
+      - run: opam pin add irmin-server-bench.dev . --no-action
+      - run: opam depext irmin-server-bench --yes --with-doc
+      - run: opam install irmin-server irmin-server-bench --deps-only --with-doc --with-test
       - run: opam exec -- dune build
 
-      - run: opam exec -- dune runtest
-
-     #- name: Upload the build artifact
-     #uses: actions/upload-artifact@v2
-     #with:
-     #name: ${{ matrix.os }}-${{ matrix.ocaml-version }}-world.exe
-     #path: _build/default/world.exe
+      - name: Upload the build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: irmin-server-${{ matrix.os }}-${{ matrix.ocaml-version }}
+          path: _build/default/bin/main.exe
 

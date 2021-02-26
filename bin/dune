@@ -1,4 +1,5 @@
 (executable
  (public_name irmin-server)
+ (package irmin-server)
  (name main)
  (libraries irmin-server))

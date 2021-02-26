@@ -1,6 +1,7 @@
 (library
  (name bench_common)
  (modules bench_common)
+ (package irmin-server-bench)
  (libraries irmin-server))
 
 ;; Require the above executables to compile during tests
@@ -9,7 +10,7 @@
  (name basic)
  (modules basic)
  (public_name basic)
- (package irmin-server)
+ (package irmin-server-bench)
  (preprocess
-  (pps ppx_repr))
- (libraries irmin-server lwt unix cmdliner logs memtrace repr bench_common))
+  (pps ppx_irmin))
+ (libraries irmin-server lwt unix cmdliner logs memtrace bench_common))
