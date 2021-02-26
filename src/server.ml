@@ -2,7 +2,8 @@ open Lwt.Syntax
 open Lwt.Infix
 include Server_intf
 
-module Make (Command : Command.S) = struct
+module Make (X : Command.S) = struct
+  module Command = X
   module Store = Command.Store
 
   type t = {
@@ -43,7 +44,7 @@ module Make (Command : Command.S) = struct
             let args = Args.v ~count:n_args conn in
             let* return =
               Lwt.catch
-                (fun () -> cmd client args)
+                (fun () -> cmd conn client args)
                 (function
                   | Error.Error (a, b) -> raise (Error.Error (a, b))
                   | exn ->
@@ -51,7 +52,7 @@ module Make (Command : Command.S) = struct
                         (Error.Error
                            (Args.remaining args - 1, Printexc.to_string exn)))
             in
-            let () = Command.Return.check return res_count in
+            let () = Return.check return res_count in
             Lwt_io.flush conn.Conn.oc)
         (function
           | Error.Error (remaining, s) ->
@@ -86,11 +87,16 @@ module Make (Command : Command.S) = struct
     Cohttp_lwt.Body.drain_body body >>= fun () ->
     Cohttp_lwt_unix.Server.respond_string ~body:"OK" ~status:`OK ()
 
-  let serve { ctx; server; repo; port; _ } =
-    let http =
-      Cohttp_lwt_unix.Server.make ~callback:(http_server (module Store) repo) ()
+  let serve ?(http = true) { ctx; server; repo; port; _ } =
+    let () =
+      if http then
+        let http =
+          Cohttp_lwt_unix.Server.make
+            ~callback:(http_server (module Store) repo)
+            ()
+        in
+        Lwt.async (fun () ->
+            Cohttp_lwt_unix.Server.create ~mode:(`TCP (`Port (port + 1))) http)
     in
-    Lwt.async (fun () ->
-        Cohttp_lwt_unix.Server.create ~mode:(`TCP (`Port (port + 1))) http);
     Conduit_lwt_unix.serve ~ctx ~on_exn ~mode:server (callback repo)
 end

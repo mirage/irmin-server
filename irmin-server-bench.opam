@@ -1,0 +1,72 @@
+opam-version: "2.0"
+synopsis: "A high-performance server for Irmin"
+maintainer: "Zach Shipko <zachshipko@gmail.com>"
+authors: "Zach Shipko <zachshipko@gmail.com>"
+license: "ISC"
+homepage: "https://github.com/mirage/irmin-server"
+doc: "https://zshipko.github.io/irmin-server"
+bug-reports: "https://github.com/zshipko/irmin-server/issues"
+depends: [
+  "ocaml" {>= "4.11.0"}
+  "dune" {>= "2.0.0"}
+  "irmin"
+  "irmin-unix" {>= "dev"}
+  "irmin-server"
+  "uri"
+  "alcotest-lwt" {with-test & >= "1.0.0"}
+  "checkseum" {>= "0.3.0"}
+  "cmdliner" {>= "1.0.4"}
+  "digestif" {>= "0.9.0"}
+  "logs" {>= "0.7.0"}
+  "lwt" {>= "5.4.0"}
+  "memtrace" {>= "0.1.2"}
+  "ppx_irmin" {>= "dev"}
+]
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name] {with-test}
+]
+dev-repo: "git+ssh://github.com/mirage/irmin-rpc"
+pin-depends: [
+  [
+    "ppx_irmin.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin-git.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin-fs.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin-graphql.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin-http.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin-layers.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin-pack.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin-unix.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+  [
+    "irmin-test.dev"
+    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+  ]
+]

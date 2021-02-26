@@ -3,9 +3,13 @@ module type S = sig
 
   module Store : Irmin.S
 
+  module Command : Command.S with module Store = Store
+
   val v : ?ctx:Conduit_lwt_unix.ctx -> port:int -> Irmin.config -> t Lwt.t
 
-  val serve : t -> unit Lwt.t
+  val serve : ?http:bool -> t -> unit Lwt.t
+
+  val commands : (Command.t, int * int * Command.f) Hashtbl.t
 end
 
 module type Server = sig

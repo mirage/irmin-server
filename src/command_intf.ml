@@ -7,25 +7,9 @@ module type S = sig
 
   type t = command
 
-  type client = { conn : Conn.t; repo : Store.Repo.t; mutable store : Store.t }
+  type context = { conn : Conn.t; repo : Store.Repo.t; mutable store : Store.t }
 
-  module Return : sig
-    type t
-
-    val make : int -> client -> t Lwt.t
-
-    val ok : client -> t Lwt.t
-
-    val err : client -> string -> t Lwt.t
-
-    val v : client -> 'a Irmin.Type.t -> 'a -> t Lwt.t
-
-    val write : 'a Irmin.Type.t -> 'a -> t -> t Lwt.t
-
-    val check : t -> int -> unit
-  end
-
-  type f = client -> Args.t -> Return.t Lwt.t
+  type f = Conn.t -> context -> Args.t -> Return.t Lwt.t
 
   val n_args : command -> int
 

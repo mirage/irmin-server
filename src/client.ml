@@ -68,33 +68,35 @@ module Make (C : Command.S) = struct
             Logs.debug (fun l -> l "Completed request: command=%s" name);
             x)
 
+  let arg t ty x = Conn.write_arg t.conn ty x
+
   let ping t =
     request t Ping (fun _ -> Lwt.return_unit) (fun _ -> Lwt.return_ok ())
 
   let set_branch t branch =
     request t SetBranch
-      (fun t -> Conn.write_arg t.conn C.Store.Branch.t branch)
+      (fun t -> arg t C.Store.Branch.t branch)
       (fun _ -> Lwt.return_ok ())
 
   module Store = struct
     let find t key =
       request t Find
-        (fun t -> Conn.write_arg t.conn C.Store.Key.t key)
+        (fun t -> arg t C.Store.Key.t key)
         (fun args -> Args.next args (Irmin.Type.option C.Store.contents_t))
 
     let set t ~info key value =
       request t Set
         (fun t ->
-          let* () = Conn.write_arg t.conn C.Store.Key.t key in
-          let* () = Conn.write_arg t.conn Irmin.Info.t (info ()) in
-          Conn.write_arg t.conn C.Store.Contents.t value)
+          let* () = arg t C.Store.Key.t key in
+          let* () = arg t Irmin.Info.t (info ()) in
+          arg t C.Store.Contents.t value)
         (fun _ -> Lwt.return_ok ())
 
     let remove t ~info key =
       request t Set
         (fun t ->
-          let* () = Conn.write_arg t.conn C.Store.Key.t key in
-          Conn.write_arg t.conn Irmin.Info.t (info ()))
+          let* () = arg t C.Store.Key.t key in
+          arg t Irmin.Info.t (info ()))
         (fun _ -> Lwt.return_ok ())
   end
 end

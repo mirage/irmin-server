@@ -3,7 +3,7 @@ module Rpc =
   Irmin_server.Make (Irmin.Hash.BLAKE2B) (Irmin.Contents.String)
     (Irmin.Branch.String)
 
-let main ~root ~addr ~port ~level =
+let main ~root ~addr ~port ~level ~http =
   let open Rpc in
   let () = Logs.set_level (Logs.level_of_string level |> Result.get_ok) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
@@ -11,9 +11,10 @@ let main ~root ~addr ~port ~level =
   let* ctx = Conduit_lwt_unix.init ~src:addr () in
   let* server = Server.v ~ctx ~port config in
   Logs.app (fun l -> l "Listening on: %s:%d" addr port);
-  Server.serve server
+  Server.serve ~http server
 
-let main root addr port level = Lwt_main.run @@ main ~root ~addr ~port ~level
+let main root addr port level http =
+  Lwt_main.run @@ main ~root ~addr ~port ~level ~http
 
 open Cmdliner
 
@@ -33,7 +34,11 @@ let level =
   let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
   Arg.(value @@ opt string "app" doc)
 
-let main_term = Term.(const main $ root $ addr $ port $ level)
+let http =
+  let doc = Arg.info ~doc:"Run the HTTP server" [ "http" ] in
+  Arg.(value @@ flag doc)
+
+let main_term = Term.(const main $ root $ addr $ port $ level $ http)
 
 let () =
   let info = Term.info "irmin-server" in
