@@ -1,6 +1,6 @@
 # irmin-server
 
-A high-performance server for [irmin](https://github.com/mirage/irmin) using a custom wire [protocol](#protocol).
+A server for [irmin](https://github.com/mirage/irmin) using a custom wire [protocol](#protocol).
 
 ## Command-line
 
