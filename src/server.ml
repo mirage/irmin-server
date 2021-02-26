@@ -30,7 +30,7 @@ module Make (Command : Command.S) = struct
           let* Request.Header.{ command; n_args } =
             Request.Read.header conn.Conn.ic
           in
-          let req_args, cmd = Hashtbl.find commands command in
+          let req_args, res_count, cmd = Hashtbl.find commands command in
           if n_args < req_args then
             let* () = Conn.consume conn n_args in
             let* () =
@@ -51,7 +51,7 @@ module Make (Command : Command.S) = struct
                         (Error.Error
                            (Args.remaining args - 1, Printexc.to_string exn)))
             in
-            let () = Command.Return.check return in
+            let () = Command.Return.check return res_count in
             Lwt_io.flush conn.Conn.oc)
         (function
           | Error.Error (remaining, s) ->

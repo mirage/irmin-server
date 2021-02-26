@@ -43,50 +43,60 @@ module Make (Store : Irmin.S) = struct
       let* r = make 1 client in
       write ty x r
 
-    let check t = assert (t.index = t.n_items || t.n_items = -1)
+    let check t c =
+      assert ((t.n_items = c && t.index = t.n_items) || t.n_items = -1)
   end
 
   type f = client -> Args.t -> Return.t Lwt.t
 
-  let ping client _args = Return.ok client
+  module X = struct
+    let ping client _args = Return.ok client
 
-  let set_branch client args =
-    let* branch = Args.next args Store.Branch.t >|= Result.get_ok in
-    let* store = Store.of_branch client.repo branch in
-    client.store <- store;
-    Return.ok client
+    let set_branch client args =
+      let* branch = Args.next args Store.Branch.t >|= Result.get_ok in
+      let* store = Store.of_branch client.repo branch in
+      client.store <- store;
+      Return.ok client
 
-  let find client args =
-    let* key = Args.next args Store.Key.t >|= Result.get_ok in
-    let* x = Store.find client.store key in
-    let* () = Conn.begin_response client.conn 1 in
-    Return.v client (Irmin.Type.option Store.contents_t) x
+    module Store = struct
+      let find client args =
+        let* key = Args.next args Store.Key.t >|= Result.get_ok in
+        let* x = Store.find client.store key in
+        let* () = Conn.begin_response client.conn 1 in
+        Return.v client (Irmin.Type.option Store.contents_t) x
 
-  let set client args =
-    let* key = Args.next args Store.Key.t >|= Result.get_ok in
-    let* info = Args.next args Irmin.Info.t >|= Result.get_ok in
-    let* value = Args.next args Store.Contents.t >|= Result.get_ok in
-    let* () = Store.set_exn client.store key value ~info:(fun () -> info) in
-    Return.ok client
+      let set client args =
+        let* key = Args.next args Store.Key.t >|= Result.get_ok in
+        let* info = Args.next args Irmin.Info.t >|= Result.get_ok in
+        let* value = Args.next args Store.Contents.t >|= Result.get_ok in
+        let* () = Store.set_exn client.store key value ~info:(fun () -> info) in
+        Return.ok client
 
-  let remove client args =
-    let* key = Args.next args Store.Key.t >|= Result.get_ok in
-    let* info = Args.next args Irmin.Info.t >|= Result.get_ok in
-    let* () = Store.remove_exn client.store key ~info:(fun () -> info) in
-    Return.ok client
+      let remove client args =
+        let* key = Args.next args Store.Key.t >|= Result.get_ok in
+        let* info = Args.next args Irmin.Info.t >|= Result.get_ok in
+        let* () = Store.remove_exn client.store key ~info:(fun () -> info) in
+        Return.ok client
+    end
+  end
 
-  let cmd x n f = (x, (n, f))
+  let cmd x n_in n_out f = (x, (n_in, n_out, f))
 
   let commands =
+    let open X in
     [
-      cmd Ping 0 ping;
-      cmd SetBranch 1 set_branch;
-      cmd Find 1 find;
-      cmd Set 3 set;
-      cmd Remove 2 remove;
+      cmd Ping 0 0 ping;
+      cmd SetBranch 1 0 set_branch;
+      cmd Find 1 1 Store.find;
+      cmd Set 3 0 Store.set;
+      cmd Remove 2 0 Store.remove;
     ]
 
   let n_args cmd =
-    let n, _ = List.assoc cmd commands in
+    let n, _, _ = List.assoc cmd commands in
+    n
+
+  let n_results cmd =
+    let _, n, _ = List.assoc cmd commands in
     n
 end

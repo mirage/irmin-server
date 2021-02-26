@@ -22,14 +22,16 @@ module type S = sig
 
     val write : 'a Irmin.Type.t -> 'a -> t -> t Lwt.t
 
-    val check : t -> unit
+    val check : t -> int -> unit
   end
 
   type f = client -> Args.t -> Return.t Lwt.t
 
   val n_args : command -> int
 
-  val commands : (command * (int * f)) list
+  val n_results : command -> int
+
+  val commands : (command * (int * int * f)) list
 end
 
 module type Command = sig

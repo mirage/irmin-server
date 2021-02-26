@@ -3,11 +3,10 @@ module Rpc =
   Irmin_server.Make (Irmin.Hash.BLAKE2B) (Irmin.Contents.String)
     (Irmin.Branch.String)
 
-let () = Logs.set_level (Some Logs.App)
-
 let main ~root ~addr ~port ~level =
   let open Rpc in
   let () = Logs.set_level (Logs.level_of_string level |> Result.get_ok) in
+  let () = Logs.set_reporter (Logs_fmt.reporter ()) in
   let config = Irmin_pack.config root in
   let* ctx = Conduit_lwt_unix.init ~src:addr () in
   let* server = Server.v ~ctx ~port config in
