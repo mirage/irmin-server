@@ -91,7 +91,7 @@ module Make (X : Command.S) = struct
     Cohttp_lwt.Body.drain_body body >>= fun () ->
     Cohttp_lwt_unix.Server.respond_string ~body:"OK" ~status:`OK ()
 
-  let serve ?(http = true) { ctx; server; repo; port; _ } =
+  let serve ?(http = false) { ctx; server; repo; port; _ } =
     let () =
       if http then
         let http =

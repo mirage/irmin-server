@@ -3,7 +3,7 @@ open Lwt.Syntax
 module Header = struct
   type t = { n_items : int }
 
-  let v ~n_items = { n_items }
+  let v ~n_items = { n_items } [@@inline]
 end
 
 module Write = struct
@@ -18,8 +18,9 @@ module Read = struct
     let+ n_items = Lwt_io.LE.read_int t in
     Logs.debug (fun l -> l "Read response header: n_items=%d" n_items);
     Header.{ n_items }
+    [@@inline]
 
-  let is_error Header.{ n_items; _ } = n_items < 0
+  let is_error Header.{ n_items; _ } = n_items < 0 [@@inline]
 
   let get_error t header =
     if is_error header then (

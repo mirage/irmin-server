@@ -3,6 +3,10 @@ open Lwt.Infix
 
 (* TODO: use encode_bin/decode_bin to prevent holding the entire value in memory at once *)
 
+let decode t = Irmin.Type.(unstage (of_bin_string t)) [@@inline]
+
+let encode t = Irmin.Type.(unstage (to_bin_string t)) [@@inline]
+
 let write_raw oc s : unit Lwt.t =
   let len = String.length s in
   Logs.debug (fun l -> l "Writing raw message: length=%d" len);
@@ -10,8 +14,9 @@ let write_raw oc s : unit Lwt.t =
   x
 
 let write oc t x : unit Lwt.t =
-  let s = Irmin.Type.(unstage (to_bin_string t)) x in
+  let s = encode t x in
   write_raw oc s
+  [@@inline]
 
 let read_raw ic =
   let* n = Lwt_io.LE.read_int ic in
@@ -22,4 +27,5 @@ let read_raw ic =
 
 let read ic t =
   let+ buf = read_raw ic in
-  Irmin.Type.(unstage (of_bin_string t)) (Bytes.to_string buf)
+  decode t (Bytes.to_string buf)
+  [@@inline]

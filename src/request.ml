@@ -4,7 +4,7 @@ open Lwt.Infix
 module Header = struct
   type t = { command : Command.t; n_args : int }
 
-  let v ~n_args ~command = { n_args; command }
+  let v ~n_args ~command = { n_args; command } [@@inline]
 end
 
 module Write = struct
