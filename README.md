@@ -40,7 +40,7 @@ A request is sent from the client to the server
 | ------------------- | --------------------------- |
 | command             | Newline delimited string    |
 | message count       | int32, little-endian        |
-| messages            | Zero or more `Message`      |
+| messages            | Zero or more Messages       |
 
 ### Response
 
@@ -48,10 +48,13 @@ A `response` is sent from the server back to the client after a `request` has be
 
 Responses with no messages (i.e. `message count` = 0) are used to signal an `OK` response with no data
 
+An error response is marked by setting `message count` to `-1`. It should always be followed 
+by a single `string` Message containing a description of the error.
+
 | Field           | Type                   |
 | --------------- | ---------------------- |
 | message count   | int32, little-endian   |
-| messages        | Zero or more `Message` |
+| messages        | Zero or more Messages |
 
 ### Handshake
 
