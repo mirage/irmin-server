@@ -45,17 +45,19 @@ module Make (C : Command.S) = struct
             f ()
         | exn -> raise exn)
 
-  let send_command_header t command =
-    let n_args = n_args command in
-    let header = Request.Header.v ~command ~n_args in
+  let send_command_header t (module Cmd : C.CMD) =
+    let n_args = fst Cmd.args in
+    let header = Request.Header.v ~command:Cmd.name ~n_args in
     Request.Write.header t.conn.Conn.oc header
 
-  let request t command f g =
-    let name = Command.name command in
+  let request t (type x y)
+      (module Cmd : C.CMD with type res = x and type req = y) (a : y) =
+    let name = Cmd.name in
     Logs.debug (fun l -> l "Starting request: command=%s" name);
     handle_disconnect t (fun () ->
-        let* () = send_command_header t command in
-        let* () = f t in
+        let* () = send_command_header t (module Cmd) in
+        let args = Args.v ~count:(fst Cmd.args) t.conn in
+        let* () = Cmd.Client.send args a in
         let* () = Lwt_io.flush t.conn.oc in
         let* res = Response.Read.header t.conn.ic in
         Response.Read.get_error t.conn.ic res >>= function
@@ -65,54 +67,46 @@ module Make (C : Command.S) = struct
             Lwt.return_error (`Msg err)
         | None ->
             let args = Args.v ~count:res.n_items t.conn in
-            let+ x = g args in
+            let+ x = Cmd.Client.recv args in
             assert (Args.remaining args = 0);
             Logs.debug (fun l -> l "Completed request: command=%s" name);
             x)
 
-  let arg t ty x = Conn.write_arg t.conn ty x
+  let ping t = request t (module Commands.Ping) ()
 
-  let ping t =
-    request t Ping (fun _ -> Lwt.return_unit) (fun _ -> Lwt.return_ok ())
-
-  let set_branch t branch =
-    request t SetBranch
-      (fun t -> arg t Store.Branch.t branch)
-      (fun _ -> Lwt.return_ok ())
+  let set_branch t (branch : Store.branch) =
+    request t (module Commands.Set_branch) branch
 
   module Store = struct
-    let find t key =
-      request t Find
-        (fun t -> arg t Store.Key.t key)
-        (fun args -> Args.next args (Irmin.Type.option Store.contents_t))
+    let find t key = request t (module Commands.Store.Find) key
 
-    let set t ~info key value =
-      request t Set
-        (fun t ->
-          let* () = arg t Store.Key.t key in
-          let* () = arg t Irmin.Info.t (info ()) in
-          arg t Store.Contents.t value)
-        (fun _ -> Lwt.return_ok ())
+    (* let set t ~info key value =
+         request t Set
+           (fun t ->
+             let* () = arg t Store.Key.t key in
+             let* () = arg t Irmin.Info.t (info ()) in
+             arg t Store.Contents.t value)
+           (fun _ -> Lwt.return_ok ())
 
-    let remove t ~info key =
-      request t Set
-        (fun t ->
-          let* () = arg t Store.Key.t key in
-          arg t Irmin.Info.t (info ()))
-        (fun _ -> Lwt.return_ok ())
+       let remove t ~info key =
+         request t Set
+           (fun t ->
+             let* () = arg t Store.Key.t key in
+             arg t Irmin.Info.t (info ()))
+           (fun _ -> Lwt.return_ok ())
 
-    let find_tree t key =
-      request t FindTree
-        (fun t -> arg t Store.Key.t key)
-        (fun args -> Args.next args (Irmin.Type.option Tree.t))
+       let find_tree t key =
+         request t FindTree
+           (fun t -> arg t Store.Key.t key)
+           (fun args -> Args.next args (Irmin.Type.option Tree.t))
 
-    let set_tree t ~info key tree =
-      request t SetTree
-        (fun t ->
-          let* () = arg t Store.Key.t key in
-          let* () = arg t Irmin.Info.t (info ()) in
-          arg t Tree.t tree)
-        (fun args -> Args.next args Tree.t)
+       let set_tree t ~info key tree =
+         request t SetTree
+           (fun t ->
+             let* () = arg t Store.Key.t key in
+             let* () = arg t Irmin.Info.t (info ()) in
+             arg t Tree.t tree)
+           (fun args -> Args.next args Tree.t) *)
   end
 
   module Tree = struct
@@ -120,24 +114,24 @@ module Make (C : Command.S) = struct
 
     include C.Tree
 
-    let empty t =
-      request t EmptyTree
-        (fun _ -> Lwt.return_unit)
-        (fun t -> Args.next t Tree.t)
+    (*let empty t =
+        request t EmptyTree
+          (fun _ -> Lwt.return_unit)
+          (fun t -> Args.next t Tree.t)
 
-    let add t tree key value =
-      request t TreeAdd
-        (fun t ->
-          let* () = arg t Tree.t tree in
-          let* () = arg t St.Key.t key in
-          arg t St.contents_t value)
-        (fun t -> Args.next t Tree.t)
+      let add t tree key value =
+        request t TreeAdd
+          (fun t ->
+            let* () = arg t Tree.t tree in
+            let* () = arg t St.Key.t key in
+            arg t St.contents_t value)
+          (fun t -> Args.next t Tree.t)
 
-    let remove t tree key =
-      request t TreeRemove
-        (fun t ->
-          let* () = arg t Tree.t tree in
-          arg t St.Key.t key)
-        (fun t -> Args.next t Tree.t)
+      let remove t tree key =
+        request t TreeRemove
+          (fun t ->
+            let* () = arg t Tree.t tree in
+            arg t St.Key.t key)
+          (fun t -> Args.next t Tree.t)*)
   end
 end

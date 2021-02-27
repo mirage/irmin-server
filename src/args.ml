@@ -18,9 +18,15 @@ let next t ty =
   if t.index > t.last_index then
     raise_error 0 "ERROR expected argument in Message.next"
   else
-    let+ x = Conn.read_arg t.conn ty in
+    let+ x = Conn.read_message t.conn ty in
     t.index <- t.index + 1;
     x
+  [@@inline]
+
+let write t ty x =
+  let+ x = Conn.write_message t.conn ty x in
+  t.index <- t.index + 1;
+  x
   [@@inline]
 
 let remaining t = t.last_index - t.index [@@inline]

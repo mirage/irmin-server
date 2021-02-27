@@ -1,26 +1,7 @@
-type command =
-  | Ping
-  | SetBranch
-  (* Store *)
-  | Set
-  | Find
-  | Remove
-  | FindTree
-  | SetTree
-  (* Tree *)
-  | EmptyTree
-  | TreeAdd
-  | TreeRemove
-[@@deriving irmin]
-
-type t = command
-
 module type S = sig
   module Store : Irmin_pack_layered.S
 
   module Tree : Tree.S with module Private.Store = Store
-
-  type t = command
 
   type context = {
     conn : Conn.t;
@@ -29,22 +10,61 @@ module type S = sig
     trees : (int, Store.tree) Hashtbl.t;
   }
 
-  type f = Conn.t -> context -> Args.t -> Return.t Lwt.t
+  type f = Conn.t -> context -> Args.t -> unit Lwt.t
 
-  val n_args : command -> int
+  module type CMD = sig
+    type req
 
-  val n_results : command -> int
+    type res
 
-  val commands : (command * (int * int * f)) list
-end
+    val args : int * int
 
-module type Command = sig
-  type t = command
+    val name : string
+
+    module Server : sig
+      val handle : Conn.t -> context -> Args.t -> res Return.t Lwt.t
+    end
+
+    module Client : sig
+      val send : Args.t -> req -> unit Lwt.t
+
+      val recv : Args.t -> res Error.result Lwt.t
+    end
+  end
+
+  type t = (module CMD)
 
   val name : t -> string
 
   val of_name : string -> t
 
+  val n_args : t -> int
+
+  val n_results : t -> int
+
+  val commands : (string * t) list
+
+  module Commands : sig
+    module Ping : CMD with type req = unit and type res = unit
+
+    module Set_branch : CMD with type req = Store.branch and type res = unit
+
+    module Store : sig
+      module Find :
+        CMD with type req = Store.key and type res = Store.contents option
+
+      module Set :
+        CMD
+          with type req = Store.key * Irmin.Info.t * Store.contents
+           and type res = unit
+
+      module Remove :
+        CMD with type req = Store.key * Irmin.Info.t and type res = unit
+    end
+  end
+end
+
+module type Command = sig
   module type S = S
 
   module Make (Store : Irmin_pack_layered.S) : S with module Store = Store

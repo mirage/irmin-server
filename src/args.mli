@@ -8,4 +8,6 @@ val next_raw : t -> bytes Lwt.t
 
 val remaining : t -> int
 
+val write : t -> 'a Irmin.Type.t -> 'a -> unit Lwt.t
+
 val raise_error : t -> string -> 'a

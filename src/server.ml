@@ -1,6 +1,7 @@
 open Lwt.Syntax
 open Lwt.Infix
 include Server_intf
+module C = Command
 
 module Make (X : Command.S) = struct
   module Command = X
@@ -37,20 +38,20 @@ module Make (X : Command.S) = struct
               let* () = Conn.err conn "ERROR unknown command" in
               let* () = Lwt_unix.yield () in
               loop repo conn client
-          | Some (req_args, res_count, cmd) ->
-              if n_args < req_args then
+          | Some (module Cmd : X.CMD) ->
+              if n_args < fst Cmd.args then
                 let* () = Conn.consume conn n_args in
                 let* () =
                   Conn.err conn
                     (Format.sprintf "ERROR expected %d arguments but got %d"
-                       req_args n_args)
+                       (fst Cmd.args) n_args)
                 in
                 loop repo conn client
               else
                 let args = Args.v ~count:n_args conn in
                 let* return =
                   Lwt.catch
-                    (fun () -> cmd conn client args)
+                    (fun () -> Cmd.Server.handle conn client args)
                     (function
                       | Error.Error (a, b) -> raise (Error.Error (a, b))
                       | End_of_file -> raise End_of_file
@@ -59,7 +60,7 @@ module Make (X : Command.S) = struct
                             (Error.Error
                                (Args.remaining args - 1, Printexc.to_string exn)))
                 in
-                let () = Return.check return res_count in
+                let () = Return.check return (snd Cmd.args) in
                 Lwt.return_unit)
         (function
           | Error.Error (remaining, s) ->

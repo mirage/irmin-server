@@ -1,15 +1,15 @@
-type t = { n_items : int; mutable index : int; conn : Conn.t }
+type 'a t = { n_items : int; mutable index : int; conn : Conn.t }
 
-val make : int -> Conn.t -> t Lwt.t
+val make : int -> Conn.t -> 'a t Lwt.t
 
-val ok : Conn.t -> t Lwt.t
+val ok : Conn.t -> unit t Lwt.t
 
-val err : Conn.t -> string -> t Lwt.t
+val err : Conn.t -> string -> Error.t t Lwt.t
 
-val write : 'a Irmin.Type.t -> 'a -> t -> t Lwt.t
+val write : 'a Irmin.Type.t -> 'a -> 'a t -> 'a t Lwt.t
 
-val check : t -> int -> unit
+val check : 'a t -> int -> unit
 
-val v : Conn.t -> 'a Irmin.Type.t -> 'a -> t Lwt.t
+val v : Conn.t -> 'a Irmin.Type.t -> 'a -> 'a t Lwt.t
 
-val flush : t -> unit Lwt.t
+val flush : 'a t -> unit Lwt.t

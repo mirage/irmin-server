@@ -22,7 +22,7 @@ let reporter ?(prefix = "") () =
   { Logs.report }
 
 let () =
-  Logs.set_level (Some Logs.App);
+  Logs.set_level (Some Logs.Debug);
   Logs.set_reporter (reporter ())
 
 let reset_stats () =

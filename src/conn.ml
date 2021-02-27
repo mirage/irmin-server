@@ -8,9 +8,9 @@ type t = {
 
 let v flow ic oc = { flow; ic; oc } [@@inline]
 
-let read_arg t ty = Message.read t.ic ty [@@inline]
+let read_message t ty = Message.read t.ic ty [@@inline]
 
-let write_arg t ty x = Message.write t.oc ty x [@@inline]
+let write_message t ty x = Message.write t.oc ty x [@@inline]
 
 let begin_response t n = Response.Write.header t.oc { n_items = n } [@@inline]
 

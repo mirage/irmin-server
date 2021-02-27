@@ -9,7 +9,7 @@ module type S = sig
 
   val serve : ?http:bool -> t -> unit Lwt.t
 
-  val commands : (Command.t, int * int * Command.f) Hashtbl.t
+  val commands : (string, Command.t) Hashtbl.t
 end
 
 module type Server = sig

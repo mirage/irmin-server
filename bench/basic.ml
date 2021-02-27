@@ -9,7 +9,7 @@ let unwrap = Irmin_server.Error.unwrap
 let rec add client tree n =
   if n = 0 then Lwt.return tree
   else
-    let s = String.make 1024 'A' in
+    let s = String.make 255 'A' in
     let key = [ string_of_int n ] in
     let* tree = Client.Tree.add client tree key s >|= unwrap in
     add client tree (n - 1)
