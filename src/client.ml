@@ -3,17 +3,20 @@ open Lwt.Infix
 include Client_intf
 
 module Make (C : Command.S) = struct
+  module St = C.Store
+  open C
+
   type conf = { host : Ipaddr.t; port : int }
 
   type t = { conf : conf; mutable conn : Conn.t }
 
-  type hash = C.Store.hash
+  type hash = Store.hash
 
-  type contents = C.Store.contents
+  type contents = Store.contents
 
-  type branch = C.Store.branch
+  type branch = Store.branch
 
-  type key = C.Store.key
+  type key = Store.key
 
   let conf ?(host = "127.0.0.1") ~port () =
     let host =
@@ -43,7 +46,7 @@ module Make (C : Command.S) = struct
         | exn -> raise exn)
 
   let send_command_header t command =
-    let n_args = C.n_args command in
+    let n_args = n_args command in
     let header = Request.Header.v ~command ~n_args in
     Request.Write.header t.conn.Conn.oc header
 
@@ -57,7 +60,6 @@ module Make (C : Command.S) = struct
         let* res = Response.Read.header t.conn.ic in
         Response.Read.get_error t.conn.ic res >>= function
         | Some err ->
-            let* () = Conn.consume t.conn res.n_items in
             Logs.debug (fun l ->
                 l "Request error: command=%s, error=%s" name err);
             Lwt.return_error (`Msg err)
@@ -75,28 +77,67 @@ module Make (C : Command.S) = struct
 
   let set_branch t branch =
     request t SetBranch
-      (fun t -> arg t C.Store.Branch.t branch)
+      (fun t -> arg t Store.Branch.t branch)
       (fun _ -> Lwt.return_ok ())
 
   module Store = struct
     let find t key =
       request t Find
-        (fun t -> arg t C.Store.Key.t key)
-        (fun args -> Args.next args (Irmin.Type.option C.Store.contents_t))
+        (fun t -> arg t Store.Key.t key)
+        (fun args -> Args.next args (Irmin.Type.option Store.contents_t))
 
     let set t ~info key value =
       request t Set
         (fun t ->
-          let* () = arg t C.Store.Key.t key in
+          let* () = arg t Store.Key.t key in
           let* () = arg t Irmin.Info.t (info ()) in
-          arg t C.Store.Contents.t value)
+          arg t Store.Contents.t value)
         (fun _ -> Lwt.return_ok ())
 
     let remove t ~info key =
       request t Set
         (fun t ->
-          let* () = arg t C.Store.Key.t key in
+          let* () = arg t Store.Key.t key in
           arg t Irmin.Info.t (info ()))
         (fun _ -> Lwt.return_ok ())
+
+    let find_tree t key =
+      request t FindTree
+        (fun t -> arg t Store.Key.t key)
+        (fun args -> Args.next args (Irmin.Type.option Tree.t))
+
+    let set_tree t ~info key tree =
+      request t SetTree
+        (fun t ->
+          let* () = arg t Store.Key.t key in
+          let* () = arg t Irmin.Info.t (info ()) in
+          arg t Tree.t tree)
+        (fun _ -> Lwt.return_ok ())
+  end
+
+  module Tree = struct
+    type store = t
+
+    include C.Tree
+
+    let empty t =
+      request t EmptyTree
+        (fun _ -> Lwt.return_unit)
+        (fun t -> Args.next t Tree.t)
+
+    let add t tree key value =
+      request t TreeAdd
+        (fun t ->
+          let* () = arg t Tree.t tree in
+          let* () = arg t St.Key.t key in
+          arg t St.contents_t value)
+        (fun t -> Args.next t Tree.t)
+
+    let remove t tree key =
+      request t TreeRemove
+        (fun t ->
+          let* () = arg t Tree.t tree in
+          arg t St.Key.t key)
+        (fun t -> Args.next t Tree.t)
   end
 end

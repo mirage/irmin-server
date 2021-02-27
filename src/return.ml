@@ -30,3 +30,5 @@ let v client ty x =
 let check t c =
   assert ((t.n_items = c && t.index = t.n_items) || t.n_items = -1)
   [@@inline]
+
+let flush t = Lwt_io.flush t.conn.oc

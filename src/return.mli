@@ -11,3 +11,5 @@ val write : 'a Irmin.Type.t -> 'a -> t -> t Lwt.t
 val check : t -> int -> unit
 
 val v : Conn.t -> 'a Irmin.Type.t -> 'a -> t Lwt.t
+
+val flush : t -> unit Lwt.t

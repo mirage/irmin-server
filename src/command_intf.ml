@@ -1,13 +1,33 @@
-type command = Ping | SetBranch | Find | Set | Remove [@@deriving irmin]
+type command =
+  | Ping
+  | SetBranch
+  (* Store *)
+  | Set
+  | Find
+  | Remove
+  | FindTree
+  | SetTree
+  (* Tree *)
+  | EmptyTree
+  | TreeAdd
+  | TreeRemove
+[@@deriving irmin]
 
 type t = command
 
 module type S = sig
   module Store : Irmin.S
 
+  module Tree : Tree.S with module Private.Store = Store
+
   type t = command
 
-  type context = { conn : Conn.t; repo : Store.Repo.t; mutable store : Store.t }
+  type context = {
+    conn : Conn.t;
+    repo : Store.Repo.t;
+    mutable store : Store.t;
+    trees : (int, Store.tree) Hashtbl.t;
+  }
 
   type f = Conn.t -> context -> Args.t -> Return.t Lwt.t
 

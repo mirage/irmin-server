@@ -4,7 +4,7 @@ include Server_intf
 
 module Make (X : Command.S) = struct
   module Command = X
-  module Store = Command.Store
+  module Store = X.Store
 
   type t = {
     ctx : Conduit_lwt_unix.ctx;
@@ -57,7 +57,7 @@ module Make (X : Command.S) = struct
                                (Args.remaining args - 1, Printexc.to_string exn)))
                 in
                 let () = Return.check return res_count in
-                Lwt_io.flush conn.Conn.oc)
+                Lwt.return_unit)
         (function
           | Error.Error (remaining, s) ->
               let* () = Conn.consume conn remaining in
@@ -71,13 +71,15 @@ module Make (X : Command.S) = struct
               let* () = Lwt_io.close conn.ic in
               Lwt_io.printf "EXCEPTION: %s\n" (Printexc.to_string exn))
       >>= fun () ->
+      let* () = Lwt_io.flush conn.Conn.oc in
       let* () = Lwt_unix.yield () in
       loop repo conn client
 
   let callback repo flow ic oc =
     let conn = Conn.v flow ic oc in
     let* store = Store.master repo in
-    let client = Command.{ conn; repo; store } in
+    let trees = Hashtbl.create 8 in
+    let client = Command.{ conn; repo; store; trees } in
     let* check = Handshake.V1.check ic in
     if not check then
       let* () = Conn.err conn "ERROR invalid handshake" in
