@@ -9,16 +9,9 @@ let unwrap = Irmin_server.Error.unwrap
 let rec add client tree n =
   if n = 0 then Lwt.return tree
   else
-    (*print_endline "AAA";*)
     let s = String.make 1024 'A' in
-
-    (*print_endline "BBB";*)
     let key = [ string_of_int n ] in
-
-    (*print_endline "CCC";*)
     let* tree = Client.Tree.add client tree key s >|= unwrap in
-
-    (*print_endline "DDD";*)
     add client tree (n - 1)
 
 let rpc count =
