@@ -24,9 +24,12 @@ let next t ty =
   [@@inline]
 
 let write t ty x =
-  let+ x = Conn.write_message t.conn ty x in
-  t.index <- t.index + 1;
-  x
+  if t.index > t.last_index then
+    raise_error 0 "too many arguments in Message.write"
+  else
+    let+ x = Conn.write_message t.conn ty x in
+    t.index <- t.index + 1;
+    x
   [@@inline]
 
 let remaining t = t.last_index - t.index [@@inline]
