@@ -35,6 +35,7 @@ module Make (X : Command.S) = struct
           match Hashtbl.find_opt commands command with
           | None ->
               let* () = Conn.err conn "ERROR unknown command" in
+              let* () = Lwt_unix.yield () in
               loop repo conn client
           | Some (req_args, res_count, cmd) ->
               if n_args < req_args then
@@ -52,6 +53,7 @@ module Make (X : Command.S) = struct
                     (fun () -> cmd conn client args)
                     (function
                       | Error.Error (a, b) -> raise (Error.Error (a, b))
+                      | End_of_file -> raise End_of_file
                       | exn ->
                           raise
                             (Error.Error
@@ -63,14 +65,14 @@ module Make (X : Command.S) = struct
           | Error.Error (remaining, s) ->
               let* () = Conn.consume conn remaining in
               let* () = Conn.err conn s in
-              let* () = Lwt_unix.sleep 0.1 in
-              loop repo conn client
+              Lwt_unix.sleep 0.01
           | End_of_file ->
               let* () = Lwt_io.close conn.ic in
               Lwt.return_unit
           | exn ->
               let* () = Lwt_io.close conn.ic in
-              Lwt_io.printf "EXCEPTION: %s\n" (Printexc.to_string exn))
+              Logs.err (fun l -> l "Exception: %s" (Printexc.to_string exn));
+              Lwt.return_unit)
       >>= fun () ->
       let* () = Lwt_io.flush conn.Conn.oc in
       let* () = Lwt_unix.yield () in
