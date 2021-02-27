@@ -29,25 +29,25 @@ module type S = sig
          and type Private.Store.branch = branch
          and type Private.Store.key = key
 
-    (*val empty : store -> t Error.result Lwt.t
+    val empty : store -> t Error.result Lwt.t
 
-      val add : store -> t -> key -> contents -> t Error.result Lwt.t
+    val add : store -> t -> key -> contents -> t Error.result Lwt.t
 
-      val remove : store -> t -> key -> t Error.result Lwt.t*)
+    val remove : store -> t -> key -> t Error.result Lwt.t
   end
 
   module Store : sig
     val find : t -> key -> contents option Error.result Lwt.t
 
-    (*val find_tree : t -> key -> Tree.t option Error.result Lwt.t
+    val find_tree : t -> key -> Tree.t option Error.result Lwt.t
 
-      val set :
-        t -> info:Irmin.Info.f -> key -> contents -> unit Error.result Lwt.t
+    val set :
+      t -> info:Irmin.Info.f -> key -> contents -> unit Error.result Lwt.t
 
-      val remove : t -> info:Irmin.Info.f -> key -> unit Error.result Lwt.t
+    val remove : t -> info:Irmin.Info.f -> key -> unit Error.result Lwt.t
 
-      val set_tree :
-        t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t*)
+    val set_tree :
+      t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
   end
 end
 

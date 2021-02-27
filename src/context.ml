@@ -1,3 +1,6 @@
+open Lwt.Syntax
+open Lwt.Infix
+
 module Make (St : Irmin_pack_layered.S) = struct
   type context = {
     conn : Conn.t;
@@ -27,4 +30,20 @@ module Make (St : Irmin_pack_layered.S) = struct
       val recv : Args.t -> res Error.result Lwt.t
     end
   end
+
+  let cmd (module C : CMD) = (C.name, (module C : CMD))
+
+  module Tree = Tree.Make (St)
+
+  let resolve_tree ctx tree =
+    let* id, tree =
+      match tree with
+      | Tree.ID x -> Lwt.return @@ (x, Hashtbl.find_opt ctx.trees x)
+      | Hash x ->
+          St.Tree.of_hash ctx.repo (`Node x) >|= fun x -> (Random.bits (), x)
+      | Local x -> Lwt.return (Random.bits (), Some x)
+    in
+    match tree with
+    | Some t -> Lwt.return (id, t)
+    | None -> Error.raise_error 0 "ERROR unknown tree"
 end

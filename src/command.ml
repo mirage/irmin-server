@@ -3,7 +3,6 @@ open Lwt.Infix
 include Command_intf
 
 module Make (St : Irmin_pack_layered.S) = struct
-  module Tree = Tree.Make (St)
   module Store = St
   include Context.Make (St)
 
@@ -55,13 +54,13 @@ module Make (St : Irmin_pack_layered.S) = struct
     end
 
     module Store = Command_store.Make (St)
+    module Tree = Command_tree.Make (St)
   end
-
-  let cmd (module C : CMD) = (C.name, (module C : CMD))
 
   let commands : (string * (module CMD)) list =
     let open Commands in
-    [ cmd (module Ping); cmd (module Set_branch); cmd (module Store.Find) ]
+    [ cmd (module Ping); cmd (module Set_branch) ]
+    @ Store.commands @ Tree.commands
 
   let of_name name = List.assoc name commands
 
@@ -69,19 +68,6 @@ module Make (St : Irmin_pack_layered.S) = struct
 
   (*module X = struct
       module XTree = struct
-        let resolve ctx tree =
-          let* id, tree =
-            match tree with
-            | Tree.ID x -> Lwt.return @@ (x, Hashtbl.find_opt ctx.trees x)
-            | Hash x ->
-                Store.Tree.of_hash ctx.repo (`Node x) >|= fun x ->
-                (Random.bits (), x)
-            | Local x -> Lwt.return (Random.bits (), Some x)
-          in
-          match tree with
-          | Some t -> Lwt.return (id, t)
-          | None -> Error.raise_error 0 "ERROR unknown tree"
-
         let empty conn ctx _args =
           let empty = St.Tree.empty in
           let id = Random.bits () in
@@ -106,36 +92,6 @@ module Make (St : Irmin_pack_layered.S) = struct
           Return.v conn Tree.t (ID id)
       end
 
-      module XStore = struct
-        let find_tree conn ctx args =
-          let* key = Args.next args Store.Key.t >|= Error.unwrap in
-          let* tree = Store.find_tree ctx.store key in
-          let hash =
-            Option.map
-              (fun x ->
-                let hash = Store.Tree.hash x in
-                Tree.Hash hash)
-              tree
-          in
-          Return.v conn (Irmin.Type.option Tree.t) hash
-
-        let set_tree conn ctx args =
-          let* key = Args.next args Store.Key.t >|= Error.unwrap in
-          let* info = Args.next args Irmin.Info.t >|= Error.unwrap in
-          let* tree = Args.next args Tree.t >|= Error.unwrap in
-          let* id, tree = XTree.resolve ctx tree in
-          Logs.debug (fun l -> l "Begin setting tree");
-          let* () = Store.freeze ~squash:true ctx.repo in
-          let* () =
-            Store.set_tree_exn ctx.store key tree ~info:(fun () -> info)
-          in
-          Logs.debug (fun l -> l "Done setting tree");
-          Hashtbl.remove ctx.trees id;
-          let hash = Store.Tree.hash tree in
-          Return.v conn Tree.t (Hash hash)
-      end
-
-      module Store = XStore
       module Tree = XTree
     end*)
 
@@ -144,12 +100,6 @@ module Make (St : Irmin_pack_layered.S) = struct
     let commands =
       let open X in
       [
-        cmd Ping 0 0 ping;
-        cmd SetBranch 1 0 set_branch;
-        (* Store *)
-        cmd Find 1 1 Store.find;
-        cmd Set 3 0 Store.set;
-        cmd Remove 2 0 Store.remove;
         cmd FindTree 1 1 Store.find_tree;
         cmd SetTree 3 1 Store.set_tree;
         (* Tree *)

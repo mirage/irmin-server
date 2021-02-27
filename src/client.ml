@@ -80,33 +80,16 @@ module Make (C : Command.S) = struct
   module Store = struct
     let find t key = request t (module Commands.Store.Find) key
 
-    (* let set t ~info key value =
-         request t Set
-           (fun t ->
-             let* () = arg t Store.Key.t key in
-             let* () = arg t Irmin.Info.t (info ()) in
-             arg t Store.Contents.t value)
-           (fun _ -> Lwt.return_ok ())
+    let set t ~info key value =
+      request t (module Commands.Store.Set) (key, info (), value)
 
-       let remove t ~info key =
-         request t Set
-           (fun t ->
-             let* () = arg t Store.Key.t key in
-             arg t Irmin.Info.t (info ()))
-           (fun _ -> Lwt.return_ok ())
+    let remove t ~info key =
+      request t (module Commands.Store.Remove) (key, info ())
 
-       let find_tree t key =
-         request t FindTree
-           (fun t -> arg t Store.Key.t key)
-           (fun args -> Args.next args (Irmin.Type.option Tree.t))
+    let find_tree t key = request t (module Commands.Store.Find_tree) key
 
-       let set_tree t ~info key tree =
-         request t SetTree
-           (fun t ->
-             let* () = arg t Store.Key.t key in
-             let* () = arg t Irmin.Info.t (info ()) in
-             arg t Tree.t tree)
-           (fun args -> Args.next args Tree.t) *)
+    let set_tree t ~info key tree =
+      request t (module Commands.Store.Set_tree) (key, info (), tree)
   end
 
   module Tree = struct
@@ -114,24 +97,11 @@ module Make (C : Command.S) = struct
 
     include C.Tree
 
-    (*let empty t =
-        request t EmptyTree
-          (fun _ -> Lwt.return_unit)
-          (fun t -> Args.next t Tree.t)
+    let empty t = request t (module Commands.Tree.Empty) ()
 
-      let add t tree key value =
-        request t TreeAdd
-          (fun t ->
-            let* () = arg t Tree.t tree in
-            let* () = arg t St.Key.t key in
-            arg t St.contents_t value)
-          (fun t -> Args.next t Tree.t)
+    let add t tree key value =
+      request t (module Commands.Tree.Add) (tree, key, value)
 
-      let remove t tree key =
-        request t TreeRemove
-          (fun t ->
-            let* () = arg t Tree.t tree in
-            arg t St.Key.t key)
-          (fun t -> Args.next t Tree.t)*)
+    let remove t tree key = request t (module Commands.Tree.Remove) (tree, key)
   end
 end

@@ -60,6 +60,29 @@ module type S = sig
 
       module Remove :
         CMD with type req = Store.key * Irmin.Info.t and type res = unit
+
+      module Find_tree :
+        CMD with type req = Store.key and type res = Tree.t option
+
+      module Set_tree :
+        CMD
+          with type req = Store.key * Irmin.Info.t * Tree.t
+           and type res = Tree.t
+    end
+
+    module Tree : sig
+      module Empty : CMD with type req = unit and type res = Tree.t
+
+      module Add :
+        CMD
+          with type req =
+                Tree.t * Tree.Private.Store.key * Tree.Private.Store.contents
+           and type res = Tree.t
+
+      module Remove :
+        CMD
+          with type req = Tree.t * Tree.Private.Store.key
+           and type res = Tree.t
     end
   end
 end
