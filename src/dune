@@ -1,5 +1,5 @@
 (library
  (name irmin_server)
  (public_name irmin-server)
- (libraries irmin-unix)
+ (libraries irmin-unix irmin-pack.layered)
  (preprocess (pps ppx_irmin)))

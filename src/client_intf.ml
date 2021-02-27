@@ -47,7 +47,7 @@ module type S = sig
     val remove : t -> info:Irmin.Info.f -> key -> unit Error.result Lwt.t
 
     val set_tree :
-      t -> info:Irmin.Info.f -> key -> Tree.t -> unit Error.result Lwt.t
+      t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
   end
 end
 

@@ -1,5 +1,5 @@
 module type S = sig
-  module Store : Irmin.S with type key = string list
+  module Store : Irmin_pack_layered.S with type key = string list
 
   module Command : Command.S with module Store = Store
 

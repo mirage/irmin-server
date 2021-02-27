@@ -27,5 +27,5 @@ let read_raw ic =
 
 let read ic t =
   let+ buf = read_raw ic in
-  decode t (Bytes.unsafe_to_string buf)
+  decode t (Bytes.to_string buf)
   [@@inline]

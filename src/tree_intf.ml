@@ -1,6 +1,6 @@
 module type S = sig
   module Private : sig
-    module Store : Irmin.S
+    module Store : Irmin_pack_layered.S
   end
 
   open Private
@@ -50,6 +50,6 @@ end
 module type Tree = sig
   module type S = S
 
-  module Make (S : Irmin.S) :
+  module Make (S : Irmin_pack_layered.S) :
     S with module Private.Store = S and type Local.t = S.tree
 end

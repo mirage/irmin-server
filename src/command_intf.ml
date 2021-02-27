@@ -16,7 +16,7 @@ type command =
 type t = command
 
 module type S = sig
-  module Store : Irmin.S
+  module Store : Irmin_pack_layered.S
 
   module Tree : Tree.S with module Private.Store = Store
 
@@ -47,5 +47,5 @@ module type Command = sig
 
   module type S = S
 
-  module Make (Store : Irmin.S) : S with module Store = Store
+  module Make (Store : Irmin_pack_layered.S) : S with module Store = Store
 end

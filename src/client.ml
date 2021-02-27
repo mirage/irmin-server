@@ -112,7 +112,7 @@ module Make (C : Command.S) = struct
           let* () = arg t Store.Key.t key in
           let* () = arg t Irmin.Info.t (info ()) in
           arg t Tree.t tree)
-        (fun _ -> Lwt.return_ok ())
+        (fun args -> Args.next args Tree.t)
   end
 
   module Tree = struct

@@ -14,8 +14,9 @@ module Make (X : Command.S) = struct
     repo : Store.Repo.t;
   }
 
-  let v ?(ctx = Conduit_lwt_unix.default_ctx) ~port config =
+  let v ?(ctx = Conduit_lwt_unix.default_ctx) ~port conf =
     let server = `TCP (`Port port) in
+    let config = Irmin_pack_layered.config ~conf ~with_lower:true () in
     let+ repo = Store.Repo.v config in
     { ctx; server; config; repo; port }
 
@@ -88,8 +89,9 @@ module Make (X : Command.S) = struct
 
   let on_exn x = raise x
 
-  let http_server (type x) (module Store : Irmin.S with type repo = x)
-      (_repo : x) _conn _req body =
+  let http_server (type x)
+      (module Store : Irmin_pack_layered.S with type repo = x) (_repo : x) _conn
+      _req body =
     Cohttp_lwt.Body.drain_body body >>= fun () ->
     Cohttp_lwt_unix.Server.respond_string ~body:"OK" ~status:`OK ()
 

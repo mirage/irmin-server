@@ -29,7 +29,7 @@ let reset_stats () =
   Index.Stats.reset_stats ();
   Irmin_pack.Stats.reset_stats ()
 
-let random_char () = char_of_int (40 + Random.int 65)
+let random_char () = char_of_int (Random.int 255)
 
 let random_string n = String.init n (fun _i -> random_char ())
 

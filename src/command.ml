@@ -10,7 +10,7 @@ let name x =
   if String.length s < 2 then invalid_arg "invalid command name"
   else String.sub s 1 (String.length s - 2)
 
-module Make (St : Irmin.S) = struct
+module Make (St : Irmin_pack_layered.S) = struct
   type t = command
 
   module Tree = Tree.Make (St)
@@ -38,29 +38,15 @@ module Make (St : Irmin.S) = struct
       let resolve ctx tree =
         let* id, tree =
           match tree with
-          | Tree.ID x -> Lwt.return @@ (Some x, Hashtbl.find_opt ctx.trees x)
+          | Tree.ID x -> Lwt.return @@ (x, Hashtbl.find_opt ctx.trees x)
           | Hash x ->
-              Store.Tree.of_hash ctx.repo (`Node x) >|= fun x -> (None, x)
-          | Local x -> Lwt.return (None, Some x)
+              Store.Tree.of_hash ctx.repo (`Node x) >|= fun x ->
+              (Random.bits (), x)
+          | Local x -> Lwt.return (Random.bits (), Some x)
         in
         match tree with
         | Some t -> Lwt.return (id, t)
         | None -> Error.raise_error 0 "ERROR unknown tree"
-
-      let return_tree conn ctx id tree =
-        let hash = Store.Tree.hash tree in
-        Store.Tree.of_hash ctx.repo (`Node hash) >>= fun x ->
-        match (x, id) with
-        | Some _, id ->
-            Option.iter (Hashtbl.remove ctx.trees) id;
-            Return.v conn Tree.t (Hash hash)
-        | None, Some id ->
-            Hashtbl.replace ctx.trees id tree;
-            Return.v conn Tree.t (ID id)
-        | None, None ->
-            let id = Random.bits () in
-            Hashtbl.replace ctx.trees id tree;
-            Return.v conn Tree.t (ID id)
 
       let empty conn ctx _args =
         let empty = St.Tree.empty in
@@ -74,14 +60,16 @@ module Make (St : Irmin.S) = struct
         let* value = Args.next args Store.contents_t >|= Error.unwrap in
         let* id, tree = resolve ctx tree in
         let* tree = Store.Tree.add tree key value in
-        return_tree conn ctx id tree
+        Hashtbl.replace ctx.trees id tree;
+        Return.v conn Tree.t (ID id)
 
       let remove conn ctx args =
         let* tree = Args.next args Tree.t >|= Error.unwrap in
         let* key = Args.next args Store.Key.t >|= Error.unwrap in
         let* id, tree = resolve ctx tree in
         let* tree = Store.Tree.remove tree key in
-        return_tree conn ctx id tree
+        Hashtbl.replace ctx.trees id tree;
+        Return.v conn Tree.t (ID id)
     end
 
     module XStore = struct
@@ -107,7 +95,13 @@ module Make (St : Irmin.S) = struct
       let find_tree conn ctx args =
         let* key = Args.next args Store.Key.t >|= Error.unwrap in
         let* tree = Store.find_tree ctx.store key in
-        let hash = Option.map (fun x -> Tree.Hash (Store.Tree.hash x)) tree in
+        let hash =
+          Option.map
+            (fun x ->
+              let hash = Store.Tree.hash x in
+              Tree.Hash hash)
+            tree
+        in
         Return.v conn (Irmin.Type.option Tree.t) hash
 
       let set_tree conn ctx args =
@@ -115,11 +109,15 @@ module Make (St : Irmin.S) = struct
         let* info = Args.next args Irmin.Info.t >|= Error.unwrap in
         let* tree = Args.next args Tree.t >|= Error.unwrap in
         let* id, tree = XTree.resolve ctx tree in
+        Logs.debug (fun l -> l "Begin setting tree");
+        let* () = Store.freeze ~squash:true ctx.repo in
         let* () =
           Store.set_tree_exn ctx.store key tree ~info:(fun () -> info)
         in
-        Option.iter (Hashtbl.remove ctx.trees) id;
-        Return.ok conn
+        Logs.debug (fun l -> l "Done setting tree");
+        Hashtbl.remove ctx.trees id;
+        let hash = Store.Tree.hash tree in
+        Return.v conn Tree.t (Hash hash)
     end
 
     module Store = XStore
@@ -138,7 +136,7 @@ module Make (St : Irmin.S) = struct
       cmd Set 3 0 Store.set;
       cmd Remove 2 0 Store.remove;
       cmd FindTree 1 1 Store.find_tree;
-      cmd SetTree 3 0 Store.set_tree;
+      cmd SetTree 3 1 Store.set_tree;
       (* Tree *)
       cmd TreeAdd 3 1 Tree.add;
       cmd TreeRemove 2 1 Tree.remove;
