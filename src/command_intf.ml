@@ -22,7 +22,9 @@ module type S = sig
     val name : string
 
     module Server : sig
-      val handle : Conn.t -> context -> Args.t -> res Return.t Lwt.t
+      val recv : context -> Args.t -> req Error.result Lwt.t
+
+      val handle : Conn.t -> context -> req -> res Return.t Lwt.t
     end
 
     module Client : sig

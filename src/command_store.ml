@@ -14,8 +14,9 @@ module Make (Store : Irmin_pack_layered.S) = struct
     let name = "store.find"
 
     module Server = struct
-      let handle conn ctx args =
-        let* key = Args.next args Store.Key.t >|= Error.unwrap in
+      let recv _ctx args = Args.next args Store.Key.t
+
+      let handle conn ctx key =
         let* x = Store.find ctx.store key in
         Return.v conn (Irmin.Type.option Store.contents_t) x
     end
@@ -37,10 +38,19 @@ module Make (Store : Irmin_pack_layered.S) = struct
     let name = "store.set"
 
     module Server = struct
-      let handle conn ctx args =
-        let* key = Args.next args Store.Key.t >|= Error.unwrap in
-        let* info = Args.next args Irmin.Info.t >|= Error.unwrap in
-        let* contents = Args.next args Store.Contents.t >|= Error.unwrap in
+      let recv _ctx args =
+        let* key =
+          Args.next args Store.Key.t >|= Error.unwrap "store.set key"
+        in
+        let* info =
+          Args.next args Irmin.Info.t >|= Error.unwrap "store.set info"
+        in
+        let* contents =
+          Args.next args Store.Contents.t >|= Error.unwrap "store.set contents"
+        in
+        Lwt.return_ok (key, info, contents)
+
+      let handle conn ctx (key, info, contents) =
         let* () = Store.set_exn ctx.store key ~info:(fun () -> info) contents in
         Return.ok conn
     end
@@ -65,9 +75,16 @@ module Make (Store : Irmin_pack_layered.S) = struct
     let name = "store.remove"
 
     module Server = struct
-      let handle conn ctx args =
-        let* key = Args.next args Store.Key.t >|= Error.unwrap in
-        let* info = Args.next args Irmin.Info.t >|= Error.unwrap in
+      let recv _ctx args =
+        let* key =
+          Args.next args Store.Key.t >|= Error.unwrap "store.remove key"
+        in
+        let* info =
+          Args.next args Irmin.Info.t >|= Error.unwrap "store.remove info"
+        in
+        Lwt.return_ok (key, info)
+
+      let handle conn ctx (key, info) =
         let* () = Store.remove_exn ctx.store key ~info:(fun () -> info) in
         Return.ok conn
     end
@@ -91,8 +108,9 @@ module Make (Store : Irmin_pack_layered.S) = struct
     let name = "store.find_tree"
 
     module Server = struct
-      let handle conn ctx args =
-        let* key = Args.next args Store.Key.t >|= Error.unwrap in
+      let recv _ctx args = Args.next args Store.Key.t
+
+      let handle conn ctx key =
         let* x = Store.find_tree ctx.store key in
         let x = Option.map (fun x -> Tree.Hash (Store.Tree.hash x)) x in
         Return.v conn (Irmin.Type.option Tree.t) x
@@ -115,10 +133,19 @@ module Make (Store : Irmin_pack_layered.S) = struct
     let name = "store.set_tree"
 
     module Server = struct
-      let handle conn ctx args =
-        let* key = Args.next args Store.Key.t >|= Error.unwrap in
-        let* info = Args.next args Irmin.Info.t >|= Error.unwrap in
-        let* tree = Args.next args Tree.t >|= Error.unwrap in
+      let recv _ctx args =
+        let* key =
+          Args.next args Store.Key.t >|= Error.unwrap "store.set_tree key"
+        in
+        let* info =
+          Args.next args Irmin.Info.t >|= Error.unwrap "store.set_tree info"
+        in
+        let* tree =
+          Args.next args Tree.t >|= Error.unwrap "store.set_tree tree"
+        in
+        Lwt.return_ok (key, info, tree)
+
+      let handle conn ctx (key, info, tree) =
         let* id, tree = resolve_tree ctx tree in
         let* () =
           Store.set_tree_exn ctx.store key ~info:(fun () -> info) tree

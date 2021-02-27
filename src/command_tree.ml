@@ -4,17 +4,6 @@ open Lwt.Infix
 module Make (Store : Irmin_pack_layered.S) = struct
   include Context.Make (Store)
 
-  (*
-
-
-    let remove conn ctx args =
-      let* tree = Args.next args Tree.t >|= Error.unwrap in
-      let* key = Args.next args Store.Key.t >|= Error.unwrap in
-      let* id, tree = resolve ctx tree in
-      let* tree = Store.Tree.remove tree key in
-      Hashtbl.replace ctx.trees id tree;
-      Return.v conn Tree.t (ID id)*)
-
   module Empty = struct
     type req = unit
 
@@ -25,7 +14,9 @@ module Make (Store : Irmin_pack_layered.S) = struct
     let args = (0, 1)
 
     module Server = struct
-      let handle conn ctx _args =
+      let recv _ctx _args = Lwt.return_ok ()
+
+      let handle conn ctx () =
         let empty = Store.Tree.empty in
         let id = Random.bits () in
         Hashtbl.replace ctx.trees id empty;
@@ -49,10 +40,15 @@ module Make (Store : Irmin_pack_layered.S) = struct
     let args = (3, 1)
 
     module Server = struct
-      let handle conn ctx args =
-        let* tree = Args.next args Tree.t >|= Error.unwrap in
-        let* key = Args.next args Store.key_t >|= Error.unwrap in
-        let* value = Args.next args Store.contents_t >|= Error.unwrap in
+      let recv _ctx args =
+        let* tree = Args.next args Tree.t >|= Error.unwrap "tree.add tree" in
+        let* key = Args.next args Store.key_t >|= Error.unwrap "tree.add key" in
+        let* value =
+          Args.next args Store.contents_t >|= Error.unwrap "tree.add value"
+        in
+        Lwt.return_ok (tree, key, value)
+
+      let handle conn ctx (tree, key, value) =
         let* id, tree = resolve_tree ctx tree in
         let* tree = Store.Tree.add tree key value in
         Hashtbl.replace ctx.trees id tree;
@@ -79,9 +75,14 @@ module Make (Store : Irmin_pack_layered.S) = struct
     let args = (2, 1)
 
     module Server = struct
-      let handle conn ctx args =
-        let* tree = Args.next args Tree.t >|= Error.unwrap in
-        let* key = Args.next args Store.key_t >|= Error.unwrap in
+      let recv _ctx args =
+        let* tree = Args.next args Tree.t >|= Error.unwrap "tree.remove tree" in
+        let* key =
+          Args.next args Store.key_t >|= Error.unwrap "tree.remove key"
+        in
+        Lwt.return_ok (tree, key)
+
+      let handle conn ctx (tree, key) =
         let* id, tree = resolve_tree ctx tree in
         let* tree = Store.Tree.remove tree key in
         Hashtbl.replace ctx.trees id tree;

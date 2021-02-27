@@ -7,7 +7,7 @@ let v ~count conn = { last_index = count; index = 0; conn } [@@inline]
 
 let next_raw t =
   if t.index > t.last_index then
-    raise_error 0 "ERROR expected argument in Message.next_raw"
+    raise_error 0 "expected argument in Message.next_raw"
   else
     let+ x = Message.read_raw t.conn.ic in
     t.index <- t.index + 1;
@@ -16,7 +16,7 @@ let next_raw t =
 
 let next t ty =
   if t.index > t.last_index then
-    raise_error 0 "ERROR expected argument in Message.next"
+    raise_error 0 "expected argument in Message.next"
   else
     let+ x = Conn.read_message t.conn ty in
     t.index <- t.index + 1;

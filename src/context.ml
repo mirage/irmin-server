@@ -21,7 +21,9 @@ module Make (St : Irmin_pack_layered.S) = struct
     val name : string
 
     module Server : sig
-      val handle : Conn.t -> context -> Args.t -> res Return.t Lwt.t
+      val recv : context -> Args.t -> req Error.result Lwt.t
+
+      val handle : Conn.t -> context -> req -> res Return.t Lwt.t
     end
 
     module Client : sig
@@ -45,5 +47,5 @@ module Make (St : Irmin_pack_layered.S) = struct
     in
     match tree with
     | Some t -> Lwt.return (id, t)
-    | None -> Error.raise_error 0 "ERROR unknown tree"
+    | None -> Error.raise_error 0 "unknown tree"
 end

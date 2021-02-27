@@ -18,6 +18,7 @@ let ok t = begin_response t 0 [@@inline]
 
 let err t msg =
   let header = Response.Header.v ~n_items:(-1) in
+  let msg = "ERROR " ^ msg in
   let* () = Response.Write.header t.oc header in
   Message.write t.oc Irmin.Type.string msg
 

@@ -9,16 +9,16 @@ let unwrap = Irmin_server.Error.unwrap
 let rec add client tree n =
   if n = 0 then Lwt.return tree
   else
-    let s = String.make 255 'A' in
+    let s = String.make 1024 'A' in
     let key = [ string_of_int n ] in
-    let* tree = Client.Tree.add client tree key s >|= unwrap in
+    let* tree = Client.Tree.add client tree key s >|= unwrap "add" in
     add client tree (n - 1)
 
 let rpc count =
   let+ n, () =
     let conf = Rpc.Client.conf ~port:8888 () in
     let* client = Client.connect conf in
-    let* tree = Client.Tree.empty client >|= unwrap in
+    let* tree = Client.Tree.empty client >|= unwrap "rpc" in
 
     with_timer (fun () ->
         Logs.app (fun l -> l "Adding items to tree ");
@@ -28,7 +28,7 @@ let rpc count =
         let* _ =
           Client.Store.set_tree client ~info:(Irmin_unix.info "test") [ "a" ]
             tree
-          >|= unwrap
+          >|= unwrap "set_tree"
         in
 
         Logs.app (fun l -> l "Done setting tree");

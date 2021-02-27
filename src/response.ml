@@ -25,7 +25,7 @@ module Read = struct
   let get_error t header =
     if is_error header then (
       let* x = Message.read t Irmin.Type.string in
-      let x = Result.value ~default:"ERROR" x in
+      let x = Result.value ~default:"Unknown error" x in
       Logs.debug (fun l -> l "Error response message: %s" x);
       Lwt.return_some x)
     else Lwt.return_none

@@ -35,7 +35,7 @@ module Make (X : Command.S) = struct
           in
           match Hashtbl.find_opt commands command with
           | None ->
-              let* () = Conn.err conn "ERROR unknown command" in
+              let* () = Conn.err conn "unknown command" in
               let* () = Lwt_unix.yield () in
               loop repo conn client
           | Some (module Cmd : X.CMD) ->
@@ -43,7 +43,7 @@ module Make (X : Command.S) = struct
                 let* () = Conn.consume conn n_args in
                 let* () =
                   Conn.err conn
-                    (Format.sprintf "ERROR expected %d arguments but got %d"
+                    (Format.sprintf "expected %d arguments but got %d"
                        (fst Cmd.args) n_args)
                 in
                 loop repo conn client
@@ -51,7 +51,12 @@ module Make (X : Command.S) = struct
                 let args = Args.v ~count:n_args conn in
                 let* return =
                   Lwt.catch
-                    (fun () -> Cmd.Server.handle conn client args)
+                    (fun () ->
+                      let* args =
+                        Cmd.Server.recv client args
+                        >|= Error.unwrap "Invalid arguments"
+                      in
+                      Cmd.Server.handle conn client args)
                     (function
                       | Error.Error (a, b) -> raise (Error.Error (a, b))
                       | End_of_file -> raise End_of_file
@@ -86,7 +91,7 @@ module Make (X : Command.S) = struct
     let client = Command.{ conn; repo; store; trees } in
     let* check = Handshake.V1.check ic in
     if not check then
-      let* () = Conn.err conn "ERROR invalid handshake" in
+      let* () = Conn.err conn "invalid handshake" in
       Lwt_io.close ic
     else loop repo conn client
 

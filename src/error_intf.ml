@@ -19,5 +19,5 @@ module type Error = sig
 
   val raise_error : int -> string -> 'a
 
-  val unwrap : 'a result -> 'a
+  val unwrap : string -> 'a result -> 'a
 end
