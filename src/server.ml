@@ -48,7 +48,7 @@ module Make (X : Command.S) = struct
                 in
                 loop repo conn client
               else
-                let args = Args.v ~count:n_args conn in
+                let args = Args.v ~mode:`Read ~count:n_args conn in
                 let* return =
                   Lwt.catch
                     (fun () ->

@@ -1,9 +1,11 @@
 open Error
 open Lwt.Syntax
 
-type t = { last_index : int; mutable index : int; conn : Conn.t }
+type 'a t = { last_index : int; mutable index : int; conn : Conn.t; mode : 'a }
 
-let v ~count conn = { last_index = count; index = 0; conn } [@@inline]
+let v ~mode ~count conn =
+  { last_index = count; index = 0; conn; mode }
+  [@@inline]
 
 let next_raw t =
   if t.index > t.last_index then

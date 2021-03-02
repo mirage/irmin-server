@@ -56,7 +56,7 @@ module Make (C : Command.S) = struct
     Logs.debug (fun l -> l "Starting request: command=%s" name);
     handle_disconnect t (fun () ->
         let* () = send_command_header t (module Cmd) in
-        let args = Args.v ~count:(fst Cmd.args) t.conn in
+        let args = Args.v ~mode:`Write ~count:(fst Cmd.args) t.conn in
         let* () = Cmd.Client.send args a in
         let* () = Lwt_io.flush t.conn.oc in
         let* res = Response.Read.header t.conn.ic in
@@ -66,7 +66,7 @@ module Make (C : Command.S) = struct
                 l "Request error: command=%s, error=%s" name err);
             Lwt.return_error (`Msg err)
         | None ->
-            let args = Args.v ~count:res.n_items t.conn in
+            let args = Args.v ~mode:`Read ~count:res.n_items t.conn in
             let+ x = Cmd.Client.recv args in
             assert (Args.remaining args = 0);
             Logs.debug (fun l -> l "Completed request: command=%s" name);

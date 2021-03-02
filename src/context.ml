@@ -9,7 +9,7 @@ module Make (St : Irmin_pack_layered.S) = struct
     trees : (int, St.tree) Hashtbl.t;
   }
 
-  type f = Conn.t -> context -> Args.t -> unit Lwt.t
+  type f = Conn.t -> context -> [ `Read ] Args.t -> unit Lwt.t
 
   module type CMD = sig
     type req
@@ -21,15 +21,15 @@ module Make (St : Irmin_pack_layered.S) = struct
     val name : string
 
     module Server : sig
-      val recv : context -> Args.t -> req Error.result Lwt.t
+      val recv : context -> [ `Read ] Args.t -> req Error.result Lwt.t
 
       val handle : Conn.t -> context -> req -> res Return.t Lwt.t
     end
 
     module Client : sig
-      val send : Args.t -> req -> unit Lwt.t
+      val send : [ `Write ] Args.t -> req -> unit Lwt.t
 
-      val recv : Args.t -> res Error.result Lwt.t
+      val recv : [ `Read ] Args.t -> res Error.result Lwt.t
     end
   end
 
