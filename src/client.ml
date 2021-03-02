@@ -6,15 +6,7 @@ module Make (C : Command.S) = struct
   module St = C.Store
   open C
 
-  type conf = {
-    ip : Ipaddr.t;
-    addr : string;
-    port : int;
-    unix_socket : string option;
-    tls : bool;
-  }
-
-  type t = { conf : conf; mutable conn : Conn.t }
+  type t = { client : Conduit_lwt_unix.client; mutable conn : Conn.t }
 
   type hash = Store.hash
 
@@ -24,27 +16,34 @@ module Make (C : Command.S) = struct
 
   type key = Store.key
 
-  let conf ?(addr = "127.0.0.1") ?(port = 0) ?unix_socket ?(tls = false) () =
+  type conf = Conduit_lwt_unix.client
+
+  let conf ?(tls = false) ~uri () =
+    let uri = Uri.of_string uri in
+    let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
+    let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
     let domain = Domain_name.of_string_exn addr in
     let ip =
       Ipaddr.of_domain_name domain
       |> Option.value ~default:(Ipaddr.of_string_exn addr)
     in
-    { addr; ip; port; unix_socket; tls }
-
-  let connect conf =
-    let ctx = Conduit_lwt_unix.default_ctx in
-    let c =
-      match conf.unix_socket with
-      | Some x -> `Unix_domain_socket (`File x)
-      | None ->
-          if not conf.tls then `TCP (`IP conf.ip, `Port conf.port)
-          else `TLS (`Hostname conf.addr, `IP conf.ip, `Port conf.port)
+    let client =
+      match String.lowercase_ascii scheme with
+      | "unix" -> `Unix_domain_socket (`File (Uri.path uri))
+      | "tcp" ->
+          let port = Uri.port uri |> Option.value ~default:8888 in
+          if not tls then `TCP (`IP ip, `Port port)
+          else `TLS (`Hostname addr, `IP ip, `Port port)
+      | x -> invalid_arg ("Unknown client scheme: " ^ x)
     in
-    let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx c in
+    client
+
+  let connect client =
+    let ctx = Conduit_lwt_unix.default_ctx in
+    let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx client in
     let conn = Conn.v flow ic oc in
     let+ () = Handshake.V1.send oc in
-    { conf; conn }
+    { client; conn }
 
   let handle_disconnect t f =
     Lwt.catch
@@ -54,7 +53,7 @@ module Make (C : Command.S) = struct
         x)
       (function
         | End_of_file ->
-            let* conn = connect t.conf in
+            let* conn = connect t.client in
             t.conn <- conn.conn;
             f ()
         | exn -> raise exn)

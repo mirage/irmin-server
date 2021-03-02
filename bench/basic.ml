@@ -16,7 +16,7 @@ let rec add client tree n =
 
 let rpc count =
   let+ n, () =
-    let conf = Rpc.Client.conf ~port:8888 () in
+    let conf = Rpc.Client.conf ~uri:"tcp://127.0.0.1:8888" () in
     let* client = Client.connect conf in
     let* tree = Client.Tree.empty client >|= unwrap "rpc" in
 

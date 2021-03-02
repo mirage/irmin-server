@@ -3,23 +3,20 @@ module Rpc =
   Irmin_server.Make (Irmin.Hash.BLAKE2B) (Irmin.Contents.String)
     (Irmin.Branch.String)
 
-let main ~root ~addr ~port ~ssl ~unix_socket ~level ~http =
+let main ~root ~uri ~ssl ~level ~http =
   let open Rpc in
   let () = Logs.set_level (Logs.level_of_string level |> Result.get_ok) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
   let config = Irmin_pack.config root in
-  let* ctx = Conduit_lwt_unix.init ~src:addr () in
   let tls_config =
     match ssl with Some (c, k) -> Some (`Cert_file c, `Key_file k) | _ -> None
   in
-  let* server = Server.v ~ctx ~port ?unix_socket ?tls_config config in
-  (match unix_socket with
-  | Some s -> Logs.app (fun l -> l "Listening on unix://%s" s)
-  | None -> Logs.app (fun l -> l "Listening on: %s:%d" addr port));
-  Server.serve ~http server
+  let* server = Server.v ?tls_config ~uri config in
+  Logs.app (fun l -> l "Listening on %s" uri);
+  Server.serve ?http server
 
-let main root addr port ssl unix_socket level http =
-  Lwt_main.run @@ main ~root ~addr ~port ~ssl ~unix_socket ~level ~http
+let main root uri ssl level http =
+  Lwt_main.run @@ main ~root ~uri ~ssl ~level ~http
 
 open Cmdliner
 
@@ -53,10 +50,13 @@ let level =
 
 let http =
   let doc = Arg.info ~doc:"Run the HTTP server" [ "http" ] in
-  Arg.(value @@ flag doc)
+  Arg.(value @@ opt (some int) None doc)
 
-let main_term =
-  Term.(const main $ root $ addr $ port $ ssl $ unix_socket $ level $ http)
+let uri =
+  let doc = Arg.info ~docv:"URL" ~doc:"URI to connect to" [ "uri"; "u" ] in
+  Arg.(value & opt string "tcp://127.0.0.1:8888" & doc)
+
+let main_term = Term.(const main $ root $ uri $ ssl $ level $ http)
 
 let () =
   let info = Term.info "irmin-server" in

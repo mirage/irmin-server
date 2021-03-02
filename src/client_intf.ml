@@ -1,5 +1,5 @@
 module type S = sig
-  type conf
+  type conf = Conduit_lwt_unix.client
 
   type t
 
@@ -11,13 +11,7 @@ module type S = sig
 
   type key
 
-  val conf :
-    ?addr:string ->
-    ?port:int ->
-    ?unix_socket:string ->
-    ?tls:bool ->
-    unit ->
-    conf
+  val conf : ?tls:bool -> uri:string -> unit -> conf
 
   val connect : conf -> t Lwt.t
 

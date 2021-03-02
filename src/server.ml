@@ -9,20 +9,25 @@ module Make (X : Command.S) = struct
 
   type t = {
     ctx : Conduit_lwt_unix.ctx;
-    port : int;
+    uri : Uri.t;
     server : Conduit_lwt_unix.server;
     config : Irmin.config;
     repo : Store.Repo.t;
   }
 
-  let v ?(ctx = Conduit_lwt_unix.default_ctx) ?(port = 0) ?unix_socket
-      ?tls_config conf =
+  let v ?tls_config ~uri conf =
+    let uri = Uri.of_string uri in
+    let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
+    let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
+    let* ctx = Conduit_lwt_unix.init ~src:addr () in
     let server =
-      match unix_socket with
-      | Some s ->
-          at_exit (fun () -> try Unix.unlink s with _ -> ());
-          `Unix_domain_socket (`File s)
-      | None -> (
+      match String.lowercase_ascii scheme with
+      | "unix" ->
+          let file = Uri.path uri in
+          at_exit (fun () -> try Unix.unlink file with _ -> ());
+          `Unix_domain_socket (`File file)
+      | "tcp" -> (
+          let port = Uri.port uri |> Option.value ~default:8888 in
           match tls_config with
           | None -> `TCP (`Port port)
           | Some (`Cert_file crt, `Key_file key) ->
@@ -31,10 +36,11 @@ module Make (X : Command.S) = struct
                   `Key_file_path key,
                   `No_password,
                   `Port port ))
+      | x -> invalid_arg ("Unknown server scheme: " ^ x)
     in
     let config = Irmin_pack_layered.config ~conf ~with_lower:true () in
     let+ repo = Store.Repo.v config in
-    { ctx; server; config; repo; port }
+    { ctx; uri; server; config; repo }
 
   let commands = Hashtbl.create 8
 
@@ -118,16 +124,18 @@ module Make (X : Command.S) = struct
     Cohttp_lwt.Body.drain_body body >>= fun () ->
     Cohttp_lwt_unix.Server.respond_string ~body:"OK" ~status:`OK ()
 
-  let serve ?(http = false) { ctx; server; repo; port; _ } =
+  let serve ?http { ctx; server; repo; _ } =
     let () =
-      if http then
-        let http =
-          Cohttp_lwt_unix.Server.make
-            ~callback:(http_server (module Store) repo)
-            ()
-        in
-        Lwt.async (fun () ->
-            Cohttp_lwt_unix.Server.create ~mode:(`TCP (`Port (port + 1))) http)
+      match http with
+      | Some port ->
+          let http =
+            Cohttp_lwt_unix.Server.make
+              ~callback:(http_server (module Store) repo)
+              ()
+          in
+          Lwt.async (fun () ->
+              Cohttp_lwt_unix.Server.create ~mode:(`TCP (`Port port)) http)
+      | None -> ()
     in
     Conduit_lwt_unix.serve ~ctx ~on_exn ~mode:server (callback repo)
 end
