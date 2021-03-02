@@ -19,7 +19,7 @@ module type S = sig
     unit ->
     conf
 
-  val connect : ?ctx:Conduit_lwt_unix.ctx -> conf -> t Lwt.t
+  val connect : conf -> t Lwt.t
 
   val ping : t -> unit Error.result Lwt.t
 

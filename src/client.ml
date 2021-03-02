@@ -32,7 +32,8 @@ module Make (C : Command.S) = struct
     in
     { addr; ip; port; unix_socket; tls }
 
-  let connect ?(ctx = Conduit_lwt_unix.default_ctx) conf =
+  let connect conf =
+    let ctx = Conduit_lwt_unix.default_ctx in
     let c =
       match conf.unix_socket with
       | Some x -> `Unix_domain_socket (`File x)

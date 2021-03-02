@@ -20,6 +20,7 @@ depends: [
   "logs" {>= "0.7.0"}
   "lwt" {>= "5.4.0"}
   "ppx_irmin" {>= "dev"}
+  "conduit-lwt-unix" {>= "2.3.0" & < "3.0.0"}
 ]
 build: [
   ["dune" "subst"] {pinned}
