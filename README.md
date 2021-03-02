@@ -7,13 +7,13 @@ A server for [irmin](https://github.com/mirage/irmin) using a custom wire [proto
 To run the server:
 
 ```shell
-$ dune exec bin/main.exe -- --root ./data
+$ dune exec bin/server/server.exe -- --root ./data
 ```
 
 For more information:
 
 ```shell
-$ dune exec bin/main.exe --help
+$ dune exec bin/server/server.exe --help
 ```
 
 ## OCaml client

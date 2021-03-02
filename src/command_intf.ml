@@ -85,6 +85,8 @@ module type S = sig
         CMD
           with type req = Tree.t * Tree.Private.Store.key
            and type res = Tree.t
+
+      module Abort : CMD with type req = Tree.t and type res = unit
     end
   end
 end

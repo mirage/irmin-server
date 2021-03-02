@@ -34,6 +34,8 @@ module type S = sig
     val add : store -> t -> key -> contents -> t Error.result Lwt.t
 
     val remove : store -> t -> key -> t Error.result Lwt.t
+
+    val abort : store -> t -> unit Error.result Lwt.t
   end
 
   module Store : sig

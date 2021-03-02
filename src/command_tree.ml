@@ -98,5 +98,37 @@ module Make (Store : Irmin_pack_layered.S) = struct
     end
   end
 
-  let commands = [ cmd (module Empty); cmd (module Add); cmd (module Remove) ]
+  module Abort = struct
+    type req = Tree.t
+
+    type res = unit
+
+    let name = "tree.abort"
+
+    let args = (1, 0)
+
+    module Server = struct
+      let recv _ctx args = Args.next args Tree.t
+
+      let handle conn ctx tree =
+        let () =
+          match tree with Tree.ID id -> Hashtbl.remove ctx.trees id | _ -> ()
+        in
+        Return.ok conn
+    end
+
+    module Client = struct
+      let send t tree = Args.write t Tree.t tree
+
+      let recv _args = Lwt.return_ok ()
+    end
+  end
+
+  let commands =
+    [
+      cmd (module Empty);
+      cmd (module Add);
+      cmd (module Remove);
+      cmd (module Abort);
+    ]
 end

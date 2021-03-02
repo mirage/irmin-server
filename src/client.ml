@@ -103,5 +103,7 @@ module Make (C : Command.S) = struct
       request t (module Commands.Tree.Add) (tree, key, value)
 
     let remove t tree key = request t (module Commands.Tree.Remove) (tree, key)
+
+    let abort t tree = request t (module Commands.Tree.Abort) tree
   end
 end
