@@ -11,7 +11,13 @@ module type S = sig
 
   type key
 
-  val conf : ?host:string -> port:int -> unit -> conf
+  val conf :
+    ?addr:string ->
+    ?port:int ->
+    ?unix_socket:string ->
+    ?tls:bool ->
+    unit ->
+    conf
 
   val connect : ?ctx:Conduit_lwt_unix.ctx -> conf -> t Lwt.t
 

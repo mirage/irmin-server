@@ -6,7 +6,13 @@ module Make (C : Command.S) = struct
   module St = C.Store
   open C
 
-  type conf = { host : Ipaddr.t; port : int }
+  type conf = {
+    ip : Ipaddr.t;
+    addr : string;
+    port : int;
+    unix_socket : string option;
+    tls : bool;
+  }
 
   type t = { conf : conf; mutable conn : Conn.t }
 
@@ -18,15 +24,22 @@ module Make (C : Command.S) = struct
 
   type key = Store.key
 
-  let conf ?(host = "127.0.0.1") ~port () =
-    let host =
-      Ipaddr.of_domain_name (Domain_name.of_string_exn host)
-      |> Option.value ~default:(Ipaddr.of_string_exn host)
+  let conf ?(addr = "127.0.0.1") ?(port = 0) ?unix_socket ?(tls = false) () =
+    let domain = Domain_name.of_string_exn addr in
+    let ip =
+      Ipaddr.of_domain_name domain
+      |> Option.value ~default:(Ipaddr.of_string_exn addr)
     in
-    { host; port }
+    { addr; ip; port; unix_socket; tls }
 
   let connect ?(ctx = Conduit_lwt_unix.default_ctx) conf =
-    let c = `TCP (`IP conf.host, `Port conf.port) in
+    let c =
+      match conf.unix_socket with
+      | Some x -> `Unix_domain_socket (`File x)
+      | None ->
+          if not conf.tls then `TCP (`IP conf.ip, `Port conf.port)
+          else `TLS (`Hostname conf.addr, `IP conf.ip, `Port conf.port)
+    in
     let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx c in
     let conn = Conn.v flow ic oc in
     let+ () = Handshake.V1.send oc in

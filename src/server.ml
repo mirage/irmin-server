@@ -15,8 +15,23 @@ module Make (X : Command.S) = struct
     repo : Store.Repo.t;
   }
 
-  let v ?(ctx = Conduit_lwt_unix.default_ctx) ~port conf =
-    let server = `TCP (`Port port) in
+  let v ?(ctx = Conduit_lwt_unix.default_ctx) ?(port = 0) ?unix_socket
+      ?tls_config conf =
+    let server =
+      match unix_socket with
+      | Some s ->
+          at_exit (fun () -> try Unix.unlink s with _ -> ());
+          `Unix_domain_socket (`File s)
+      | None -> (
+          match tls_config with
+          | None -> `TCP (`Port port)
+          | Some (`Cert_file crt, `Key_file key) ->
+              `TLS
+                ( `Crt_file_path crt,
+                  `Key_file_path key,
+                  `No_password,
+                  `Port port ))
+    in
     let config = Irmin_pack_layered.config ~conf ~with_lower:true () in
     let+ repo = Store.Repo.v config in
     { ctx; server; config; repo; port }
