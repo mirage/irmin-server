@@ -70,6 +70,10 @@ module type S = sig
         CMD
           with type req = Store.key * Irmin.Info.t * Tree.t
            and type res = Tree.t
+
+      module Mem : CMD with type req = Store.key and type res = bool
+
+      module Mem_tree : CMD with type req = Store.key and type res = bool
     end
 
     module Tree : sig
@@ -87,6 +91,12 @@ module type S = sig
            and type res = Tree.t
 
       module Abort : CMD with type req = Tree.t and type res = unit
+
+      module Mem :
+        CMD with type req = Tree.t * Tree.Private.Store.key and type res = bool
+
+      module Mem_tree :
+        CMD with type req = Tree.t * Tree.Private.Store.key and type res = bool
     end
   end
 end

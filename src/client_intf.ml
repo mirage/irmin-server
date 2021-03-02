@@ -36,6 +36,10 @@ module type S = sig
     val remove : store -> t -> key -> t Error.result Lwt.t
 
     val abort : store -> t -> unit Error.result Lwt.t
+
+    val mem : store -> t -> key -> bool Error.result Lwt.t
+
+    val mem_tree : store -> t -> key -> bool Error.result Lwt.t
   end
 
   module Store : sig
@@ -50,6 +54,10 @@ module type S = sig
 
     val set_tree :
       t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
+
+    val mem : t -> key -> bool Error.result Lwt.t
+
+    val mem_tree : t -> key -> bool Error.result Lwt.t
   end
 end
 

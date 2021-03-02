@@ -124,11 +124,73 @@ module Make (Store : Irmin_pack_layered.S) = struct
     end
   end
 
+  module Mem = struct
+    type req = Tree.t * Store.key
+
+    type res = bool
+
+    let args = (2, 1)
+
+    let name = "tree.mem"
+
+    module Server = struct
+      let recv _ctx args =
+        let* tree = Args.next args Tree.t >|= Error.unwrap "tree" in
+        let+ key = Args.next args Store.Key.t >|= Error.unwrap "key" in
+        Ok (tree, key)
+
+      let handle conn ctx (tree, key) =
+        let* _, tree = resolve_tree ctx tree in
+        let* res = Store.Tree.mem tree key in
+        Return.v conn Irmin.Type.bool res
+    end
+
+    module Client = struct
+      let send t (tree, key) =
+        let* () = Args.write t Tree.t tree in
+        Args.write t Store.Key.t key
+
+      let recv args = Args.next args Irmin.Type.bool
+    end
+  end
+
+  module Mem_tree = struct
+    type req = Tree.t * Store.key
+
+    type res = bool
+
+    let args = (2, 1)
+
+    let name = "tree.mem_tree"
+
+    module Server = struct
+      let recv _ctx args =
+        let* tree = Args.next args Tree.t >|= Error.unwrap "tree" in
+        let+ key = Args.next args Store.Key.t >|= Error.unwrap "key" in
+        Ok (tree, key)
+
+      let handle conn ctx (tree, key) =
+        let* _, tree = resolve_tree ctx tree in
+        let* res = Store.Tree.mem_tree tree key in
+        Return.v conn Irmin.Type.bool res
+    end
+
+    module Client = struct
+      let send t (tree, key) =
+        let* () = Args.write t Tree.t tree in
+        Args.write t Store.Key.t key
+
+      let recv args = Args.next args Irmin.Type.bool
+    end
+  end
+
   let commands =
     [
       cmd (module Empty);
       cmd (module Add);
       cmd (module Remove);
       cmd (module Abort);
+      cmd (module Mem);
+      cmd (module Mem_tree);
     ]
 end

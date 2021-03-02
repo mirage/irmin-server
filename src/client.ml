@@ -90,6 +90,10 @@ module Make (C : Command.S) = struct
 
     let set_tree t ~info key tree =
       request t (module Commands.Store.Set_tree) (key, info (), tree)
+
+    let mem t key = request t (module Commands.Store.Mem) key
+
+    let mem_tree t key = request t (module Commands.Store.Mem_tree) key
   end
 
   module Tree = struct
@@ -105,5 +109,10 @@ module Make (C : Command.S) = struct
     let remove t tree key = request t (module Commands.Tree.Remove) (tree, key)
 
     let abort t tree = request t (module Commands.Tree.Abort) tree
+
+    let mem t tree key = request t (module Commands.Tree.Mem) (tree, key)
+
+    let mem_tree t tree key =
+      request t (module Commands.Tree.Mem_tree) (tree, key)
   end
 end

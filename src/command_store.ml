@@ -164,6 +164,54 @@ module Make (Store : Irmin_pack_layered.S) = struct
     end
   end
 
+  module Mem = struct
+    type req = Store.key
+
+    type res = bool
+
+    let args = (1, 1)
+
+    let name = "store.mem"
+
+    module Server = struct
+      let recv _ctx args = Args.next args Store.Key.t
+
+      let handle conn ctx key =
+        let* res = Store.mem ctx.store key in
+        Return.v conn Irmin.Type.bool res
+    end
+
+    module Client = struct
+      let send t key = Args.write t Store.Key.t key
+
+      let recv args = Args.next args Irmin.Type.bool
+    end
+  end
+
+  module Mem_tree = struct
+    type req = Store.key
+
+    type res = bool
+
+    let args = (1, 1)
+
+    let name = "store.mem_tree"
+
+    module Server = struct
+      let recv _ctx args = Args.next args Store.Key.t
+
+      let handle conn ctx key =
+        let* res = Store.mem_tree ctx.store key in
+        Return.v conn Irmin.Type.bool res
+    end
+
+    module Client = struct
+      let send t key = Args.write t Store.Key.t key
+
+      let recv args = Args.next args Irmin.Type.bool
+    end
+  end
+
   let commands =
     [
       cmd (module Find);
@@ -171,5 +219,7 @@ module Make (Store : Irmin_pack_layered.S) = struct
       cmd (module Remove);
       cmd (module Find_tree);
       cmd (module Set_tree);
+      cmd (module Mem);
+      cmd (module Mem_tree);
     ]
 end
