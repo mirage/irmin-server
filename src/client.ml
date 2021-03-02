@@ -22,16 +22,17 @@ module Make (C : Command.S) = struct
     let uri = Uri.of_string uri in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
-    let domain = Domain_name.of_string_exn addr in
-    let ip =
-      Ipaddr.of_domain_name domain
-      |> Option.value ~default:(Ipaddr.of_string_exn addr)
-    in
+    let ip = Unix.gethostbyname addr in
     let client =
       match String.lowercase_ascii scheme with
       | "unix" -> `Unix_domain_socket (`File (Uri.path uri))
       | "tcp" ->
           let port = Uri.port uri |> Option.value ~default:8888 in
+          let x = Random.int (Array.length ip.h_addr_list) in
+          let ip =
+            ip.h_addr_list.(x) |> Unix.string_of_inet_addr
+            |> Ipaddr.of_string_exn
+          in
           if not tls then `TCP (`IP ip, `Port port)
           else `TLS (`Hostname addr, `IP ip, `Port port)
       | x -> invalid_arg ("Unknown client scheme: " ^ x)
