@@ -19,8 +19,7 @@ let help () = Printf.printf "See output of `%s --help` for usage\n" Sys.argv.(0)
 let init ~uri ~ssl ~level =
   let () = Logs.set_level (Logs.level_of_string level |> Result.get_ok) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
-  let config = Client.conf ~tls:ssl ~uri () in
-  Client.connect config
+  Client.connect ~tls:ssl ~uri ()
 
 let run = Lwt_main.run
 

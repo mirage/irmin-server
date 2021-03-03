@@ -39,12 +39,16 @@ module Make (C : Command.S) = struct
     in
     client
 
-  let connect client =
+  let connect' client =
     let ctx = Conduit_lwt_unix.default_ctx in
     let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx client in
     let conn = Conn.v flow ic oc in
     let+ () = Handshake.V1.send oc in
     { client; conn }
+
+  let connect ?tls ~uri () =
+    let client = conf ?tls ~uri () in
+    connect' client
 
   let handle_disconnect t f =
     Lwt.catch
@@ -55,7 +59,7 @@ module Make (C : Command.S) = struct
       (function
         | End_of_file ->
             Logs.info (fun l -> l "Reconnecting to server");
-            let* conn = connect t.client in
+            let* conn = connect' t.client in
             t.conn <- conn.conn;
             f ()
         | exn -> raise exn)

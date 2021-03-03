@@ -11,9 +11,7 @@ module type S = sig
 
   type key
 
-  val conf : ?tls:bool -> uri:string -> unit -> conf
-
-  val connect : conf -> t Lwt.t
+  val connect : ?tls:bool -> uri:string -> unit -> t Lwt.t
 
   val ping : t -> unit Error.result Lwt.t
 
