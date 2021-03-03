@@ -10,9 +10,9 @@ let make n_items conn : 'a t Lwt.t =
 
 let ok conn : unit t Lwt.t = make 0 conn [@@inline]
 
-let err conn msg : Error.t t Lwt.t =
+let err conn msg : 'a t Lwt.t =
   let* t = make (-1) conn in
-  let+ () = Message.write conn.oc Irmin.Type.string msg in
+  let+ () = Message.write conn.oc Irmin.Type.string ("ERROR " ^ msg) in
   t
   [@@inline]
 
@@ -28,7 +28,8 @@ let v client ty (x : 'a) : 'a t Lwt.t =
   [@@inline]
 
 let check t c =
-  assert ((t.n_items = c && t.index = t.n_items) || t.n_items = -1)
+  let x = if c < 0 then t.n_items <= abs c else t.n_items = c in
+  assert ((x && t.index = t.n_items) || t.n_items = -1)
   [@@inline]
 
 let flush t = Lwt_io.flush t.conn.oc

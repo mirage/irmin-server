@@ -54,6 +54,7 @@ module Make (C : Command.S) = struct
         x)
       (function
         | End_of_file ->
+            Logs.info (fun l -> l "Reconnecting to server");
             let* conn = connect t.client in
             t.conn <- conn.conn;
             f ()
@@ -76,8 +77,7 @@ module Make (C : Command.S) = struct
         let* res = Response.Read.header t.conn.ic in
         Response.Read.get_error t.conn.ic res >>= function
         | Some err ->
-            Logs.debug (fun l ->
-                l "Request error: command=%s, error=%s" name err);
+            Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
             Lwt.return_error (`Msg err)
         | None ->
             let args = Args.v ~mode:`Read ~count:res.n_items t.conn in

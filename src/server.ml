@@ -55,16 +55,13 @@ module Make (X : Command.S) = struct
             Request.Read.header conn.Conn.ic
           in
           match Hashtbl.find_opt commands command with
-          | None ->
-              let* () = Conn.err conn "unknown command" in
-              let* () = Lwt_unix.yield () in
-              loop repo conn client
+          | None -> Conn.err conn "unknown command"
           | Some (module Cmd : X.CMD) ->
               if n_args < fst Cmd.args then
                 let* () = Conn.consume conn n_args in
                 let* () =
                   Conn.err conn
-                    (Format.sprintf "expected %d arguments but got %d"
+                    (Format.sprintf "expected at least %d arguments but got %d"
                        (fst Cmd.args) n_args)
                 in
                 loop repo conn client
@@ -84,7 +81,7 @@ module Make (X : Command.S) = struct
                       | exn ->
                           raise
                             (Error.Error
-                               (Args.remaining args - 1, Printexc.to_string exn)))
+                               (Args.remaining args, Printexc.to_string exn)))
                 in
                 let () = Return.check return (snd Cmd.args) in
                 Lwt.return_unit)
@@ -98,7 +95,8 @@ module Make (X : Command.S) = struct
               Lwt.return_unit
           | exn ->
               let* () = Lwt_io.close conn.ic in
-              Logs.err (fun l -> l "Exception: %s" (Printexc.to_string exn));
+              let s = Printexc.to_string exn in
+              Logs.err (fun l -> l "Exception: %s" s);
               Lwt.return_unit)
       >>= fun () ->
       let* () = Lwt_io.flush conn.Conn.oc in

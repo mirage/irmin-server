@@ -4,7 +4,7 @@ val make : int -> Conn.t -> 'a t Lwt.t
 
 val ok : Conn.t -> unit t Lwt.t
 
-val err : Conn.t -> string -> Error.t t Lwt.t
+val err : Conn.t -> string -> 'a t Lwt.t
 
 val write : 'a Irmin.Type.t -> 'a -> 'a t -> 'a t Lwt.t
 
