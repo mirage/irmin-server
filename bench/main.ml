@@ -44,10 +44,9 @@ module Direct = Make (struct
   end
 end)
 
-let run_remote uri count commits =
+let run_remote uri count commits tls =
   let+ n, () =
-    let* client = Client.connect ~uri () in
-
+    let* client = Client.connect ~tls ~uri () in
     let rec aux commits =
       if commits = 0 then Lwt.return_unit
       else
@@ -118,13 +117,17 @@ let direct =
   in
   Arg.(value & flag doc)
 
-let main uri iterations commits direct =
+let tls =
+  let doc = Arg.info ~doc:"Enable TLS" [ "tls" ] in
+  Arg.(value @@ flag doc)
+
+let main uri iterations commits direct tls =
   Lwt_main.run
   @@
   if direct then run_direct "./data" iterations commits
-  else run_remote uri iterations commits
+  else run_remote uri iterations commits tls
 
-let main_term = Term.(const main $ uri $ iterations $ commits $ direct)
+let main_term = Term.(const main $ uri $ iterations $ commits $ direct $ tls)
 
 let () =
   let info = Term.info "irmin-bench-basic" in

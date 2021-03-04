@@ -16,10 +16,10 @@ type config = {
 
 let help () = Printf.printf "See output of `%s --help` for usage\n" Sys.argv.(0)
 
-let init ~uri ~ssl ~level =
+let init ~uri ~tls ~level =
   let () = Logs.set_level (Logs.level_of_string level |> Result.get_ok) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
-  Client.connect ~tls:ssl ~uri ()
+  Client.connect ~tls ~uri ()
 
 let run = Lwt_main.run
 
@@ -99,8 +99,8 @@ let contents index =
   let doc = Arg.info ~docv:"DATA" ~doc:"Contents" [] in
   Arg.(required & pos index (some string) None & doc)
 
-let ssl =
-  let doc = Arg.info ~doc:"Enable SSL" [ "ssl" ] in
+let tls =
+  let doc = Arg.info ~doc:"Enable TLS" [ "tls" ] in
   Arg.(value @@ flag doc)
 
 let uri =
@@ -108,8 +108,8 @@ let uri =
   Arg.(value & opt string "tcp://127.0.0.1:8888" & doc)
 
 let config =
-  let create uri ssl level = init ~uri ~ssl ~level in
-  Term.(const create $ uri $ ssl $ level)
+  let create uri tls level = init ~uri ~tls ~level in
+  Term.(const create $ uri $ tls $ level)
 
 let ping = (Term.(const ping $ config), Term.info "ping")
 

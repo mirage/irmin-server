@@ -61,7 +61,11 @@ by a single `string` Message containing a description of the error.
 A handshake is performed when a client connects to the server
 
 #### V1
+
+The following is sent as a request from the client to server **AND** the response from server to client
+
 | Field   | Type                     |
 | ------- | ------------------------ |
 | version | `\n` delimited string    |
+
 

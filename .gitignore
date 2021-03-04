@@ -1,2 +1,6 @@
 _build
 data
+*.key
+*.pem
+server.conf
+

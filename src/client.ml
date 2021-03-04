@@ -43,7 +43,7 @@ module Make (C : Command.S) = struct
     let ctx = Conduit_lwt_unix.default_ctx in
     let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx client in
     let conn = Conn.v flow ic oc in
-    let+ () = Handshake.V1.send oc in
+    let+ () = Handshake.V1.send ic oc in
     { client; conn }
 
   let connect ?tls ~uri () =

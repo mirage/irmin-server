@@ -104,15 +104,20 @@ module Make (X : Command.S) = struct
       loop repo conn client
 
   let callback repo flow ic oc =
-    let conn = Conn.v flow ic oc in
-    let* store = Store.master repo in
-    let trees = Hashtbl.create 8 in
-    let client = Command.{ conn; repo; store; trees } in
-    let* check = Handshake.V1.check ic in
+    let* check =
+      Lwt.catch (fun () -> Handshake.V1.check ic oc) (fun _ -> Lwt.return_false)
+    in
     if not check then
-      let* () = Conn.err conn "invalid handshake" in
+      let () =
+        Logs.info (fun l -> l "Client closed because of invalid handshake")
+      in
       Lwt_io.close ic
-    else loop repo conn client
+    else
+      let conn = Conn.v flow ic oc in
+      let* store = Store.master repo in
+      let trees = Hashtbl.create 8 in
+      let client = Command.{ conn; repo; store; trees } in
+      loop repo conn client
 
   let on_exn x = raise x
 
