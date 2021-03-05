@@ -65,6 +65,53 @@ module Make (Store : Irmin_pack_layered.S) = struct
     end
   end
 
+  module Test_and_set = struct
+    type req =
+      Store.key * Irmin.Info.t * Store.contents option * Store.contents option
+
+    type res = unit
+
+    let args = (4, 0)
+
+    let name = "store.test_and_set"
+
+    module Server = struct
+      let recv _ctx args =
+        let* key =
+          Args.next args Store.Key.t >|= Error.unwrap "store.test_and_set key"
+        in
+        let* info =
+          Args.next args Irmin.Info.t >|= Error.unwrap "store.test_and_set info"
+        in
+        let* test =
+          Args.next args (Irmin.Type.option Store.Contents.t)
+          >|= Error.unwrap "store.test_and_set test"
+        in
+
+        let* set =
+          Args.next args (Irmin.Type.option Store.Contents.t)
+          >|= Error.unwrap "store.test_and_set set"
+        in
+        Lwt.return_ok (key, info, test, set)
+
+      let handle conn ctx (key, info, test, set) =
+        let* () =
+          Store.test_and_set_exn ctx.store key ~info:(fun () -> info) ~test ~set
+        in
+        Return.ok conn
+    end
+
+    module Client = struct
+      let send t (key, info, test, set) =
+        let* () = Args.write t Store.Key.t key in
+        let* () = Args.write t Irmin.Info.t info in
+        let* () = Args.write t (Irmin.Type.option Store.contents_t) test in
+        Args.write t (Irmin.Type.option Store.contents_t) set
+
+      let recv _args = Lwt.return_ok ()
+    end
+  end
+
   module Remove = struct
     type req = Store.key * Irmin.Info.t
 
@@ -126,9 +173,9 @@ module Make (Store : Irmin_pack_layered.S) = struct
   module Set_tree = struct
     type req = Store.key * Irmin.Info.t * Tree.t
 
-    type res = Tree.t
+    type res = unit
 
-    let args = (3, 1)
+    let args = (3, 0)
 
     let name = "store.set_tree"
 
@@ -151,7 +198,7 @@ module Make (Store : Irmin_pack_layered.S) = struct
           Store.set_tree_exn ctx.store key ~info:(fun () -> info) tree
         in
         Hashtbl.remove ctx.trees id;
-        Return.v conn Tree.t (Tree.Hash (Store.Tree.hash tree))
+        Return.ok conn
     end
 
     module Client = struct
@@ -160,7 +207,72 @@ module Make (Store : Irmin_pack_layered.S) = struct
         let* () = Args.write t Irmin.Info.t info in
         Args.write t Tree.t tree
 
-      let recv args = Args.next args Tree.t
+      let recv _args = Lwt.return_ok ()
+    end
+  end
+
+  module Test_and_set_tree = struct
+    type req = Store.key * Irmin.Info.t * Tree.t option * Tree.t option
+
+    type res = unit
+
+    let args = (4, 0)
+
+    let name = "store.test_and_set_tree"
+
+    module Server = struct
+      let recv _ctx args =
+        let* key =
+          Args.next args Store.Key.t
+          >|= Error.unwrap "store.test_and_set_tree key"
+        in
+        let* info =
+          Args.next args Irmin.Info.t
+          >|= Error.unwrap "store.test_and_set_tree info"
+        in
+        let* test =
+          Args.next args (Irmin.Type.option Tree.t)
+          >|= Error.unwrap "store.test_and_set_tree test"
+        in
+
+        let* set =
+          Args.next args (Irmin.Type.option Tree.t)
+          >|= Error.unwrap "store.test_and_set_tree set"
+        in
+        Lwt.return_ok (key, info, test, set)
+
+      let handle conn ctx ((key, info, test, set) : req) =
+        let* test =
+          match test with
+          | Some test ->
+              let+ _, test = resolve_tree ctx test in
+              Some test
+          | None -> Lwt.return_none
+        in
+        let* id, set =
+          match set with
+          | Some set ->
+              let+ id, set = resolve_tree ctx set in
+              (Some id, Some set)
+          | None -> Lwt.return (None, None)
+        in
+        let* () =
+          Store.test_and_set_tree_exn ctx.store key
+            ~info:(fun () -> info)
+            ~test ~set
+        in
+        Option.iter (Hashtbl.remove ctx.trees) id;
+        Return.ok conn
+    end
+
+    module Client = struct
+      let send t (key, info, test, set) =
+        let* () = Args.write t Store.Key.t key in
+        let* () = Args.write t Irmin.Info.t info in
+        let* () = Args.write t (Irmin.Type.option Tree.t) test in
+        Args.write t (Irmin.Type.option Tree.t) set
+
+      let recv _args = Lwt.return_ok ()
     end
   end
 
@@ -221,5 +333,7 @@ module Make (Store : Irmin_pack_layered.S) = struct
       cmd (module Set_tree);
       cmd (module Mem);
       cmd (module Mem_tree);
+      cmd (module Test_and_set);
+      cmd (module Test_and_set_tree);
     ]
 end

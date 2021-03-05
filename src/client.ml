@@ -9,6 +9,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module Contents = Store.Contents
   module Key = Store.Key
   module Branch = Store.Branch
+  module Commit_impl = Irmin.Private.Commit.Make (Hash)
 
   type t = { client : Conduit_lwt_unix.client; mutable conn : Conn.t }
 
@@ -19,6 +20,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
   type branch = Store.branch
 
   type key = Store.key
+
+  type commit = Commit_impl.t
 
   type conf = Conduit_lwt_unix.client
 
@@ -105,6 +108,9 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let set t ~info key value =
       request t (module Commands.Store.Set) (key, info (), value)
 
+    let test_and_set t ~info key ~test ~set =
+      request t (module Commands.Store.Test_and_set) (key, info (), test, set)
+
     let remove t ~info key =
       request t (module Commands.Store.Remove) (key, info ())
 
@@ -112,6 +118,11 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let set_tree t ~info key tree =
       request t (module Commands.Store.Set_tree) (key, info (), tree)
+
+    let test_and_set_tree t ~info key ~test ~set =
+      request t
+        (module Commands.Store.Test_and_set_tree)
+        (key, info (), test, set)
 
     let mem t key = request t (module Commands.Store.Mem) key
 
@@ -136,5 +147,9 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let mem_tree t tree key =
       request t (module Commands.Tree.Mem_tree) (tree, key)
+  end
+
+  module Commit = struct
+    include Commit_impl
   end
 end

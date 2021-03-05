@@ -9,6 +9,8 @@ module type S = sig
 
   type branch
 
+  type commit
+
   type key
 
   module Key : Irmin.Path.S with type t = key
@@ -56,14 +58,34 @@ module type S = sig
     val set :
       t -> info:Irmin.Info.f -> key -> contents -> unit Error.result Lwt.t
 
+    val test_and_set :
+      t ->
+      info:Irmin.Info.f ->
+      key ->
+      test:contents option ->
+      set:contents option ->
+      unit Error.result Lwt.t
+
     val remove : t -> info:Irmin.Info.f -> key -> unit Error.result Lwt.t
 
     val set_tree :
-      t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
+      t -> info:Irmin.Info.f -> key -> Tree.t -> unit Error.result Lwt.t
+
+    val test_and_set_tree :
+      t ->
+      info:Irmin.Info.f ->
+      key ->
+      test:Tree.t option ->
+      set:Tree.t option ->
+      unit Error.result Lwt.t
 
     val mem : t -> key -> bool Error.result Lwt.t
 
     val mem_tree : t -> key -> bool Error.result Lwt.t
+  end
+
+  module Commit : sig
+    include Irmin.Private.Commit.S with type hash = hash
   end
 end
 

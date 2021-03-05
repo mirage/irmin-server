@@ -60,6 +60,15 @@ module type S = sig
           with type req = Store.key * Irmin.Info.t * Store.contents
            and type res = unit
 
+      module Test_and_set :
+        CMD
+          with type req =
+                Store.key
+                * Irmin.Info.t
+                * Store.contents option
+                * Store.contents option
+           and type res = unit
+
       module Remove :
         CMD with type req = Store.key * Irmin.Info.t and type res = unit
 
@@ -69,7 +78,13 @@ module type S = sig
       module Set_tree :
         CMD
           with type req = Store.key * Irmin.Info.t * Tree.t
-           and type res = Tree.t
+           and type res = unit
+
+      module Test_and_set_tree :
+        CMD
+          with type req =
+                Store.key * Irmin.Info.t * Tree.t option * Tree.t option
+           and type res = unit
 
       module Mem : CMD with type req = Store.key and type res = bool
 
