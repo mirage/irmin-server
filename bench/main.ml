@@ -130,5 +130,6 @@ let main uri iterations commits direct tls =
 let main_term = Term.(const main $ uri $ iterations $ commits $ direct $ tls)
 
 let () =
+  let () = Memtrace.trace_if_requested () in
   let info = Term.info "irmin-bench-basic" in
   Term.exit @@ Term.eval (main_term, info)
