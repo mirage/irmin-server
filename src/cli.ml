@@ -18,5 +18,16 @@ let log_level =
     in
     (parse, print)
   in
-  let doc = Arg.info ~docv:"PATH" ~doc:"Key to lookup or modify." [] in
+  let doc =
+    Arg.info ~docv:"LEVEL" ~doc:"Log level (app, info, error, debug)"
+      [ "log-level" ]
+  in
   Arg.(required & opt level (Some Logs.App) & doc)
+
+let contents = Irmin_unix.Resolver.Contents.term
+
+let hash = Irmin_unix.Resolver.Hash.term
+
+let default_hash = (module Irmin.Hash.BLAKE2B : Irmin.Hash.S)
+
+let default_contents = "string"

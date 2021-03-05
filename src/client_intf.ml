@@ -11,6 +11,14 @@ module type S = sig
 
   type key
 
+  module Key : Irmin.Path.S with type t = key
+
+  module Hash : Irmin.Hash.S with type t = hash
+
+  module Contents : Irmin.Contents.S with type t = contents
+
+  module Branch : Irmin.Branch.S with type t = branch
+
   val connect : ?tls:bool -> uri:string -> unit -> t Lwt.t
 
   val ping : t -> unit Error.result Lwt.t
@@ -67,5 +75,5 @@ module type Client = sig
       with type hash = C.Store.hash
        and type contents = C.Store.contents
        and type branch = C.Store.branch
-       and type key = C.Store.key
+       and type key = string list
 end

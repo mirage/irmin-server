@@ -2,9 +2,13 @@ open Lwt.Syntax
 open Lwt.Infix
 include Client_intf
 
-module Make (C : Command.S) = struct
+module Make (C : Command.S with type Store.key = string list) = struct
   module St = C.Store
   open C
+  module Hash = Store.Hash
+  module Contents = Store.Contents
+  module Key = Store.Key
+  module Branch = Store.Branch
 
   type t = { client : Conduit_lwt_unix.client; mutable conn : Conn.t }
 

@@ -1,9 +1,15 @@
 open Lwt.Syntax
 open Irmin_server
-module Rpc =
-  Make (Irmin.Hash.BLAKE2B) (Irmin.Contents.String) (Irmin.Branch.String)
 
-let main ~root ~uri ~tls ~level ~http =
+let main ~root ~uri ~tls ~level ~http ~contents ~hash =
+  let (module Contents : Irmin.Contents.S) =
+    Irmin_unix.Resolver.Contents.find
+      (Option.value contents ~default:Cli.default_contents)
+  in
+  let (module Hash : Irmin.Hash.S) =
+    Option.value ~default:Cli.default_hash hash
+  in
+  let module Rpc = Make (Hash) (Contents) (Irmin.Branch.String) in
   let open Rpc in
   let () = Logs.set_level (Some level) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
@@ -15,8 +21,8 @@ let main ~root ~uri ~tls ~level ~http =
   Logs.app (fun l -> l "Listening on %s" uri);
   Server.serve ?http server
 
-let main root uri tls level http =
-  Lwt_main.run @@ main ~root ~uri ~tls ~level ~http
+let main root uri tls level http contents hash =
+  Lwt_main.run @@ main ~root ~uri ~tls ~level ~http ~contents ~hash
 
 open Cmdliner
 
@@ -35,7 +41,10 @@ let http =
   in
   Arg.(value @@ opt (some int) None doc)
 
-let main_term = Term.(const main $ root $ Cli.uri $ tls $ Cli.log_level $ http)
+let main_term =
+  Term.(
+    const main $ root $ Cli.uri $ tls $ Cli.log_level $ http $ Cli.contents
+    $ Cli.hash)
 
 let () =
   let info = Term.info "irmin-server" in

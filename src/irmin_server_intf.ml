@@ -27,6 +27,8 @@ module type Irmin_server = sig
   module Client = Client
   module Cli = Cli
 
+  module type S = S
+
   module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) :
     S
       with type Store.hash = H.t

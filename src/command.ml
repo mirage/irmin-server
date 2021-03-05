@@ -1,7 +1,7 @@
 open Lwt.Syntax
 include Command_intf
 
-module Make (St : Irmin_pack_layered.S) = struct
+module Make (St : Irmin_pack_layered.S with type key = string list) = struct
   module Store = St
   include Context.Make (St)
 
