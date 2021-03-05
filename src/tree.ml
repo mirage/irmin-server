@@ -11,6 +11,14 @@ module Make (Store : Irmin_pack_layered.S) = struct
 
     let t = Store.tree_t
 
+    type key = Store.key
+
+    type contents = Store.contents
+
+    type hash = Store.hash
+
+    type step = Store.Key.step
+
     let empty = Store.Tree.empty
 
     let list = Store.Tree.list

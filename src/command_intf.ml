@@ -112,6 +112,12 @@ module type S = sig
 
       module Mem_tree :
         CMD with type req = Tree.t * Tree.Private.Store.key and type res = bool
+
+      module List :
+        CMD
+          with type req = Tree.t * Tree.Private.Store.key
+           and type res =
+                (Tree.Private.Store.Key.step * [ `Contents | `Tree ]) list
     end
   end
 end

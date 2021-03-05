@@ -184,6 +184,46 @@ module Make (Store : Irmin_pack_layered.S) = struct
     end
   end
 
+  module List = struct
+    type req = Tree.t * Store.key
+
+    type tree = [ `Contents | `Tree ] [@@deriving irmin]
+
+    type res = (Store.Key.step * [ `Contents | `Tree ]) list
+
+    let args = (2, 1)
+
+    let name = "tree.list"
+
+    module Server = struct
+      let recv _ctx args =
+        let* tree = Args.next args Tree.t >|= Error.unwrap "tree" in
+        let+ key = Args.next args Store.Key.t >|= Error.unwrap "key" in
+        Ok (tree, key)
+
+      let handle conn ctx (tree, key) =
+        let* _, tree = resolve_tree ctx tree in
+        let* l = Store.Tree.list tree key in
+        let* x =
+          Lwt_list.map_s
+            (fun (k, _) ->
+              let+ exists = Store.Tree.mem_tree tree (Store.Key.rcons key k) in
+              if exists then (k, `Tree) else (k, `Contents))
+            l
+        in
+        Return.v conn Irmin.Type.(list (pair Store.Key.step_t tree_t)) x
+    end
+
+    module Client = struct
+      let send t (tree, key) =
+        let* () = Args.write t Tree.t tree in
+        Args.write t Store.Key.t key
+
+      let recv args =
+        Args.next args Irmin.Type.(list (pair Store.Key.step_t tree_t))
+    end
+  end
+
   let commands =
     [
       cmd (module Empty);
@@ -192,5 +232,6 @@ module Make (Store : Irmin_pack_layered.S) = struct
       cmd (module Abort);
       cmd (module Mem);
       cmd (module Mem_tree);
+      cmd (module List);
     ]
 end

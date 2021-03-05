@@ -8,13 +8,11 @@ module Store = Rpc.Server.Store
 let unwrap = Irmin_server.Error.unwrap
 
 module type BENCH = sig
-  type t
-
   type tree
 
   module Tree : sig
     val add :
-      t -> tree -> string list -> string -> tree Irmin_server.Error.result Lwt.t
+      tree -> string list -> string -> tree Irmin_server.Error.result Lwt.t
   end
 end
 
@@ -24,23 +22,17 @@ module Make (X : BENCH) = struct
     else
       let s = String.make 1024 'A' in
       let key = [ string_of_int n ] in
-      let* tree = X.Tree.add client tree key s >|= unwrap "add" in
+      let* tree = X.Tree.add tree key s >|= unwrap "add" in
       add_n client tree (n - 1)
 end
 
-module Remote = Make (struct
-  type tree = Rpc.Client.Tree.t
-
-  include Rpc.Client
-end)
+module Remote = Make (Rpc.Client)
 
 module Direct = Make (struct
   type tree = Store.tree
 
-  type t = unit
-
   module Tree = struct
-    let add () t k v = Store.Tree.add t k v >>= Lwt.return_ok
+    let add t k v = Store.Tree.add t k v >>= Lwt.return_ok
   end
 end)
 

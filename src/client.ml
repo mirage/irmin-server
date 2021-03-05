@@ -11,6 +11,10 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module Branch = Store.Branch
   module Commit_impl = Irmin.Private.Commit.Make (Hash)
 
+  module Private = struct
+    module Tree = C.Tree
+  end
+
   type t = { client : Conduit_lwt_unix.client; mutable conn : Conn.t }
 
   type hash = Store.hash
@@ -22,6 +26,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
   type key = Store.key
 
   type commit = Commit_impl.t
+
+  type tree = t * Private.Tree.t
 
   type conf = Conduit_lwt_unix.client
 
@@ -114,12 +120,16 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let remove t ~info key =
       request t (module Commands.Store.Remove) (key, info ())
 
-    let find_tree t key = request t (module Commands.Store.Find_tree) key
+    let find_tree t key =
+      let+ tree = request t (module Commands.Store.Find_tree) key in
+      Result.map (fun x -> Option.map (fun x -> (t, x)) x) tree
 
-    let set_tree t ~info key tree =
+    let set_tree t ~info key (_, tree) =
       request t (module Commands.Store.Set_tree) (key, info (), tree)
 
     let test_and_set_tree t ~info key ~test ~set =
+      let test = Option.map snd test in
+      let set = Option.map snd set in
       request t
         (module Commands.Store.Test_and_set_tree)
         (key, info (), test, set)
@@ -132,21 +142,32 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module Tree = struct
     type store = t
 
-    include C.Tree
+    type t = store * Private.Tree.t
 
-    let empty t = request t (module Commands.Tree.Empty) ()
+    let wrap store tree =
+      let* tree = tree in
+      Lwt.return (Result.map (fun tree -> (store, tree)) tree)
 
-    let add t tree key value =
-      request t (module Commands.Tree.Add) (tree, key, value)
+    let empty t = wrap t (request t (module Commands.Tree.Empty) ())
 
-    let remove t tree key = request t (module Commands.Tree.Remove) (tree, key)
+    let add (t, tree) key value =
+      wrap t (request t (module Commands.Tree.Add) (tree, key, value))
 
-    let abort t tree = request t (module Commands.Tree.Abort) tree
+    let remove (t, tree) key =
+      wrap t (request t (module Commands.Tree.Remove) (tree, key))
 
-    let mem t tree key = request t (module Commands.Tree.Mem) (tree, key)
+    let abort (t, tree) = request t (module Commands.Tree.Abort) tree
 
-    let mem_tree t tree key =
+    let mem (t, tree) key = request t (module Commands.Tree.Mem) (tree, key)
+
+    let mem_tree (t, tree) key =
       request t (module Commands.Tree.Mem_tree) (tree, key)
+
+    let list (t, tree) key = request t (module Commands.Tree.List) (tree, key)
+
+    module Local = Private.Tree.Local
+
+    let of_local t x = (t, Private.Tree.Local x)
   end
 
   module Commit = struct
