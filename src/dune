@@ -2,4 +2,5 @@
  (name irmin_server)
  (public_name irmin-server)
  (libraries irmin-unix irmin-pack.layered conduit-lwt-unix)
- (preprocess (pps ppx_irmin)))
+ (preprocess
+  (pps ppx_irmin)))

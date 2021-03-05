@@ -25,6 +25,7 @@ module type Irmin_server = sig
   module Error = Error
   module Server = Server
   module Client = Client
+  module Cli = Cli
 
   module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) :
     S

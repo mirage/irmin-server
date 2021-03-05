@@ -6,18 +6,10 @@ module Rpc =
   Make (Irmin.Hash.BLAKE2B) (Irmin.Contents.String) (Irmin.Branch.String)
 open Rpc
 
-type config = {
-  level : Logs.level;
-  port : int;
-  addr : string;
-  unix_socket : string option;
-  tls : bool;
-}
-
 let help () = Printf.printf "See output of `%s --help` for usage\n" Sys.argv.(0)
 
 let init ~uri ~tls ~level =
-  let () = Logs.set_level (Logs.level_of_string level |> Result.get_ok) in
+  let () = Logs.set_level (Some level) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
   Client.connect ~tls ~uri ()
 
@@ -59,14 +51,6 @@ let remove client key author message =
       in
       Logs.app (fun l -> l "OK") )
 
-let port =
-  let doc = Arg.info ~doc:"Port to listen on" [ "p"; "port" ] in
-  Arg.(value @@ opt int 8888 doc)
-
-let addr =
-  let doc = Arg.info ~doc:"Address to listen on" [ "addr"; "a" ] in
-  Arg.(value @@ opt string "127.0.0.1" doc)
-
 let level =
   let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
   Arg.(value @@ opt string "error" doc)
@@ -103,13 +87,9 @@ let tls =
   let doc = Arg.info ~doc:"Enable TLS" [ "tls" ] in
   Arg.(value @@ flag doc)
 
-let uri =
-  let doc = Arg.info ~docv:"URL" ~doc:"URI to connect to" [ "uri"; "u" ] in
-  Arg.(value & opt string "tcp://127.0.0.1:8888" & doc)
-
 let config =
   let create uri tls level = init ~uri ~tls ~level in
-  Term.(const create $ uri $ tls $ level)
+  Term.(const create $ Cli.uri $ tls $ Cli.log_level)
 
 let ping = (Term.(const ping $ config), Term.info "ping")
 
