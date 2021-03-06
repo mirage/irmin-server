@@ -11,7 +11,7 @@ module type S = sig
     Irmin.config ->
     t Lwt.t
 
-  val serve : ?http:int -> t -> unit Lwt.t
+  val serve : ?graphql:int -> t -> unit Lwt.t
 
   val commands : (string, Command.t) Hashtbl.t
 end

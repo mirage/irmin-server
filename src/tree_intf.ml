@@ -40,7 +40,7 @@ end
 
 module type S = sig
   module Private : sig
-    module Store : Irmin_pack_layered.S
+    module Store : Irmin_pack_layered.S with type key = string list
   end
 
   open Private
@@ -59,6 +59,6 @@ end
 module type Tree = sig
   module type S = S
 
-  module Make (S : Irmin_pack_layered.S) :
+  module Make (S : Irmin_pack_layered.S with type key = string list) :
     S with module Private.Store = S and type Local.t = S.tree
 end

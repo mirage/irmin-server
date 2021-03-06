@@ -21,10 +21,6 @@ let reporter ?(prefix = "") () =
   in
   { Logs.report }
 
-let () =
-  Logs.set_level (Some Logs.Info);
-  Logs.set_reporter (reporter ())
-
 let reset_stats () = Index.Stats.reset_stats ()
 
 let random_char () = char_of_int (Random.int 255)

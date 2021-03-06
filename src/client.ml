@@ -108,6 +108,9 @@ module Make (C : Command.S with type Store.key = string list) = struct
   let set_branch t (branch : Store.branch) =
     request t (module Commands.Set_branch) branch
 
+  let get_branch t =
+    request t (module Commands.Get_branch) ()
+
   module Store = struct
     let find t key = request t (module Commands.Store.Find) key
 
@@ -125,14 +128,20 @@ module Make (C : Command.S with type Store.key = string list) = struct
       Result.map (fun x -> Option.map (fun x -> (t, x)) x) tree
 
     let set_tree t ~info key (_, tree) =
-      request t (module Commands.Store.Set_tree) (key, info (), tree)
+      let+ tree =
+        request t (module Commands.Store.Set_tree) (key, info (), tree)
+      in
+      Result.map (fun tree -> (t, tree)) tree
 
     let test_and_set_tree t ~info key ~test ~set =
       let test = Option.map snd test in
       let set = Option.map snd set in
-      request t
-        (module Commands.Store.Test_and_set_tree)
-        (key, info (), test, set)
+      let+ tree =
+        request t
+          (module Commands.Store.Test_and_set_tree)
+          (key, info (), test, set)
+      in
+      Result.map (Option.map (fun tree -> (t, tree))) tree
 
     let mem t key = request t (module Commands.Store.Mem) key
 

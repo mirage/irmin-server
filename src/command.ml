@@ -44,6 +44,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
 
         let handle conn ctx branch =
           let* store = Store.of_branch ctx.repo branch in
+          ctx.branch <- branch;
           ctx.store <- store;
           Return.ok conn
       end
@@ -55,13 +56,35 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
       end
     end
 
+    module Get_branch = struct
+      type req = unit
+
+      type res = St.Branch.t
+
+      let args = (0, 1)
+
+      let name = "get_branch"
+
+      module Server = struct
+        let recv _ctx _args = Lwt.return_ok ()
+
+        let handle conn ctx () = Return.v conn Store.Branch.t ctx.branch
+      end
+
+      module Client = struct
+        let send _t _branch : unit Lwt.t = Lwt.return_unit
+
+        let recv args : res Error.result Lwt.t = Args.next args Store.Branch.t
+      end
+    end
+
     module Store = Command_store.Make (St)
     module Tree = Command_tree.Make (St)
   end
 
   let commands : (string * (module CMD)) list =
     let open Commands in
-    [ cmd (module Ping); cmd (module Set_branch) ]
+    [ cmd (module Ping); cmd (module Set_branch); cmd (module Get_branch) ]
     @ Store.commands @ Tree.commands
 
   let of_name name = List.assoc name commands

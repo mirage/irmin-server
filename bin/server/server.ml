@@ -1,7 +1,7 @@
 open Lwt.Syntax
 open Irmin_server
 
-let main ~root ~uri ~tls ~level ~http ~contents ~hash =
+let main ~root ~uri ~tls ~level ~graphql ~contents ~hash =
   let (module Contents : Irmin.Contents.S) =
     Irmin_unix.Resolver.Contents.find
       (Option.value contents ~default:Cli.default_contents)
@@ -19,10 +19,10 @@ let main ~root ~uri ~tls ~level ~http ~contents ~hash =
   in
   let* server = Server.v ?tls_config ~uri config in
   Logs.app (fun l -> l "Listening on %s" uri);
-  Server.serve ?http server
+  Server.serve ?graphql server
 
-let main root uri tls level http contents hash =
-  Lwt_main.run @@ main ~root ~uri ~tls ~level ~http ~contents ~hash
+let main root uri tls level graphql contents hash =
+  Lwt_main.run @@ main ~root ~uri ~tls ~level ~graphql ~contents ~hash
 
 open Cmdliner
 
@@ -34,16 +34,16 @@ let tls =
   let doc = Arg.info ~docv:"CERT_FILE,KEY_FILE" ~doc:"TLS config" [ "tls" ] in
   Arg.(value @@ opt (some (pair string string)) None doc)
 
-let http =
+let graphql =
   let doc =
-    Arg.info ~doc:"Run the HTTP server on the specified port" ~docv:"PORT"
-      [ "http" ]
+    Arg.info ~doc:"Run a GraphQL server on the specified port" ~docv:"PORT"
+      [ "graphql" ]
   in
   Arg.(value @@ opt (some int) None doc)
 
 let main_term =
   Term.(
-    const main $ root $ Cli.uri $ tls $ Cli.log_level $ http $ Cli.contents
+    const main $ root $ Cli.uri $ tls $ Cli.log_level $ graphql $ Cli.contents
     $ Cli.hash)
 
 let () =

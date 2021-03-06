@@ -1,7 +1,7 @@
 open Lwt.Syntax
 open Lwt.Infix
 
-module Make (Store : Irmin_pack_layered.S) = struct
+module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
   include Context.Make (Store)
 
   module Find = struct
@@ -173,9 +173,9 @@ module Make (Store : Irmin_pack_layered.S) = struct
   module Set_tree = struct
     type req = Store.key * Irmin.Info.t * Tree.t
 
-    type res = unit
+    type res = Tree.t
 
-    let args = (3, 0)
+    let args = (3, 1)
 
     let name = "store.set_tree"
 
@@ -198,7 +198,7 @@ module Make (Store : Irmin_pack_layered.S) = struct
           Store.set_tree_exn ctx.store key ~info:(fun () -> info) tree
         in
         Hashtbl.remove ctx.trees id;
-        Return.ok conn
+        Return.v conn Tree.t (Tree.Hash (Store.Tree.hash tree))
     end
 
     module Client = struct
@@ -207,16 +207,16 @@ module Make (Store : Irmin_pack_layered.S) = struct
         let* () = Args.write t Irmin.Info.t info in
         Args.write t Tree.t tree
 
-      let recv _args = Lwt.return_ok ()
+      let recv args = Args.next args Tree.t
     end
   end
 
   module Test_and_set_tree = struct
     type req = Store.key * Irmin.Info.t * Tree.t option * Tree.t option
 
-    type res = unit
+    type res = Tree.t option
 
-    let args = (4, 0)
+    let args = (4, 1)
 
     let name = "store.test_and_set_tree"
 
@@ -262,7 +262,8 @@ module Make (Store : Irmin_pack_layered.S) = struct
             ~test ~set
         in
         Option.iter (Hashtbl.remove ctx.trees) id;
-        Return.ok conn
+        Return.v conn (Irmin.Type.option Tree.t)
+          (Option.map (fun tree -> Tree.Hash (Store.Tree.hash tree)) set)
     end
 
     module Client = struct
@@ -272,7 +273,7 @@ module Make (Store : Irmin_pack_layered.S) = struct
         let* () = Args.write t (Irmin.Type.option Tree.t) test in
         Args.write t (Irmin.Type.option Tree.t) set
 
-      let recv _args = Lwt.return_ok ()
+      let recv args = Args.next args (Irmin.Type.option Tree.t)
     end
   end
 

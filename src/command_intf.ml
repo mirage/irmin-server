@@ -6,6 +6,7 @@ module type S = sig
   type context = {
     conn : Conn.t;
     repo : Store.Repo.t;
+    mutable branch : Store.branch;
     mutable store : Store.t;
     trees : (int, Store.tree) Hashtbl.t;
   }
@@ -51,6 +52,8 @@ module type S = sig
 
     module Set_branch : CMD with type req = Store.branch and type res = unit
 
+    module Get_branch : CMD with type req = unit and type res = Store.branch
+
     module Store : sig
       module Find :
         CMD with type req = Store.key and type res = Store.contents option
@@ -78,13 +81,13 @@ module type S = sig
       module Set_tree :
         CMD
           with type req = Store.key * Irmin.Info.t * Tree.t
-           and type res = unit
+           and type res = Tree.t
 
       module Test_and_set_tree :
         CMD
           with type req =
                 Store.key * Irmin.Info.t * Tree.t option * Tree.t option
-           and type res = unit
+           and type res = Tree.t option
 
       module Mem : CMD with type req = Store.key and type res = bool
 

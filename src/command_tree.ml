@@ -1,7 +1,7 @@
 open Lwt.Syntax
 open Lwt.Infix
 
-module Make (Store : Irmin_pack_layered.S) = struct
+module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
   include Context.Make (Store)
 
   module Empty = struct

@@ -1,10 +1,11 @@
 open Lwt.Syntax
 open Lwt.Infix
 
-module Make (St : Irmin_pack_layered.S) = struct
+module Make (St : Irmin_pack_layered.S with type key = string list) = struct
   type context = {
     conn : Conn.t;
     repo : St.Repo.t;
+    mutable branch : St.branch;
     mutable store : St.t;
     trees : (int, St.tree) Hashtbl.t;
   }

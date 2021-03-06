@@ -114,30 +114,35 @@ module Make (X : Command.S) = struct
       Lwt_io.close ic
     else
       let conn = Conn.v flow ic oc in
-      let* store = Store.master repo in
+      let branch = Store.Branch.master in
+      let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
-      let client = Command.{ conn; repo; store; trees } in
+      let client = Command.{ conn; repo; branch; store; trees } in
       loop repo conn client
 
   let on_exn x = raise x
 
-  let http_server (type x)
-      (module Store : Irmin_pack_layered.S with type repo = x) (_repo : x) _conn
-      _req body =
-    Cohttp_lwt.Body.drain_body body >>= fun () ->
-    Cohttp_lwt_unix.Server.respond_string ~body:"OK" ~status:`OK ()
-
-  let serve ?http { ctx; server; repo; _ } =
+  let serve ?graphql { ctx; server; repo; uri; _ } =
     let () =
-      match http with
+      match graphql with
       | Some port ->
-          let http =
-            Cohttp_lwt_unix.Server.make
-              ~callback:(http_server (module Store) repo)
-              ()
-          in
           Lwt.async (fun () ->
-              Cohttp_lwt_unix.Server.create ~mode:(`TCP (`Port port)) http)
+              let module G =
+                Irmin_unix.Graphql.Server.Make
+                  (Store)
+                  (Irmin_unix.Graphql.Server.Remote.None)
+              in
+              let server = G.v repo in
+              let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
+              let* ctx = Conduit_lwt_unix.init ~src:addr () in
+              let ctx = Cohttp_lwt_unix.Net.init ~ctx () in
+              let on_exn exn =
+                Logs.debug (fun l ->
+                    l "graphql exn: %s" (Printexc.to_string exn))
+              in
+              Cohttp_lwt_unix.Server.create ~on_exn ~ctx
+                ~mode:(`TCP (`Port port))
+                server)
       | None -> ()
     in
     Conduit_lwt_unix.serve ~ctx ~on_exn ~mode:server (callback repo)
