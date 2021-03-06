@@ -1,15 +1,19 @@
 module type S = sig
   type t
 
-  module Store : Irmin.S
+  module Store : Irmin_pack_layered.S with type key = string list
 
   module Command : Command.S with module Store = Store
 
-  val v : ?ctx:Conduit_lwt_unix.ctx -> port:int -> Irmin.config -> t Lwt.t
+  val v :
+    ?tls_config:[ `Cert_file of string ] * [ `Key_file of string ] ->
+    uri:string ->
+    Irmin.config ->
+    t Lwt.t
 
-  val serve : ?http:bool -> t -> unit Lwt.t
+  val serve : ?graphql:int -> t -> unit Lwt.t
 
-  val commands : (Command.t, int * int * Command.f) Hashtbl.t
+  val commands : (string, Command.t) Hashtbl.t
 end
 
 module type Server = sig

@@ -1,5 +1,5 @@
 module type S = sig
-  module Store : Irmin.S with type key = string list
+  module Store : Irmin_pack_layered.S with type key = string list
 
   module Command : Command.S with module Store = Store
 
@@ -25,6 +25,9 @@ module type Irmin_server = sig
   module Error = Error
   module Server = Server
   module Client = Client
+  module Cli = Cli
+
+  module type S = S
 
   module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) :
     S

@@ -7,13 +7,13 @@ A server for [irmin](https://github.com/mirage/irmin) using a custom wire [proto
 To run the server:
 
 ```shell
-$ dune exec bin/main.exe -- --root ./data
+$ dune exec bin/server/server.exe -- --root ./data
 ```
 
 For more information:
 
 ```shell
-$ dune exec bin/main.exe --help
+$ dune exec bin/server/server.exe --help
 ```
 
 ## OCaml client
@@ -28,8 +28,8 @@ Message `data` is encoded using `Irmin.Type.to_bin_string`
 
 | Field  | Type                 |
 | ------ | -------------------- |
-| length | int32, little-endian |
-| data   | Bytes                |
+| length | int32, little endian |
+| data   | bytes                |
 
 
 ### Request
@@ -38,9 +38,9 @@ A request is sent from the client to the server
 
 | Field               | Type                        |
 | ------------------- | --------------------------- |
-| command             | Newline delimited string    |
-| message count       | int32, little-endian        |
-| messages            | Zero or more Messages       |
+| command             | `\n` delimited string       |
+| message count       | int32, little endian        |
+| messages            | zero or more Messages       |
 
 ### Response
 
@@ -48,20 +48,24 @@ A `response` is sent from the server back to the client after a `request` has be
 
 Responses with no messages (i.e. `message count` = 0) are used to signal an `OK` response with no data
 
-An error response is marked by setting `message count` to `-1`. It should always be followed 
+An error response is marked by setting `message count` to `-1`. It should always be followed
 by a single `string` Message containing a description of the error.
 
 | Field           | Type                   |
 | --------------- | ---------------------- |
-| message count   | int32, little-endian   |
-| messages        | Zero or more Messages |
+| message count   | int32, little endian   |
+| messages        | zero or more Messages  |
 
 ### Handshake
 
 A handshake is performed when a client connects to the server
 
 #### V1
+
+The following is sent as a request from the client to server **AND** the response from server to client
+
 | Field   | Type                     |
 | ------- | ------------------------ |
-| version | Newline delimited string |
+| version | `\n` delimited string    |
+
 

@@ -1,5 +1,5 @@
 module type S = sig
-  type conf
+  type conf = Conduit_lwt_unix.client
 
   type t
 
@@ -9,23 +9,100 @@ module type S = sig
 
   type branch
 
+  type commit
+
   type key
 
-  val conf : ?host:string -> port:int -> unit -> conf
+  type tree
 
-  val connect : ?ctx:Conduit_lwt_unix.ctx -> conf -> t Lwt.t
+  module Key : Irmin.Path.S with type t = key
 
-  val ping : t -> (unit, Error.t) result Lwt.t
+  module Hash : Irmin.Hash.S with type t = hash
 
-  val set_branch : t -> branch -> (unit, Error.t) result Lwt.t
+  module Contents : Irmin.Contents.S with type t = contents
+
+  module Branch : Irmin.Branch.S with type t = branch
+
+  module Private : sig
+    module Tree :
+      Tree.S
+        with type Private.Store.hash = hash
+         and type Private.Store.contents = contents
+         and type Private.Store.branch = branch
+  end
+
+  val connect : ?tls:bool -> uri:string -> unit -> t Lwt.t
+
+  val ping : t -> unit Error.result Lwt.t
+
+  val set_branch : t -> branch -> unit Error.result Lwt.t
+
+  val get_branch : t -> branch Error.result Lwt.t
+
+  module Tree : sig
+    val empty : t -> tree Error.result Lwt.t
+
+    val add : tree -> key -> contents -> tree Error.result Lwt.t
+
+    val remove : tree -> key -> tree Error.result Lwt.t
+
+    val abort : tree -> unit Error.result Lwt.t
+
+    val mem : tree -> key -> bool Error.result Lwt.t
+
+    val mem_tree : tree -> key -> bool Error.result Lwt.t
+
+    val list :
+      tree -> key -> (Key.step * [ `Contents | `Tree ]) list Error.result Lwt.t
+
+    module Local :
+      Tree_intf.LOCAL
+        with type key = key
+         and type contents = contents
+         and type hash = hash
+         and type step = Key.step
+
+    val of_local : t -> Local.t -> tree
+
+    type t = tree
+  end
 
   module Store : sig
-    val find : t -> key -> (contents option, Error.t) result Lwt.t
+    val find : t -> key -> contents option Error.result Lwt.t
+
+    val find_tree : t -> key -> Tree.t option Error.result Lwt.t
 
     val set :
-      t -> info:Irmin.Info.f -> key -> contents -> (unit, Error.t) result Lwt.t
+      t -> info:Irmin.Info.f -> key -> contents -> unit Error.result Lwt.t
 
-    val remove : t -> info:Irmin.Info.f -> key -> (unit, Error.t) result Lwt.t
+    val test_and_set :
+      t ->
+      info:Irmin.Info.f ->
+      key ->
+      test:contents option ->
+      set:contents option ->
+      unit Error.result Lwt.t
+
+    val remove : t -> info:Irmin.Info.f -> key -> unit Error.result Lwt.t
+
+    val set_tree :
+      t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
+
+    val test_and_set_tree :
+      t ->
+      info:Irmin.Info.f ->
+      key ->
+      test:Tree.t option ->
+      set:Tree.t option ->
+      Tree.t option Error.result Lwt.t
+
+    val mem : t -> key -> bool Error.result Lwt.t
+
+    val mem_tree : t -> key -> bool Error.result Lwt.t
+  end
+
+  module Commit : sig
+    include Irmin.Private.Commit.S with type hash = hash
   end
 end
 

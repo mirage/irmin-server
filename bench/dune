@@ -7,9 +7,9 @@
 ;; Require the above executables to compile during tests
 
 (executable
- (name basic)
- (modules basic)
- (public_name basic)
+ (name main)
+ (modules main)
+ (public_name irmin-server-bench)
  (package irmin-server-bench)
  (preprocess
   (pps ppx_irmin))

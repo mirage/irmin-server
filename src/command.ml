@@ -1,72 +1,97 @@
 open Lwt.Syntax
-open Lwt.Infix
 include Command_intf
 
-let of_name name =
-  Irmin.Type.of_string command_t ("\"" ^ name ^ "\"") |> Result.get_ok
+module Make (St : Irmin_pack_layered.S with type key = string list) = struct
+  module Store = St
+  include Context.Make (St)
 
-let name x =
-  let s = Irmin.Type.to_string command_t x in
-  if String.length s < 2 then invalid_arg "invalid command name"
-  else String.sub s 1 (String.length s - 2)
+  type t = (module CMD)
 
-module Make (Store : Irmin.S) = struct
-  type t = command
+  module Commands = struct
+    module Ping = struct
+      type req = unit
 
-  module Store = Store
+      type res = unit
 
-  type context = { conn : Conn.t; repo : Store.Repo.t; mutable store : Store.t }
+      let args = (0, 0)
 
-  type f = Conn.t -> context -> Args.t -> Return.t Lwt.t
+      let name = "ping"
 
-  module X = struct
-    let ping conn _ctx _args = Return.ok conn
+      module Server = struct
+        let recv _context _args = Lwt.return_ok ()
 
-    let set_branch conn ctx args =
-      let* branch = Args.next args Store.Branch.t >|= Result.get_ok in
-      let* store = Store.of_branch ctx.repo branch in
-      ctx.store <- store;
-      Return.ok conn
+        let handle conn _context () = Return.ok conn
+      end
 
-    module Store = struct
-      let find conn ctx args =
-        let* key = Args.next args Store.Key.t >|= Result.get_ok in
-        let* x = Store.find ctx.store key in
-        let* () = Conn.begin_response ctx.conn 1 in
-        Return.v conn (Irmin.Type.option Store.contents_t) x
+      module Client = struct
+        let send _args _req = Lwt.return_unit
 
-      let set conn ctx args =
-        let* key = Args.next args Store.Key.t >|= Result.get_ok in
-        let* info = Args.next args Irmin.Info.t >|= Result.get_ok in
-        let* value = Args.next args Store.Contents.t >|= Result.get_ok in
-        let* () = Store.set_exn ctx.store key value ~info:(fun () -> info) in
-        Return.ok conn
-
-      let remove conn ctx args =
-        let* key = Args.next args Store.Key.t >|= Result.get_ok in
-        let* info = Args.next args Irmin.Info.t >|= Result.get_ok in
-        let* () = Store.remove_exn ctx.store key ~info:(fun () -> info) in
-        Return.ok conn
+        let recv _args = Lwt.return_ok ()
+      end
     end
+
+    module Set_branch = struct
+      type req = St.Branch.t
+
+      type res = unit
+
+      let args = (1, 0)
+
+      let name = "set_branch"
+
+      module Server = struct
+        let recv _ctx args = Args.next args St.Branch.t
+
+        let handle conn ctx branch =
+          let* store = Store.of_branch ctx.repo branch in
+          ctx.branch <- branch;
+          ctx.store <- store;
+          Return.ok conn
+      end
+
+      module Client = struct
+        let send t branch : unit Lwt.t = Args.write t Store.Branch.t branch
+
+        let recv _args : res Error.result Lwt.t = Lwt.return_ok ()
+      end
+    end
+
+    module Get_branch = struct
+      type req = unit
+
+      type res = St.Branch.t
+
+      let args = (0, 1)
+
+      let name = "get_branch"
+
+      module Server = struct
+        let recv _ctx _args = Lwt.return_ok ()
+
+        let handle conn ctx () = Return.v conn Store.Branch.t ctx.branch
+      end
+
+      module Client = struct
+        let send _t _branch : unit Lwt.t = Lwt.return_unit
+
+        let recv args : res Error.result Lwt.t = Args.next args Store.Branch.t
+      end
+    end
+
+    module Store = Command_store.Make (St)
+    module Tree = Command_tree.Make (St)
   end
 
-  let cmd x n_in n_out f = (x, (n_in, n_out, f))
+  let commands : (string * (module CMD)) list =
+    let open Commands in
+    [ cmd (module Ping); cmd (module Set_branch); cmd (module Get_branch) ]
+    @ Store.commands @ Tree.commands
 
-  let commands =
-    let open X in
-    [
-      cmd Ping 0 0 ping;
-      cmd SetBranch 1 0 set_branch;
-      cmd Find 1 1 Store.find;
-      cmd Set 3 0 Store.set;
-      cmd Remove 2 0 Store.remove;
-    ]
+  let of_name name = List.assoc name commands
 
-  let n_args cmd =
-    let n, _, _ = List.assoc cmd commands in
-    n
+  let name (module Cmd : CMD) = Cmd.name
 
-  let n_results cmd =
-    let _, n, _ = List.assoc cmd commands in
-    n
+  let n_args (module C : CMD) = fst C.args
+
+  let n_results (module C : CMD) = snd C.args
 end

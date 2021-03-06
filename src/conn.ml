@@ -6,18 +6,19 @@ type t = {
   oc : Conduit_lwt_unix.oc;
 }
 
-let v flow ic oc = { flow; ic; oc }
+let v flow ic oc = { flow; ic; oc } [@@inline]
 
-let read_arg t ty = Message.read t.ic ty
+let read_message t ty = Message.read t.ic ty [@@inline]
 
-let write_arg t ty x = Message.write t.oc ty x
+let write_message t ty x = Message.write t.oc ty x [@@inline]
 
-let begin_response t n = Response.Write.header t.oc { n_items = n }
+let begin_response t n = Response.Write.header t.oc { n_items = n } [@@inline]
 
-let ok t = begin_response t 0
+let ok t = begin_response t 0 [@@inline]
 
 let err t msg =
   let header = Response.Header.v ~n_items:(-1) in
+  let msg = "ERROR " ^ msg in
   let* () = Response.Write.header t.oc header in
   Message.write t.oc Irmin.Type.string msg
 

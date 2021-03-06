@@ -1,11 +1,13 @@
-type t
+type 'a t
 
-val v : count:int -> Conn.t -> t
+val v : mode:([< `Read | `Write ] as 'a) -> count:int -> Conn.t -> 'a t
 
-val next : t -> 'a Irmin.Type.t -> ('a, Error.t) result Lwt.t
+val next : [ `Read ] t -> 'a Irmin.Type.t -> ('a, Error.t) result Lwt.t
 
-val next_raw : t -> bytes Lwt.t
+val next_raw : [ `Read ] t -> bytes Lwt.t
 
-val remaining : t -> int
+val remaining : [< `Read | `Write ] t -> int
 
-val raise_error : t -> string -> 'a
+val write : [ `Write ] t -> 'a Irmin.Type.t -> 'a -> unit Lwt.t
+
+val raise_error : [< `Read | `Write ] t -> string -> 'a

@@ -1,14 +1,16 @@
-open Irmin_server_intf
 module Args = Args
 module Error = Error
 module Client = Client
 module Server = Server
 module Command = Command
+module Cli = Cli
+include Irmin_server_intf
 
 module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) =
 struct
   module Store =
-    Irmin_pack.Make (Conf) (Irmin.Metadata.None) (C) (Irmin.Path.String_list)
+    Irmin_pack_layered.Make (Conf) (Irmin.Metadata.None) (C)
+      (Irmin.Path.String_list)
       (B)
       (H)
 
