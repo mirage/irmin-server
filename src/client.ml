@@ -108,8 +108,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
   let set_branch t (branch : Store.branch) =
     request t (module Commands.Set_branch) branch
 
-  let get_branch t =
-    request t (module Commands.Get_branch) ()
+  let get_branch t = request t (module Commands.Get_branch) ()
 
   module Store = struct
     let find t key = request t (module Commands.Store.Find) key
@@ -167,6 +166,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let abort (t, tree) = request t (module Commands.Tree.Abort) tree
 
+    let clone (t, tree) = wrap t (request t (module Commands.Tree.Clone) tree)
+
     let mem (t, tree) key = request t (module Commands.Tree.Mem) (tree, key)
 
     let mem_tree (t, tree) key =
@@ -175,6 +176,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let list (t, tree) key = request t (module Commands.Tree.List) (tree, key)
 
     module Local = Private.Tree.Local
+
+    let to_local (t, tree) = request t (module Commands.Tree.To_local) tree
 
     let of_local t x = (t, Private.Tree.Local x)
   end

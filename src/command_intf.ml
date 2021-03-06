@@ -110,6 +110,10 @@ module type S = sig
 
       module Abort : CMD with type req = Tree.t and type res = unit
 
+      module Clone : CMD with type req = Tree.t and type res = Tree.t
+
+      module To_local : CMD with type req = Tree.t and type res = Tree.Local.t
+
       module Mem :
         CMD with type req = Tree.t * Tree.Private.Store.key and type res = bool
 

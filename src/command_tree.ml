@@ -124,6 +124,56 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     end
   end
 
+  module Clone = struct
+    type req = Tree.t
+
+    type res = Tree.t
+
+    let name = "tree.clone"
+
+    let args = (1, 1)
+
+    module Server = struct
+      let recv _ctx args = Args.next args Tree.t
+
+      let handle conn ctx tree =
+        let* _, tree = resolve_tree ctx tree in
+        let id = Random.bits () in
+        Hashtbl.replace ctx.trees id tree;
+        Return.v conn Tree.t (Tree.ID id)
+    end
+
+    module Client = struct
+      let send t tree = Args.write t Tree.t tree
+
+      let recv args = Args.next args Tree.t
+    end
+  end
+
+  module To_local = struct
+    type req = Tree.t
+
+    type res = Tree.Local.t
+
+    let name = "tree.to_local"
+
+    let args = (1, 1)
+
+    module Server = struct
+      let recv _ctx args = Args.next args Tree.t
+
+      let handle conn ctx tree =
+        let* _, tree = resolve_tree ctx tree in
+        Return.v conn Tree.Local.t tree
+    end
+
+    module Client = struct
+      let send t tree = Args.write t Tree.t tree
+
+      let recv args = Args.next args Tree.Local.t
+    end
+  end
+
   module Mem = struct
     type req = Tree.t * Store.key
 
@@ -233,5 +283,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       cmd (module Mem);
       cmd (module Mem_tree);
       cmd (module List);
+      cmd (module Clone);
+      cmd (module To_local);
     ]
 end

@@ -125,13 +125,17 @@ let () =
   Term.exit
   @@ Term.eval_choice help
        [
-         (Term.(const ping $ config $ time), Term.info "ping");
-         (Term.(const find $ config $ key 0 $ time), Term.info "get");
-         (Term.(const find $ config $ key 0 $ time), Term.info "find");
+         ( Term.(const ping $ config $ time),
+           Term.info ~doc:"Ping the server" "ping" );
+         ( Term.(const find $ config $ key 0 $ time),
+           Term.info ~doc:"Get the key associated with a value" "get" );
+         ( Term.(const find $ config $ key 0 $ time),
+           Term.info ~doc:"Alias for 'get' command" "find" );
          Term.
            ( const set $ config $ key 0 $ author $ message $ value 1 $ time,
-             Term.info "set" );
+             Term.info ~doc:"Set key/value" "set" );
          Term.
            ( const remove $ config $ key 0 $ author $ message $ time,
-             Term.info "remove" );
+             Term.info ~doc:"Remove value associated with the given key"
+               "remove" );
        ]

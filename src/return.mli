@@ -8,7 +8,7 @@ val err : Conn.t -> string -> 'a t Lwt.t
 
 val write : 'a Irmin.Type.t -> 'a -> 'a t -> 'a t Lwt.t
 
-val check : 'a t -> int -> unit
+val check : 'a t -> n_results:int -> unit
 
 val v : Conn.t -> 'a Irmin.Type.t -> 'a -> 'a t Lwt.t
 
