@@ -51,13 +51,17 @@ module Make (X : Command.S) = struct
     else
       Lwt.catch
         (fun () ->
+          (* Get request header (command and number of arguments) *)
           let* Request.Header.{ command; n_args } =
             Request.Read.header conn.Conn.ic
           in
+
+          (* Get command *)
           match Hashtbl.find_opt commands command with
           | None -> Conn.err conn "unknown command"
           | Some (module Cmd : X.CMD) ->
               if n_args < fst Cmd.args then
+                (* Argument count doesn't match up *)
                 let* () = Conn.consume conn n_args in
                 let* () =
                   Conn.err conn
@@ -79,6 +83,7 @@ module Make (X : Command.S) = struct
                       | Error.Error (a, b) -> raise (Error.Error (a, b))
                       | End_of_file -> raise End_of_file
                       | exn ->
+                          (* Try to recover *)
                           raise
                             (Error.Error
                                (Args.remaining args, Printexc.to_string exn)))
@@ -87,13 +92,16 @@ module Make (X : Command.S) = struct
                 Lwt.return_unit)
         (function
           | Error.Error (remaining, s) ->
+              (* Recover *)
               let* () = Conn.consume conn remaining in
               let* () = Conn.err conn s in
               Lwt_unix.sleep 0.01
           | End_of_file ->
+              (* Client has disconnected *)
               let* () = Lwt_io.close conn.ic in
               Lwt.return_unit
           | exn ->
+              (* Unhandled exception *)
               let* () = Lwt_io.close conn.ic in
               let s = Printexc.to_string exn in
               Logs.err (fun l -> l "Exception: %s" s);
@@ -104,15 +112,18 @@ module Make (X : Command.S) = struct
       loop repo conn client
 
   let callback repo flow ic oc =
+    (* Handshake check *)
     let* check =
       Lwt.catch (fun () -> Handshake.V1.check ic oc) (fun _ -> Lwt.return_false)
     in
     if not check then
+      (* Hanshake failed *)
       let () =
         Logs.info (fun l -> l "Client closed because of invalid handshake")
       in
       Lwt_io.close ic
     else
+      (* Handshake ok *)
       let conn = Conn.v flow ic oc in
       let branch = Store.Branch.master in
       let* store = Store.of_branch repo branch in
@@ -126,6 +137,7 @@ module Make (X : Command.S) = struct
     let () =
       match graphql with
       | Some port ->
+          (* Run GraphQL server too*)
           Lwt.async (fun () ->
               let module G =
                 Irmin_unix.Graphql.Server.Make
