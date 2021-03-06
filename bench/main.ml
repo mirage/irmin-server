@@ -37,8 +37,11 @@ let run_remote uri count commits tls hash =
       if commits = 0 then Lwt.return_unit
       else
         let* tree = Rpc.Client.Tree.empty client >|= unwrap "rpc" in
-        Logs.app (fun l -> l "Adding items to tree: commit# %d" commits);
-        let* tree = Remote.add_n client tree count in
+        Logs.app (fun l -> l "Adding items to tree (commit %d)" commits);
+        let* n, tree = with_timer (fun () -> Remote.add_n client tree count) in
+
+        Logs.app (fun l ->
+            l "Items added per second: %f" (float_of_int count /. n));
 
         Logs.app (fun l -> l "Setting tree");
         let* _ =
@@ -46,7 +49,7 @@ let run_remote uri count commits tls hash =
             [ "a" ] tree
           >|= unwrap "set_tree"
         in
-        Logs.app (fun l -> l "Done setting tree: commit# %d" commits);
+        Logs.app (fun l -> l "Done (commit %d)" commits);
         aux (commits - 1)
     in
 
@@ -78,20 +81,22 @@ let run_direct root count commits hash =
       if commits = 0 then Lwt.return_unit
       else
         let tree = Store.Tree.empty in
-        Logs.app (fun l -> l "Adding items to tree: commit# %d" commits);
-        let* tree = Direct.add_n () tree count in
+        Logs.app (fun l -> l "Adding items to tree (commit %d)" commits);
+        let* n, tree = with_timer (fun () -> Direct.add_n () tree count) in
 
+        Logs.app (fun l ->
+            l "Items added per second: %f" (float_of_int count /. n));
         Logs.app (fun l -> l "Setting tree");
         let* () =
           Store.set_tree_exn master ~info:(Irmin_unix.info "test") [ "a" ] tree
         in
-        Logs.app (fun l -> l "Done setting tree: commit# %d" commits);
+        Logs.app (fun l -> l "Done setting tree (commit %d)" commits);
         aux (commits - 1)
     in
 
     with_timer (fun () -> aux commits)
   in
-  Logs.app (fun l -> l "%f" n)
+  Logs.app (fun l -> l "Time: %f" n)
 
 open Cmdliner
 
@@ -124,6 +129,8 @@ let tls =
 let main uri iterations commits direct tls hash log_level =
   Logs.set_level (Some log_level);
   Logs.set_reporter (reporter ());
+  Logs.app (fun l ->
+      l "Running benchmark with %d iterations and %d commits" iterations commits);
   Lwt_main.run
   @@
   if direct then run_direct "./data" iterations commits hash
