@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os:
           - macos-latest
@@ -15,9 +15,8 @@ jobs:
         ocaml-version:
           - 4.12.0
           - 4.11.0
-          - 4.10.1
           - 4.09.1
-          - 4.08.1
+          - 4.07.1
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
@@ -34,9 +33,9 @@ jobs:
       - run: opam exec -- dune build -p irmin-server
       - run: opam exec -- dune runtest -p irmin-server
 
-  bench:
+  build-bench:
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os:
           - macos-latest
