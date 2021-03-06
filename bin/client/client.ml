@@ -69,6 +69,24 @@ let remove (S ((module Client), client)) key author message =
       in
       Logs.app (fun l -> l "OK") )
 
+let export (S ((module Client), client)) filename =
+  run
+    ( client >>= fun client ->
+      let* slice = Client.export client >|= Error.unwrap "export" in
+      let s = Irmin.Type.(unstage (to_bin_string Client.slice_t) slice) in
+      Lwt_io.chars_to_file filename (Lwt_stream.of_string s) )
+
+let import (S ((module Client), client)) filename =
+  run
+    ( client >>= fun client ->
+      let* slice = Lwt_io.chars_of_file filename |> Lwt_stream.to_string in
+      let slice =
+        Irmin.Type.(unstage (of_bin_string Client.slice_t) slice)
+        |> Error.unwrap "slice"
+      in
+      let+ () = Client.import client slice >|= Error.unwrap "import" in
+      Logs.app (fun l -> l "OK") )
+
 let level =
   let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
   Arg.(value @@ opt string "error" doc)
@@ -76,7 +94,11 @@ let level =
 let pr_str = Format.pp_print_string
 
 let key index =
-  let doc = Arg.info ~docv:"PATH" ~doc:"Key to lookup or modify." [] in
+  let doc = Arg.info ~docv:"PATH" ~doc:"Key to lookup or modify" [] in
+  Arg.(required & pos index (some string) None & doc)
+
+let filename index =
+  let doc = Arg.info ~docv:"PATH" ~doc:"Filename" [] in
   Arg.(required & pos index (some string) None & doc)
 
 let author =
@@ -138,4 +160,8 @@ let () =
            ( const remove $ config $ key 0 $ author $ message $ time,
              Term.info ~doc:"Remove value associated with the given key"
                "remove" );
+         ( Term.(const import $ config $ filename 0 $ time),
+           Term.info ~doc:"Import from dump file" "import" );
+         ( Term.(const export $ config $ filename 0 $ time),
+           Term.info ~doc:"Export to dump file" "export" );
        ]

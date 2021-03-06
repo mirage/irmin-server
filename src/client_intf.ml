@@ -15,6 +15,10 @@ module type S = sig
 
   type tree
 
+  type slice
+
+  val slice_t : slice Irmin.Type.t
+
   module Key : Irmin.Path.S with type t = key
 
   module Hash : Irmin.Hash.S with type t = hash
@@ -42,6 +46,10 @@ module type S = sig
 
   val get_branch : t -> branch Error.result Lwt.t
   (** Get the branch for a connection *)
+
+  val export : t -> slice Error.result Lwt.t
+
+  val import : t -> slice -> unit Error.result Lwt.t
 
   module Tree : sig
     val empty : t -> tree Error.result Lwt.t

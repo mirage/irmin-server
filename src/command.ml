@@ -1,4 +1,5 @@
 open Lwt.Syntax
+open Lwt.Infix
 include Command_intf
 
 module Make (St : Irmin_pack_layered.S with type key = string list) = struct
@@ -78,13 +79,69 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
       end
     end
 
+    module Export = struct
+      type req = unit
+
+      type res = St.slice
+
+      let args = (0, 1)
+
+      let name = "export"
+
+      module Server = struct
+        let recv _ctx _args = Lwt.return_ok ()
+
+        let handle conn ctx () =
+          let* slice = Store.Repo.export ~full:true ctx.repo in
+          Return.v conn Store.slice_t slice
+      end
+
+      module Client = struct
+        let send _t () : unit Lwt.t = Lwt.return_unit
+
+        let recv args : res Error.result Lwt.t = Args.next args Store.slice_t
+      end
+    end
+
+    module Import = struct
+      type req = St.slice
+
+      type res = unit
+
+      let args = (1, 0)
+
+      let name = "import"
+
+      module Server = struct
+        let recv _ctx args = Args.next args Store.slice_t
+
+        let handle conn ctx slice =
+          let* () =
+            Store.Repo.import ctx.repo slice >|= Error.unwrap "import"
+          in
+          Return.ok conn
+      end
+
+      module Client = struct
+        let send t slice : unit Lwt.t = Args.write t Store.slice_t slice
+
+        let recv _args : res Error.result Lwt.t = Lwt.return_ok ()
+      end
+    end
+
     module Store = Command_store.Make (St)
     module Tree = Command_tree.Make (St)
   end
 
   let commands : (string * (module CMD)) list =
     let open Commands in
-    [ cmd (module Ping); cmd (module Set_branch); cmd (module Get_branch) ]
+    [
+      cmd (module Ping);
+      cmd (module Set_branch);
+      cmd (module Get_branch);
+      cmd (module Import);
+      cmd (module Export);
+    ]
     @ Store.commands @ Tree.commands
 
   let of_name name = List.assoc name commands

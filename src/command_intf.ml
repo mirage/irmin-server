@@ -54,6 +54,10 @@ module type S = sig
 
     module Get_branch : CMD with type req = unit and type res = Store.branch
 
+    module Export : CMD with type req = unit and type res = Store.slice
+
+    module Import : CMD with type req = Store.slice and type res = unit
+
     module Store : sig
       module Find :
         CMD with type req = Store.key and type res = Store.contents option

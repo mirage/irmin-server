@@ -29,6 +29,10 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   type tree = t * Private.Tree.t
 
+  type slice = St.slice
+
+  let slice_t = St.slice_t
+
   type conf = Conduit_lwt_unix.client
 
   let conf ?(tls = false) ~uri () =
@@ -109,6 +113,10 @@ module Make (C : Command.S with type Store.key = string list) = struct
     request t (module Commands.Set_branch) branch
 
   let get_branch t = request t (module Commands.Get_branch) ()
+
+  let export t = request t (module Commands.Export) ()
+
+  let import t slice = request t (module Commands.Import) slice
 
   module Store = struct
     let find t key = request t (module Commands.Store.Find) key
