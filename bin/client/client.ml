@@ -3,7 +3,11 @@ open Lwt.Syntax
 open Lwt.Infix
 open Irmin_server
 
-let help () = Printf.printf "See output of `%s --help` for usage\n" Sys.argv.(0)
+let with_timer f =
+  let t0 = Sys.time () in
+  let+ a = f () in
+  let t1 = Sys.time () -. t0 in
+  (t1, a)
 
 type client = S : ((module Client.S with type t = 'a) * 'a Lwt.t) -> client
 
@@ -13,7 +17,15 @@ let init ~uri ~tls ~level (module Rpc : S) : client =
   let (x : Rpc.Client.t Lwt.t) = Rpc.Client.connect ~tls ~uri () in
   S ((module Rpc.Client : Client.S with type t = Rpc.Client.t), x)
 
-let run = Lwt_main.run
+let run x time =
+  let x =
+    if time then (
+      let+ n, x = with_timer (fun () -> x) in
+      Logs.app (fun l -> l "Time: %fs" n);
+      x)
+    else x
+  in
+  Lwt_main.run x
 
 let ping (S ((module Client), client)) =
   run
@@ -83,6 +95,10 @@ let tls =
   let doc = Arg.info ~doc:"Enable TLS" [ "tls" ] in
   Arg.(value @@ flag doc)
 
+let time =
+  let doc = Arg.info ~doc:"Enable timing" [ "time" ] in
+  Arg.(value @@ flag doc)
+
 let config =
   let create uri tls level contents hash =
     let (module Hash : Irmin.Hash.S) =
@@ -99,18 +115,23 @@ let config =
   in
   Term.(const create $ Cli.uri $ tls $ Cli.log_level $ Cli.contents $ Cli.hash)
 
-let ping = (Term.(const ping $ config), Term.info "ping")
+let help =
+  let help () =
+    Printf.printf "See output of `%s --help` for usage\n" Sys.argv.(0)
+  in
+  (Term.(const help $ Term.pure ()), Term.info "irmin-client")
 
-let get = (Term.(const find $ config $ key 0), Term.info "get")
-
-let find = (Term.(const find $ config $ key 0), Term.info "find")
-
-let remove =
-  Term.(const remove $ config $ key 0 $ author $ message, Term.info "remove")
-
-let set =
-  Term.(const set $ config $ key 0 $ author $ message $ value 1, Term.info "set")
-
-let help = (Term.(const help $ Term.pure ()), Term.info "irmin-client")
-
-let () = Term.exit @@ Term.eval_choice help [ ping; get; find; set; remove ]
+let () =
+  Term.exit
+  @@ Term.eval_choice help
+       [
+         (Term.(const ping $ config $ time), Term.info "ping");
+         (Term.(const find $ config $ key 0 $ time), Term.info "get");
+         (Term.(const find $ config $ key 0 $ time), Term.info "find");
+         Term.
+           ( const set $ config $ key 0 $ author $ message $ value 1 $ time,
+             Term.info "set" );
+         Term.
+           ( const remove $ config $ key 0 $ author $ message $ time,
+             Term.info "remove" );
+       ]
