@@ -88,7 +88,7 @@ module Make (X : Command.S) = struct
                             (Error.Error
                                (Args.remaining args, Printexc.to_string exn)))
                 in
-                let () = Return.check return (snd Cmd.args) in
+                let () = Return.check return ~n_results:(snd Cmd.args) in
                 Lwt.return_unit)
         (function
           | Error.Error (remaining, s) ->

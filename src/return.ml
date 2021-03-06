@@ -27,7 +27,7 @@ let v client ty (x : 'a) : 'a t Lwt.t =
   write ty x r
   [@@inline]
 
-let check t c =
+let check t ~n_results:c =
   let x = if c < 0 then t.n_items <= abs c else t.n_items = c in
   assert ((x && t.index = t.n_items) || t.n_items = -1)
   [@@inline]
