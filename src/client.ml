@@ -39,11 +39,11 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let uri = Uri.of_string uri in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
-    let ip = Unix.gethostbyname addr in
     let client =
       match String.lowercase_ascii scheme with
       | "unix" -> `Unix_domain_socket (`File (Uri.path uri))
       | "tcp" ->
+          let ip = Unix.gethostbyname addr in
           let port = Uri.port uri |> Option.value ~default:8888 in
           let x = Random.int (Array.length ip.h_addr_list) in
           let ip =
