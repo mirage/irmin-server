@@ -54,9 +54,13 @@ module type S = sig
   module Commands : sig
     module Ping : CMD with type req = unit and type res = unit
 
-    module Set_branch : CMD with type req = Store.branch and type res = unit
+    module Set_current_branch :
+      CMD with type req = Store.branch and type res = unit
 
-    module Get_branch : CMD with type req = unit and type res = Store.branch
+    module Get_current_branch :
+      CMD with type req = unit and type res = Store.branch
+
+    module Remove_branch : CMD with type req = Store.branch and type res = unit
 
     module Export : CMD with type req = unit and type res = Store.slice
 
@@ -64,6 +68,14 @@ module type S = sig
 
     module Head :
       CMD with type req = Store.branch option and type res = Commit.t option
+
+    module Set_head :
+      CMD with type req = Store.branch option * Commit.t and type res = unit
+
+    module New_commit :
+      CMD
+        with type req = Irmin.Info.t * Store.hash list * Tree.t
+         and type res = Commit.t
 
     module Store : sig
       module Find :

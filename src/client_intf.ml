@@ -25,8 +25,6 @@ module type S = sig
 
   module Contents : Irmin.Contents.S with type t = contents
 
-  module Branch : Irmin.Branch.S with type t = branch
-
   module Private : sig
     module Tree :
       Tree.S
@@ -45,17 +43,32 @@ module type S = sig
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
 
-  val set_branch : t -> branch -> unit Error.result Lwt.t
-  (** Set the current branch for a single connection *)
-
-  val get_branch : t -> branch Error.result Lwt.t
-  (** Get the branch for a connection *)
-
-  val head : ?branch:branch -> t -> commit option Error.result Lwt.t
+  val commit :
+    t ->
+    info:Irmin.Info.f ->
+    parents:hash list ->
+    tree ->
+    commit Error.result Lwt.t
 
   val export : t -> slice Error.result Lwt.t
 
   val import : t -> slice -> unit Error.result Lwt.t
+
+  module Branch : sig
+    val set_current : t -> branch -> unit Error.result Lwt.t
+    (** Set the current branch for a single connection *)
+
+    val get_current : t -> branch Error.result Lwt.t
+    (** Get the branch for a connection *)
+
+    val get : ?branch:branch -> t -> commit option Error.result Lwt.t
+
+    val set : ?branch:branch -> t -> commit -> unit Error.result Lwt.t
+
+    val remove : t -> branch -> unit Error.result Lwt.t
+
+    include Irmin.Branch.S with type t = branch
+  end
 
   module Tree : sig
     val empty : t -> tree Error.result Lwt.t

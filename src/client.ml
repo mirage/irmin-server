@@ -8,7 +8,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module Hash = Store.Hash
   module Contents = Store.Contents
   module Key = Store.Key
-  module Branch = Store.Branch
 
   module Private = struct
     module Tree = C.Tree
@@ -104,16 +103,28 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   let ping t = request t (module Commands.Ping) ()
 
-  let set_branch t (branch : Store.branch) =
-    request t (module Commands.Set_branch) branch
-
-  let get_branch t = request t (module Commands.Get_branch) ()
-
-  let head ?branch t = request t (module Commands.Head) branch
+  let commit t ~info ~parents (_, tree) =
+    request t (module Commands.New_commit) (info (), parents, tree)
 
   let export t = request t (module Commands.Export) ()
 
   let import t slice = request t (module Commands.Import) slice
+
+  module Branch = struct
+    include Store.Branch
+
+    let set_current t (branch : Store.branch) =
+      request t (module Commands.Set_current_branch) branch
+
+    let get_current t = request t (module Commands.Get_current_branch) ()
+
+    let get ?branch t = request t (module Commands.Head) branch
+
+    let set ?branch t commit =
+      request t (module Commands.Set_head) (branch, commit)
+
+    let remove t branch = request t (module Commands.Remove_branch) branch
+  end
 
   module Store = struct
     let find t key = request t (module Commands.Store.Find) key
