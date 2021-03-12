@@ -10,6 +10,8 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
     trees : (int, St.tree) Hashtbl.t;
   }
 
+  module Commit = Irmin.Private.Commit.Make (St.Hash)
+
   type f = Conn.t -> context -> [ `Read ] Args.t -> unit Lwt.t
 
   module type CMD = sig

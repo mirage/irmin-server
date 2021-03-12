@@ -129,6 +129,40 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
       end
     end
 
+    module Head = struct
+      type req = St.branch option
+
+      type res = Commit.t option
+
+      let args = (1, 1)
+
+      let name = "head"
+
+      module Server = struct
+        let recv _ctx args = Args.next args (Irmin.Type.option St.branch_t)
+
+        let handle conn ctx branch =
+          let branch = Option.value ~default:ctx.branch branch in
+          let* head = Store.Branch.find ctx.repo branch in
+          match head with
+          | None -> Return.v conn (Irmin.Type.option Commit.t) None
+          | Some head ->
+              let info = Store.Commit.info head in
+              let parents = Store.Commit.parents head in
+              let hash = Store.Commit.hash head in
+              let head = Commit.v ~info ~parents ~node:hash in
+              Return.v conn (Irmin.Type.option Commit.t) (Some head)
+      end
+
+      module Client = struct
+        let send t b : unit Lwt.t =
+          Args.write t (Irmin.Type.option Store.branch_t) b
+
+        let recv args : res Error.result Lwt.t =
+          Args.next args (Irmin.Type.option Commit.t)
+      end
+    end
+
     module Store = Command_store.Make (St)
     module Tree = Command_tree.Make (St)
   end
@@ -141,6 +175,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
       cmd (module Get_branch);
       cmd (module Import);
       cmd (module Export);
+      cmd (module Head);
     ]
     @ Store.commands @ Tree.commands
 

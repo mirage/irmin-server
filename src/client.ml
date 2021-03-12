@@ -9,7 +9,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module Contents = Store.Contents
   module Key = Store.Key
   module Branch = Store.Branch
-  module Commit_impl = Irmin.Private.Commit.Make (Hash)
 
   module Private = struct
     module Tree = C.Tree
@@ -25,7 +24,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   type key = Store.key
 
-  type commit = Commit_impl.t
+  type commit = C.Commit.t
 
   type tree = t * Private.Tree.t
 
@@ -68,18 +67,14 @@ module Make (C : Command.S with type Store.key = string list) = struct
     connect' client
 
   let handle_disconnect t f =
-    Lwt.catch
-      (fun () ->
-        let* x = f () in
-        let+ () = Lwt_io.flush t.conn.oc in
-        x)
-      (function
-        | End_of_file ->
-            Logs.info (fun l -> l "Reconnecting to server");
-            let* conn = connect' t.client in
-            t.conn <- conn.conn;
-            f ()
-        | exn -> raise exn)
+    Lwt.catch f (function
+      | End_of_file ->
+          Logs.info (fun l -> l "Reconnecting to server");
+          let* conn = connect' t.client in
+          t.conn <- conn.conn;
+          f ()
+      | exn -> raise exn)
+    [@@inline]
 
   let send_command_header t (module Cmd : C.CMD) =
     let n_args = fst Cmd.args in
@@ -113,6 +108,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
     request t (module Commands.Set_branch) branch
 
   let get_branch t = request t (module Commands.Get_branch) ()
+
+  let head ?branch t = request t (module Commands.Head) branch
 
   let export t = request t (module Commands.Export) ()
 
@@ -191,6 +188,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
   end
 
   module Commit = struct
-    include Commit_impl
+    include C.Commit
   end
 end

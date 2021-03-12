@@ -35,6 +35,10 @@ module type S = sig
          and type Private.Store.branch = branch
   end
 
+  module Commit : sig
+    include Irmin.Private.Commit.S with type hash = hash and type t = commit
+  end
+
   val connect : ?tls:bool -> uri:string -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
 
@@ -46,6 +50,8 @@ module type S = sig
 
   val get_branch : t -> branch Error.result Lwt.t
   (** Get the branch for a connection *)
+
+  val head : ?branch:branch -> t -> commit option Error.result Lwt.t
 
   val export : t -> slice Error.result Lwt.t
 
@@ -144,10 +150,6 @@ module type S = sig
     val mem_tree : t -> key -> bool Error.result Lwt.t
     (** Check if the given key has an associated tree *)
   end
-
-  module Commit : sig
-    include Irmin.Private.Commit.S with type hash = hash
-  end
 end
 
 module type Client = sig
@@ -159,4 +161,5 @@ module type Client = sig
        and type contents = C.Store.contents
        and type branch = C.Store.branch
        and type key = C.Store.key
+       and type commit = C.Commit.t
 end

@@ -89,7 +89,7 @@ module Make (X : Command.S) = struct
                                (Args.remaining args, Printexc.to_string exn)))
                 in
                 let () = Return.check return ~n_results:(snd Cmd.args) in
-                Lwt.return_unit)
+                Return.flush return)
         (function
           | Error.Error (remaining, s) ->
               (* Recover *)
@@ -106,10 +106,7 @@ module Make (X : Command.S) = struct
               let s = Printexc.to_string exn in
               Logs.err (fun l -> l "Exception: %s" s);
               Lwt.return_unit)
-      >>= fun () ->
-      let* () = Lwt_io.flush conn.Conn.oc in
-      let* () = Lwt_unix.yield () in
-      loop repo conn client
+      >>= fun () -> loop repo conn client
 
   let callback repo flow ic oc =
     (* Handshake check *)

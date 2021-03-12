@@ -3,6 +3,10 @@ module type S = sig
 
   module Tree : Tree.S with module Private.Store = Store
 
+  module Commit : sig
+    include Irmin.Private.Commit.S with type hash = Store.hash
+  end
+
   type context = {
     conn : Conn.t;
     repo : Store.Repo.t;
@@ -57,6 +61,9 @@ module type S = sig
     module Export : CMD with type req = unit and type res = Store.slice
 
     module Import : CMD with type req = Store.slice and type res = unit
+
+    module Head :
+      CMD with type req = Store.branch option and type res = Commit.t option
 
     module Store : sig
       module Find :

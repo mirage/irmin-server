@@ -36,4 +36,4 @@ let write t ty x =
 
 let remaining t = t.last_index - t.index [@@inline]
 
-let raise_error t msg = raise_error (remaining t) msg
+let raise_error t msg = raise_error (remaining t) msg [@@inline]

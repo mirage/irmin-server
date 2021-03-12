@@ -32,4 +32,4 @@ let check t ~n_results:c =
   assert ((x && t.index = t.n_items) || t.n_items = -1)
   [@@inline]
 
-let flush t = Lwt_io.flush t.conn.oc
+let flush t = Lwt_io.flush t.conn.oc [@@inline]
