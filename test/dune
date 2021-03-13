@@ -1,2 +1,3 @@
 (test
- (name irmin_server))
+ (name test)
+ (libraries irmin-server alcotest-lwt))

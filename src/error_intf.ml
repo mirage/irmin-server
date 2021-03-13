@@ -20,4 +20,8 @@ module type Error = sig
   val raise_error : int -> string -> 'a
 
   val unwrap : string -> 'a result -> 'a
+
+  val of_string : string -> t
+
+  val to_string : t -> string
 end
