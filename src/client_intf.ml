@@ -49,6 +49,7 @@ module type S = sig
     parents:hash list ->
     tree ->
     commit Error.result Lwt.t
+  (** Create a new commit *)
 
   val export : t -> slice Error.result Lwt.t
 
@@ -62,10 +63,13 @@ module type S = sig
     (** Get the branch for a connection *)
 
     val get : ?branch:branch -> t -> commit option Error.result Lwt.t
+    (** Get the head commit for the given branch, or the current branch if none is specified *)
 
     val set : ?branch:branch -> t -> commit -> unit Error.result Lwt.t
+    (** Set the head commit for the given branch, or the current branch if none is specified *)
 
     val remove : t -> branch -> unit Error.result Lwt.t
+    (** Delete a branch *)
 
     include Irmin.Branch.S with type t = branch
   end
@@ -113,6 +117,7 @@ module type S = sig
         NOTE: this will encode the full tree  *)
 
     val of_local : t -> Local.t -> tree
+    (** Convert a local tree into a remote tree *)
 
     type t = tree
   end

@@ -10,10 +10,13 @@ module type S = sig
     uri:string ->
     Irmin.config ->
     t Lwt.t
+  (** Create an instance of the server *)
 
   val serve : ?graphql:int -> t -> unit Lwt.t
+  (** Run the server, optionally enabling the GraphQL server as well *)
 
   val commands : (string, Command.t) Hashtbl.t
+  (** A table mapping commands to command names *)
 end
 
 module type Server = sig
