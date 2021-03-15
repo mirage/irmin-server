@@ -7,15 +7,21 @@ module type LOCAL = sig
 
   type hash
 
+  type node
+
   type step
+
+  type metadata
 
   val t : t Irmin.Type.t
 
   val empty : t
 
-  val of_contents : contents -> t
+  val of_contents : ?metadata:metadata -> contents -> t
 
-  val add : t -> key -> contents -> t Lwt.t
+  val of_node : node -> t
+
+  val add : t -> key -> ?metadata:metadata -> contents -> t Lwt.t
 
   val add_tree : t -> key -> t -> t Lwt.t
 
@@ -29,13 +35,30 @@ module type LOCAL = sig
 
   val mem_tree : t -> key -> bool Lwt.t
 
-  val update : t -> key -> (contents option -> contents option) -> t Lwt.t
+  val update :
+    t ->
+    key ->
+    ?metadata:metadata ->
+    (contents option -> contents option) ->
+    t Lwt.t
 
   val update_tree : t -> key -> (t option -> t option) -> t Lwt.t
 
   val kind : t -> key -> [ `Contents | `Node ] option Lwt.t
 
   val destruct : t -> [ `Contents of hash | `Node of (step * t) list ] Lwt.t
+
+  val list : t -> ?offset:int -> ?length:int -> key -> (step * t) list Lwt.t
+
+  val diff : t -> t -> (key * (contents * metadata) Irmin.Diff.t) list Lwt.t
+
+  val merge : t Irmin.Merge.t
+
+  type elt = [ `Node of node | `Contents of contents * metadata ]
+  (** The type for tree elements. *)
+
+  val v : elt -> t
+  (** General-purpose constructor for trees. *)
 end
 
 module type S = sig
