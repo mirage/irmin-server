@@ -1,8 +1,12 @@
-name: Main workflow
+name: irmin-server
 
 on:
-  - pull_request
-  - push
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
 
 jobs:
   build:
@@ -38,11 +42,10 @@ jobs:
       fail-fast: true
       matrix:
         os:
-          - macos-latest
+          #- macos-latest
           - ubuntu-latest
         ocaml-version:
           - 4.12.0
-          - 4.11.0
 
     runs-on: ${{ matrix.os }}
 
@@ -60,10 +63,4 @@ jobs:
       - run: opam depext irmin-server-bench --yes --with-doc
       - run: opam install irmin-server irmin-server-bench --deps-only --with-doc --with-test
       - run: opam exec -- dune build
-
-      - name: Upload the build artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: irmin-server-${{ matrix.os }}-${{ matrix.ocaml-version }}
-          path: _build/default/bin/main.exe
 

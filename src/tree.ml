@@ -15,33 +15,15 @@ module Make (Store : Irmin_pack_layered.S) = struct
 
     type contents = Store.contents
 
+    type node = Store.node
+
     type hash = Store.hash
 
     type step = Store.Key.step
 
-    let empty = Store.Tree.empty
+    type metadata = Store.metadata
 
-    let list = Store.Tree.list
-
-    let of_contents x = Store.Tree.of_contents x
-
-    let add t key contents = Store.Tree.add t key contents
-
-    let add_tree t key tree = Store.Tree.add_tree t key tree
-
-    let mem = Store.Tree.mem
-
-    let mem_tree = Store.Tree.mem_tree
-
-    let update = Store.Tree.update ~metadata:Store.Metadata.default
-
-    let update_tree = Store.Tree.update_tree
-
-    let remove = Store.Tree.remove
-
-    let find = Store.Tree.find
-
-    let find_tree = Store.Tree.find_tree
+    include Store.Tree
 
     let destruct x =
       match Store.Tree.destruct x with
@@ -49,8 +31,6 @@ module Make (Store : Irmin_pack_layered.S) = struct
       | `Node l ->
           let+ l = list (Store.Tree.of_node l) Store.Key.empty in
           `Node l
-
-    let kind = Store.Tree.kind
   end
 
   type t = Hash of Store.Hash.t | ID of int | Local of Local.t

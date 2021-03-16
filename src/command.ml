@@ -74,7 +74,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
           let* () =
             if Irmin.Type.(unstage (equal Store.Branch.t)) ctx.branch branch
             then
-              let+ store = Store.of_branch ctx.repo branch in
+              let+ store = Store.master ctx.repo in
               let () = ctx.branch <- Store.Branch.master in
               ctx.store <- store
             else Lwt.return_unit
