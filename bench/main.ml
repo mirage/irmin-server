@@ -17,7 +17,7 @@ module Make (X : BENCH) = struct
   let rec add_n client tree n =
     if n = 0 then Lwt.return tree
     else
-      let s = String.make 1024 'A' in
+      let s = random_string 512 in
       let key = [ string_of_int n ] in
       let* tree = X.Tree.add tree key s >|= unwrap "add" in
       add_n client tree (n - 1)
