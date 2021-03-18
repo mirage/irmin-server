@@ -16,7 +16,7 @@ end
 module Conf = struct
   let entries = 32
 
-  let stable_hash = 256
+  let stable_hash = 32
 end
 
 module type Irmin_server = sig

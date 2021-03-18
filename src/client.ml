@@ -6,7 +6,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module St = C.Store
   open C
   module Hash = Store.Hash
-  module Contents = Store.Contents
   module Key = Store.Key
 
   module Private = struct
@@ -98,9 +97,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
             x)
 
   let ping t = request t (module Commands.Ping) ()
-
-  let commit t ~info ~parents (_, tree) =
-    request t (module Commands.New_commit) (info (), parents, tree)
 
   let export t = request t (module Commands.Export) ()
 
@@ -194,7 +190,22 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let of_local t x = (t, Private.Tree.Local x)
   end
 
+  module Contents = struct
+    include St.Contents
+
+    let of_hash t hash = request t (module Commands.Contents_of_hash) hash
+  end
+
   module Commit = struct
     include C.Commit
+
+    let create t ~info ~parents (_, tree) =
+      request t (module Commands.New_commit) (info (), parents, tree)
+
+    let of_hash t hash = request t (module Commands.Commit_of_hash) hash
+
+    let tree t commit =
+      let node = node commit in
+      (t, Private.Tree.Hash node)
   end
 end

@@ -173,6 +173,47 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         Return.ok conn
     end
 
+    module Commit_of_hash = struct
+      module Req = struct
+        type t = St.Hash.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = Commit.t option [@@deriving irmin]
+      end
+
+      let name = "commit_of_hash"
+
+      let run conn ctx hash =
+        let* commit = St.Commit.of_hash ctx.repo hash in
+        let commit =
+          Option.map
+            (fun commit ->
+              let info = Store.Commit.info commit in
+              let parents = Store.Commit.parents commit in
+              let hash = Store.Commit.hash commit in
+              Commit.v ~info ~parents ~node:hash)
+            commit
+        in
+        Return.v conn (Irmin.Type.option Commit.t) commit
+    end
+
+    module Contents_of_hash = struct
+      module Req = struct
+        type t = St.Hash.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = St.contents option [@@deriving irmin]
+      end
+
+      let name = "contents_of_hash"
+
+      let run conn ctx hash =
+        let* contents = St.Contents.of_hash ctx.repo hash in
+        Return.v conn Res.t contents
+    end
+
     module Store = Command_store.Make (St)
     module Tree = Command_tree.Make (St)
   end
@@ -189,6 +230,8 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
       cmd (module New_commit);
       cmd (module Set_head);
       cmd (module Remove_branch);
+      cmd (module Commit_of_hash);
+      cmd (module Contents_of_hash);
     ]
     @ Store.commands @ Tree.commands
 

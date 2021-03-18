@@ -70,6 +70,12 @@ module type S = sig
         with type Req.t = Irmin.Info.t * Store.hash list * Tree.t
          and type Res.t = Commit.t
 
+    module Commit_of_hash :
+      CMD with type Req.t = Store.Hash.t and type Res.t = Commit.t option
+
+    module Contents_of_hash :
+      CMD with type Req.t = Store.Hash.t and type Res.t = Store.contents option
+
     (* Store *)
     module Store : sig
       module Find :
