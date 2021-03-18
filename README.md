@@ -64,7 +64,7 @@ Message `data` is encoded using `Irmin.Type.to_bin_string`
 
 | Field  | Type                 |
 | ------ | -------------------- |
-| length | int32, little endian |
+| length | int64, little endian |
 | data   | bytes                |
 
 
