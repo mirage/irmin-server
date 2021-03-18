@@ -9,7 +9,7 @@ let make status conn : 'a t Lwt.t =
   [@@inline]
 
 let err conn msg : 'a t Lwt.t =
-  let* t = make (-1) conn in
+  let* t = make 0 conn in
   let+ () = Message.write conn.oc Irmin.Type.string ("ERROR " ^ msg) in
   t
   [@@inline]

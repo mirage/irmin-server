@@ -9,18 +9,19 @@ end
 module Write = struct
   let header t Header.{ status; _ } =
     Logs.debug (fun l -> l "Writing response header: status=%d" status);
-    let+ x = Lwt_io.LE.write_int t status in
+    let+ x = Lwt_io.write_char t (char_of_int status) in
     x
 end
 
 module Read = struct
   let header t =
-    let+ status = Lwt_io.LE.read_int t in
+    let+ status = Lwt_io.read_char t in
+    let status = int_of_char status in
     Logs.debug (fun l -> l "Read response header: status=%d" status);
     Header.{ status }
     [@@inline]
 
-  let is_error Header.{ status; _ } = status < 0 [@@inline]
+  let is_error Header.{ status; _ } = status <= 0 [@@inline]
 
   let get_error t header =
     if is_error header then (

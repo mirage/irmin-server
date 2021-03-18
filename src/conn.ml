@@ -14,10 +14,10 @@ let write_message t ty x = Message.write t.oc ty x [@@inline]
 
 let begin_response t n = Response.Write.header t.oc { status = n } [@@inline]
 
-let ok t = begin_response t 0 [@@inline]
+let ok t = begin_response t 1 [@@inline]
 
 let err t msg =
-  let header = Response.Header.v ~status:(-1) in
+  let header = Response.Header.v ~status:0 in
   let msg = "ERROR " ^ msg in
   let* () = Response.Write.header t.oc header in
   Message.write t.oc Irmin.Type.string msg
