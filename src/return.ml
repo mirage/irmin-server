@@ -26,9 +26,7 @@ let v client ty (x : 'a) : 'a t Lwt.t =
 
 let ok conn : unit t Lwt.t = v conn Irmin.Type.unit () [@@inline]
 
-(*let check t ~n_results:c =
-  let x = if c < 0 then t.n_items <= abs c else t.n_items = c in
-  assert ((x && t.index = t.n_items) || t.n_items = -1)
-  [@@inline]*)
+let result conn t x =
+  match x with Ok x -> v conn t x | Error (`Msg msg) -> err conn msg
 
 let flush t = Lwt_io.flush t.conn.oc [@@inline]
