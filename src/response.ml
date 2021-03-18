@@ -21,7 +21,7 @@ module Read = struct
     Header.{ status }
     [@@inline]
 
-  let is_error Header.{ status; _ } = status <= 0 [@@inline]
+  let is_error Header.{ status; _ } = status >= 1 [@@inline]
 
   let get_error t header =
     if is_error header then (

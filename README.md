@@ -82,14 +82,14 @@ A request is sent from the client to the server
 A `response` is sent from the server back to the client after a `request` has been handled
 
 
-An error response is marked by setting `status` to `0`. It should always be followed
+An error response is marked by setting `status` >= `1`. It should always be followed
 by a `string` Message containing a description of the error.
 
-A successful response is marked by setting `status` to `1`.
+A successful response is marked by setting `status` to `0`.
 
 | Field           | Type                   |
 | --------------- | ---------------------- |
-| status          | int8                   |
+| status          | uint8                  |
 | response        | Message                |
 
 ### Handshake

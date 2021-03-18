@@ -9,7 +9,7 @@ let make status conn : 'a t Lwt.t =
   [@@inline]
 
 let err conn msg : 'a t Lwt.t =
-  let* t = make 0 conn in
+  let* t = make 1 conn in
   let+ () = Message.write conn.oc Irmin.Type.string ("ERROR " ^ msg) in
   t
   [@@inline]
@@ -20,7 +20,7 @@ let write ty x t =
   [@@inline]
 
 let v client ty (x : 'a) : 'a t Lwt.t =
-  let* r = make 1 client in
+  let* r = make 0 client in
   write ty x r
   [@@inline]
 
