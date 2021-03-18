@@ -58,12 +58,12 @@ module Make (X : Command.S) = struct
           match Hashtbl.find_opt commands command with
           | None -> Conn.err conn "unknown command"
           | Some (module Cmd : X.CMD) ->
-              let* args =
+              let* req =
                 Message.read conn.ic Cmd.Req.t
                 >|= Error.unwrap "Invalid arguments"
               in
-              let* return = Cmd.run conn client args in
-              Return.flush return)
+              let* res = Cmd.run conn client req in
+              Return.flush res)
         (function
           | Error.Error s ->
               (* Recover *)

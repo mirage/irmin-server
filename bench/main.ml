@@ -33,6 +33,7 @@ let run_remote uri count commits tls hash =
   let module Remote = Make (Rpc.Client) in
   let+ n, () =
     let* client = Rpc.Client.connect ~tls ~uri () in
+    let* () = Rpc.Client.ping client >|= unwrap "ping" in
     let rec aux commits =
       if commits = 0 then Lwt.return_unit
       else
