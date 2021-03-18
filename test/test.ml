@@ -3,6 +3,10 @@ open Lwt.Infix
 open Irmin_server
 include Util
 
+let () =
+  Logs.set_level (Some Logs.Debug);
+  Logs.set_reporter (Logs_fmt.reporter ())
+
 let error =
   Alcotest.testable (Fmt.using Error.to_string Fmt.string) (fun a b ->
       Error.to_string a = Error.to_string b)
@@ -14,7 +18,9 @@ let ty t =
 
 let ping client =
   let open Rpc.Client in
+  Logs.debug (fun l -> l "BEFORE PING");
   let+ r = ping client in
+  Logs.debug (fun l -> l "AFTER PING");
   Alcotest.(check (result unit error)) "ping" (Ok ()) r
 
 let set client =
@@ -89,4 +95,5 @@ let () =
     (let uri = run_server () in
      let* () = Lwt_unix.sleep 1. in
      let* client = Rpc.Client.connect ~uri () in
+     Logs.debug (fun l -> l "Connected");
      Alcotest_lwt.run "irmin-server" [ ("all", suite client all) ])

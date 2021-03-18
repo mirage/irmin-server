@@ -1,9 +1,9 @@
-module Args = Args
 module Error = Error
 module Client = Client
 module Server = Server
 module Command = Command
 module Cli = Cli
+module Return = Return
 include Irmin_server_intf
 
 module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) =

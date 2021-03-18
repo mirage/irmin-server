@@ -58,17 +58,16 @@ module Make (X : Command.S) = struct
           match Hashtbl.find_opt commands command with
           | None -> Conn.err conn "unknown command"
           | Some (module Cmd : X.CMD) ->
-              let* return =
-                let* args =
-                  Message.read conn.ic Cmd.Req.t
-                  >|= Error.unwrap "Invalid arguments"
-                in
-                Cmd.run conn client args
+              let* args =
+                Message.read conn.ic Cmd.Req.t
+                >|= Error.unwrap "Invalid arguments"
               in
+              let* return = Cmd.run conn client args in
               Return.flush return)
         (function
           | Error.Error s ->
               (* Recover *)
+              Logs.debug (fun l -> l "Error response: %s" s);
               let* () = Conn.err conn s in
               Lwt_unix.sleep 0.01
           | End_of_file ->
