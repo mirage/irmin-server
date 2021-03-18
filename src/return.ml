@@ -1,14 +1,12 @@
 open Lwt.Syntax
 
-type 'a t = { code : int; conn : Conn.t }
+type 'a t = { status : int; conn : Conn.t }
 
-let make code conn : 'a t Lwt.t =
-  let x = { code; conn } in
-  let+ () = Response.Write.header conn.oc Response.Header.{ code } in
+let make status conn : 'a t Lwt.t =
+  let x = { status; conn } in
+  let+ () = Response.Write.header conn.oc Response.Header.{ status } in
   x
   [@@inline]
-
-let ok conn : unit t Lwt.t = make 0 conn [@@inline]
 
 let err conn msg : 'a t Lwt.t =
   let* t = make (-1) conn in
@@ -25,6 +23,8 @@ let v client ty (x : 'a) : 'a t Lwt.t =
   let* r = make 1 client in
   write ty x r
   [@@inline]
+
+let ok conn : unit t Lwt.t = v conn Irmin.Type.unit () [@@inline]
 
 (*let check t ~n_results:c =
   let x = if c < 0 then t.n_items <= abs c else t.n_items = c in

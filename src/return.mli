@@ -1,4 +1,4 @@
-type 'a t = { code : int; conn : Conn.t }
+type 'a t = { status : int; conn : Conn.t }
 
 val make : int -> Conn.t -> 'a t Lwt.t
 

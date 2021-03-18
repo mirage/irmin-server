@@ -75,22 +75,19 @@ A request is sent from the client to the server
 | Field               | Type                        |
 | ------------------- | --------------------------- |
 | command             | `\n` delimited string       |
-| message count       | int32, little endian        |
-| messages            | zero or more Messages       |
+| request             | Message                     |
 
 ### Response
 
 A `response` is sent from the server back to the client after a `request` has been handled
 
-Responses with no messages (i.e. `message count` = 0) are used to signal an `OK` response with no data
-
-An error response is marked by setting `message count` to `-1`. It should always be followed
-by a single `string` Message containing a description of the error.
+An error response is marked by setting `status` to `-1`. It should always be followed
+by a `string` Message containing a description of the error.
 
 | Field           | Type                   |
 | --------------- | ---------------------- |
-| message count   | int32, little endian   |
-| messages        | zero or more Messages  |
+| status          | int32, little endian   |
+| response        | Message                |
 
 ### Handshake
 
