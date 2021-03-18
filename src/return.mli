@@ -1,4 +1,4 @@
-type 'a t = { n_items : int; mutable index : int; conn : Conn.t }
+type 'a t = { code : int; conn : Conn.t }
 
 val make : int -> Conn.t -> 'a t Lwt.t
 
@@ -8,7 +8,7 @@ val err : Conn.t -> string -> 'a t Lwt.t
 
 val write : 'a Irmin.Type.t -> 'a -> 'a t -> 'a t Lwt.t
 
-val check : 'a t -> n_results:int -> unit
+(*val check : 'a t -> n_results:int -> unit*)
 
 val v : Conn.t -> 'a Irmin.Type.t -> 'a -> 'a t Lwt.t
 

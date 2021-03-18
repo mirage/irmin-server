@@ -76,18 +76,16 @@ module Make (C : Command.S with type Store.key = string list) = struct
     [@@inline]
 
   let send_command_header t (module Cmd : C.CMD) =
-    let n_args = fst Cmd.args in
-    let header = Request.Header.v ~command:Cmd.name ~n_args in
+    let header = Request.Header.v ~command:Cmd.name in
     Request.Write.header t.conn.Conn.oc header
 
   let request t (type x y)
-      (module Cmd : C.CMD with type res = x and type req = y) (a : y) =
+      (module Cmd : C.CMD with type Res.t = x and type Req.t = y) (a : y) =
     let name = Cmd.name in
     Logs.debug (fun l -> l "Starting request: command=%s" name);
     handle_disconnect t (fun () ->
         let* () = send_command_header t (module Cmd) in
-        let args = Args.v ~mode:`Write ~count:(fst Cmd.args) t.conn in
-        let* () = Cmd.Client.send args a in
+        let* () = Message.write t.conn.oc Cmd.Req.t a in
         let* () = Lwt_io.flush t.conn.oc in
         let* res = Response.Read.header t.conn.ic in
         Response.Read.get_error t.conn.ic res >>= function
@@ -95,9 +93,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
             Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
             Lwt.return_error (`Msg err)
         | None ->
-            let args = Args.v ~mode:`Read ~count:res.n_items t.conn in
-            let+ x = Cmd.Client.recv args in
-            assert (Args.remaining args = 0);
+            let+ x = Message.read t.conn.ic Cmd.Res.t in
             Logs.debug (fun l -> l "Completed request: command=%s" name);
             x)
 
@@ -133,7 +129,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
       request t (module Commands.Store.Set) (key, info (), value)
 
     let test_and_set t ~info key ~test ~set =
-      request t (module Commands.Store.Test_and_set) (key, info (), test, set)
+      request t (module Commands.Store.Test_and_set) (key, info (), (test, set))
 
     let remove t ~info key =
       request t (module Commands.Store.Remove) (key, info ())
@@ -154,7 +150,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
       let+ tree =
         request t
           (module Commands.Store.Test_and_set_tree)
-          (key, info (), test, set)
+          (key, info (), (test, set))
       in
       Result.map (Option.map (fun tree -> (t, tree))) tree
 

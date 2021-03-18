@@ -12,28 +12,22 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
 
   module Commit = Irmin.Private.Commit.Make (St.Hash)
 
-  type f = Conn.t -> context -> [ `Read ] Args.t -> unit Lwt.t
-
   module type CMD = sig
-    type req
+    module Req : sig
+      type t
 
-    type res
+      val t : t Irmin.Type.t
+    end
 
-    val args : int * int
+    module Res : sig
+      type t
+
+      val t : t Irmin.Type.t
+    end
 
     val name : string
 
-    module Server : sig
-      val recv : context -> [ `Read ] Args.t -> req Error.result Lwt.t
-
-      val handle : Conn.t -> context -> req -> res Return.t Lwt.t
-    end
-
-    module Client : sig
-      val send : [ `Write ] Args.t -> req -> unit Lwt.t
-
-      val recv : [ `Read ] Args.t -> res Error.result Lwt.t
-    end
+    val run : Conn.t -> context -> Req.t -> Res.t Return.t Lwt.t
   end
 
   let cmd (module C : CMD) = (C.name, (module C : CMD))
@@ -50,5 +44,5 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
     in
     match tree with
     | Some t -> Lwt.return (id, t)
-    | None -> Error.raise_error 0 "unknown tree"
+    | None -> Error.raise_error "unknown tree"
 end

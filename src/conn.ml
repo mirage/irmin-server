@@ -12,21 +12,21 @@ let read_message t ty = Message.read t.ic ty [@@inline]
 
 let write_message t ty x = Message.write t.oc ty x [@@inline]
 
-let begin_response t n = Response.Write.header t.oc { n_items = n } [@@inline]
+let begin_response t n = Response.Write.header t.oc { code = n } [@@inline]
 
 let ok t = begin_response t 0 [@@inline]
 
 let err t msg =
-  let header = Response.Header.v ~n_items:(-1) in
+  let header = Response.Header.v ~code:(-1) in
   let msg = "ERROR " ^ msg in
   let* () = Response.Write.header t.oc header in
   Message.write t.oc Irmin.Type.string msg
 
-let consume t n =
+(*let consume t n =
   let rec aux t n =
     if n = 0 then Lwt.return_unit
     else
       let* _ = Message.read_raw t.ic in
       aux t (n - 1)
   in
-  aux t n
+  aux t n*)

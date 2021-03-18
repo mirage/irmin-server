@@ -52,48 +52,23 @@ module Make (X : Command.S) = struct
       Lwt.catch
         (fun () ->
           (* Get request header (command and number of arguments) *)
-          let* Request.Header.{ command; n_args } =
-            Request.Read.header conn.Conn.ic
-          in
+          let* Request.Header.{ command } = Request.Read.header conn.Conn.ic in
 
           (* Get command *)
           match Hashtbl.find_opt commands command with
           | None -> Conn.err conn "unknown command"
           | Some (module Cmd : X.CMD) ->
-              if n_args < fst Cmd.args then
-                (* Argument count doesn't match up *)
-                let* () = Conn.consume conn n_args in
-                let* () =
-                  Conn.err conn
-                    (Format.sprintf "expected at least %d arguments but got %d"
-                       (fst Cmd.args) n_args)
+              let* return =
+                let* args =
+                  Message.read conn.ic Cmd.Req.t
+                  >|= Error.unwrap "Invalid arguments"
                 in
-                loop repo conn client
-              else
-                let args = Args.v ~mode:`Read ~count:n_args conn in
-                let* return =
-                  Lwt.catch
-                    (fun () ->
-                      let* args =
-                        Cmd.Server.recv client args
-                        >|= Error.unwrap "Invalid arguments"
-                      in
-                      Cmd.Server.handle conn client args)
-                    (function
-                      | Error.Error (a, b) -> raise (Error.Error (a, b))
-                      | End_of_file -> raise End_of_file
-                      | exn ->
-                          (* Try to recover *)
-                          raise
-                            (Error.Error
-                               (Args.remaining args, Printexc.to_string exn)))
-                in
-                let () = Return.check return ~n_results:(snd Cmd.args) in
-                Return.flush return)
+                Cmd.run conn client args
+              in
+              Return.flush return)
         (function
-          | Error.Error (remaining, s) ->
+          | Error.Error s ->
               (* Recover *)
-              let* () = Conn.consume conn remaining in
               let* () = Conn.err conn s in
               Lwt_unix.sleep 0.01
           | End_of_file ->

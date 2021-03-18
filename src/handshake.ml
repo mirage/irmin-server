@@ -18,7 +18,7 @@ module V1 = struct
             assert x))
       (function
         | Assert_failure _ | Lwt_unix.Timeout ->
-            Error.raise_error 0 "unable to connect to server"
+            Error.raise_error "unable to connect to server"
         | x -> raise x)
 
   let check ic oc =

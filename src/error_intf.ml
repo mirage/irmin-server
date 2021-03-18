@@ -4,20 +4,16 @@ type t = error
 
 type 'a result = ('a, error) Result.t
 
-exception Error of int * string
-
-exception Unwrap of string
+exception Error of string
 
 module type Error = sig
   type t = error
 
   type 'a result = ('a, error) Result.t
 
-  exception Error of int * string
+  exception Error of string
 
-  exception Unwrap of string
-
-  val raise_error : int -> string -> 'a
+  val raise_error : string -> 'a
 
   val unwrap : string -> 'a result -> 'a
 

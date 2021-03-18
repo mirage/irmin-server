@@ -15,28 +15,22 @@ module type S = sig
     trees : (int, Store.tree) Hashtbl.t;
   }
 
-  type f = Conn.t -> context -> [ `Read ] Args.t -> unit Lwt.t
-
   module type CMD = sig
-    type req
+    module Req : sig
+      type t
 
-    type res
+      val t : t Irmin.Type.t
+    end
 
-    val args : int * int
+    module Res : sig
+      type t
+
+      val t : t Irmin.Type.t
+    end
 
     val name : string
 
-    module Server : sig
-      val recv : context -> [ `Read ] Args.t -> req Error.result Lwt.t
-
-      val handle : Conn.t -> context -> req -> res Return.t Lwt.t
-    end
-
-    module Client : sig
-      val send : [ `Write ] Args.t -> req -> unit Lwt.t
-
-      val recv : [ `Read ] Args.t -> res Error.result Lwt.t
-    end
+    val run : Conn.t -> context -> Req.t -> Res.t Return.t Lwt.t
   end
 
   type t = (module CMD)
@@ -45,112 +39,113 @@ module type S = sig
 
   val of_name : string -> t
 
-  val n_args : t -> int
-
-  val n_results : t -> int
-
   val commands : (string * t) list
 
   module Commands : sig
-    module Ping : CMD with type req = unit and type res = unit
+    module Ping : CMD with type Req.t = unit and type Res.t = unit
 
     (* Branch *)
     module Set_current_branch :
-      CMD with type req = Store.branch and type res = unit
+      CMD with type Req.t = Store.branch and type Res.t = unit
 
     module Get_current_branch :
-      CMD with type req = unit and type res = Store.branch
+      CMD with type Req.t = unit and type Res.t = Store.branch
 
-    module Remove_branch : CMD with type req = Store.branch and type res = unit
+    module Remove_branch :
+      CMD with type Req.t = Store.branch and type Res.t = unit
 
-    module Export : CMD with type req = unit and type res = Store.slice
+    module Export : CMD with type Req.t = unit and type Res.t = Store.slice
 
-    module Import : CMD with type req = Store.slice and type res = unit
+    module Import : CMD with type Req.t = Store.slice and type Res.t = unit
 
     module Head :
-      CMD with type req = Store.branch option and type res = Commit.t option
+      CMD with type Req.t = Store.branch option and type Res.t = Commit.t option
 
     module Set_head :
-      CMD with type req = Store.branch option * Commit.t and type res = unit
+      CMD with type Req.t = Store.branch option * Commit.t and type Res.t = unit
 
     (* Commit *)
     module New_commit :
       CMD
-        with type req = Irmin.Info.t * Store.hash list * Tree.t
-         and type res = Commit.t
+        with type Req.t = Irmin.Info.t * Store.hash list * Tree.t
+         and type Res.t = Commit.t
 
     (* Store *)
     module Store : sig
       module Find :
-        CMD with type req = Store.key and type res = Store.contents option
+        CMD with type Req.t = Store.key and type Res.t = Store.contents option
 
       module Set :
         CMD
-          with type req = Store.key * Irmin.Info.t * Store.contents
-           and type res = unit
+          with type Req.t = Store.key * Irmin.Info.t * Store.contents
+           and type Res.t = unit
 
       module Test_and_set :
         CMD
-          with type req =
+          with type Req.t =
                 Store.key
                 * Irmin.Info.t
-                * Store.contents option
-                * Store.contents option
-           and type res = unit
+                * (Store.contents option * Store.contents option)
+           and type Res.t = unit
 
       module Remove :
-        CMD with type req = Store.key * Irmin.Info.t and type res = unit
+        CMD with type Req.t = Store.key * Irmin.Info.t and type Res.t = unit
 
       module Find_tree :
-        CMD with type req = Store.key and type res = Tree.t option
+        CMD with type Req.t = Store.key and type Res.t = Tree.t option
 
       module Set_tree :
         CMD
-          with type req = Store.key * Irmin.Info.t * Tree.t
-           and type res = Tree.t
+          with type Req.t = Store.key * Irmin.Info.t * Tree.t
+           and type Res.t = Tree.t
 
       module Test_and_set_tree :
         CMD
-          with type req =
-                Store.key * Irmin.Info.t * Tree.t option * Tree.t option
-           and type res = Tree.t option
+          with type Req.t =
+                Store.key * Irmin.Info.t * (Tree.t option * Tree.t option)
+           and type Res.t = Tree.t option
 
-      module Mem : CMD with type req = Store.key and type res = bool
+      module Mem : CMD with type Req.t = Store.key and type Res.t = bool
 
-      module Mem_tree : CMD with type req = Store.key and type res = bool
+      module Mem_tree : CMD with type Req.t = Store.key and type Res.t = bool
     end
 
     (* Tree *)
     module Tree : sig
-      module Empty : CMD with type req = unit and type res = Tree.t
+      module Empty : CMD with type Req.t = unit and type Res.t = Tree.t
 
       module Add :
         CMD
-          with type req =
+          with type Req.t =
                 Tree.t * Tree.Private.Store.key * Tree.Private.Store.contents
-           and type res = Tree.t
+           and type Res.t = Tree.t
 
       module Remove :
         CMD
-          with type req = Tree.t * Tree.Private.Store.key
-           and type res = Tree.t
+          with type Req.t = Tree.t * Tree.Private.Store.key
+           and type Res.t = Tree.t
 
-      module Abort : CMD with type req = Tree.t and type res = unit
+      module Abort : CMD with type Req.t = Tree.t and type Res.t = unit
 
-      module Clone : CMD with type req = Tree.t and type res = Tree.t
+      module Clone : CMD with type Req.t = Tree.t and type Res.t = Tree.t
 
-      module To_local : CMD with type req = Tree.t and type res = Tree.Local.t
+      module To_local :
+        CMD with type Req.t = Tree.t and type Res.t = Tree.Local.t
 
       module Mem :
-        CMD with type req = Tree.t * Tree.Private.Store.key and type res = bool
+        CMD
+          with type Req.t = Tree.t * Tree.Private.Store.key
+           and type Res.t = bool
 
       module Mem_tree :
-        CMD with type req = Tree.t * Tree.Private.Store.key and type res = bool
+        CMD
+          with type Req.t = Tree.t * Tree.Private.Store.key
+           and type Res.t = bool
 
       module List :
         CMD
-          with type req = Tree.t * Tree.Private.Store.key
-           and type res =
+          with type Req.t = Tree.t * Tree.Private.Store.key
+           and type Res.t =
                 (Tree.Private.Store.Key.step * [ `Contents | `Tree ]) list
     end
   end
