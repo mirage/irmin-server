@@ -10,12 +10,12 @@ let make status conn : 'a t Lwt.t =
 
 let err conn msg : 'a t Lwt.t =
   let* t = make 1 conn in
-  let+ () = Message.write conn.oc Irmin.Type.string ("ERROR " ^ msg) in
+  let+ () = Conn.write_message conn Irmin.Type.string ("ERROR " ^ msg) in
   t
   [@@inline]
 
 let write ty x t =
-  let+ () = Message.write t.conn.oc ty x in
+  let+ () = Conn.write_message t.conn ty x in
   t
   [@@inline]
 

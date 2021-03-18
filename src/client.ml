@@ -85,7 +85,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
     Logs.debug (fun l -> l "Starting request: command=%s" name);
     handle_disconnect t (fun () ->
         let* () = send_command_header t (module Cmd) in
-        let* () = Message.write t.conn.oc Cmd.Req.t a in
+        let* () = Conn.write_message t.conn Cmd.Req.t a in
         let* () = Lwt_io.flush t.conn.oc in
         let* res = Response.Read.header t.conn.ic in
         Response.Read.get_error t.conn.ic res >>= function
@@ -93,7 +93,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
             Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
             Lwt.return_error (`Msg err)
         | None ->
-            let+ x = Message.read t.conn.ic Cmd.Res.t in
+            let+ x = Conn.read_message t.conn Cmd.Res.t in
             Logs.debug (fun l -> l "Completed request: command=%s" name);
             x)
 

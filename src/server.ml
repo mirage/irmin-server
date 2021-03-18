@@ -59,7 +59,7 @@ module Make (X : Command.S) = struct
           | None -> Conn.err conn "unknown command"
           | Some (module Cmd : X.CMD) ->
               let* req =
-                Message.read conn.ic Cmd.Req.t
+                Conn.read_message conn Cmd.Req.t
                 >|= Error.unwrap "Invalid arguments"
               in
               let* res = Cmd.run conn client req in
