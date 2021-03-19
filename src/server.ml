@@ -58,7 +58,9 @@ module Make (X : Command.S) = struct
 
           (* Get command *)
           match Hashtbl.find_opt commands command with
-          | None -> Conn.err conn "unknown command"
+          | None ->
+              Logs.err (fun l -> l "Unknown command: %s" command);
+              Conn.err conn ("unknown command: " ^ command)
           | Some (module Cmd : X.CMD) ->
               let* req =
                 Conn.read_message conn Cmd.Req.t
