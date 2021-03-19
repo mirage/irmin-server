@@ -18,24 +18,26 @@ module Make (X : Command.S) = struct
   let v ?tls_config ~uri conf =
     let uri = Uri.of_string uri in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
-    let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
-    let* ctx = Conduit_lwt_unix.init ~src:addr () in
-    let server =
+    let* ctx, server =
       match String.lowercase_ascii scheme with
       | "unix" ->
           let file = Uri.path uri in
           at_exit (fun () -> try Unix.unlink file with _ -> ());
-          `Unix_domain_socket (`File file)
+          Lwt.return
+            (Conduit_lwt_unix.default_ctx, `Unix_domain_socket (`File file))
       | "tcp" -> (
+          let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
+          let+ ctx = Conduit_lwt_unix.init ~src:addr () in
           let port = Uri.port uri |> Option.value ~default:8888 in
           match tls_config with
-          | None -> `TCP (`Port port)
+          | None -> (ctx, `TCP (`Port port))
           | Some (`Cert_file crt, `Key_file key) ->
-              `TLS
-                ( `Crt_file_path crt,
-                  `Key_file_path key,
-                  `No_password,
-                  `Port port ))
+              ( ctx,
+                `TLS
+                  ( `Crt_file_path crt,
+                    `Key_file_path key,
+                    `No_password,
+                    `Port port ) ))
       | x -> invalid_arg ("Unknown server scheme: " ^ x)
     in
     let config = Irmin_pack_layered.config ~conf ~with_lower:true () in
