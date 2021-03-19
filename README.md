@@ -105,3 +105,4 @@ The following is sent as a request from the client to server **AND** the respons
 | version | `\n` delimited string    |
 
 
+`V1` is the handshake version for the initial implementation

@@ -1,31 +1,24 @@
 open Lwt.Syntax
 
 module V1 = struct
-  type t = [ `V1 ] [@@deriving irmin]
+  let s = "V1"
 
   let send ic oc =
     Lwt.catch
       (fun () ->
-        let s = Irmin.Type.to_string t `V1 in
         Lwt_unix.with_timeout 3.0 (fun () ->
             let* () = Lwt_io.write_line oc s in
-            let+ s = Lwt_io.read_line ic in
-            let x =
-              match Irmin.Type.of_string t (String.trim s) with
-              | Ok `V1 -> true
-              | Error _ -> false
-            in
-            assert x))
+            let+ line = Lwt_io.read_line ic in
+            assert (s = String.trim line)))
       (function
         | Assert_failure _ | Lwt_unix.Timeout ->
             Error.raise_error "unable to connect to server"
         | x -> raise x)
 
   let check ic oc =
-    let* s = Lwt_unix.with_timeout 3.0 (fun () -> Lwt_io.read_line ic) in
-    match Irmin.Type.of_string t (String.trim s) with
-    | Ok `V1 ->
-        let* () = Lwt_io.write_line oc s in
-        Lwt.return_true
-    | Error _ -> Lwt.return_false
+    let* line = Lwt_unix.with_timeout 3.0 (fun () -> Lwt_io.read_line ic) in
+    if String.trim line = s then
+      let* () = Lwt_io.write_line oc s in
+      Lwt.return_true
+    else Lwt.return_false
 end
