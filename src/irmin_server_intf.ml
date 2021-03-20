@@ -16,16 +16,16 @@ end
 module Conf = struct
   let entries = 32
 
-  let stable_hash = 256
+  let stable_hash = 32
 end
 
 module type Irmin_server = sig
   module Command = Command
-  module Args = Args
   module Error = Error
   module Server = Server
   module Client = Client
   module Cli = Cli
+  module Return = Return
 
   module type S = S
 

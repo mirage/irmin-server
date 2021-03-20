@@ -18,24 +18,26 @@ module Make (X : Command.S) = struct
   let v ?tls_config ~uri conf =
     let uri = Uri.of_string uri in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
-    let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
-    let* ctx = Conduit_lwt_unix.init ~src:addr () in
-    let server =
+    let* ctx, server =
       match String.lowercase_ascii scheme with
       | "unix" ->
           let file = Uri.path uri in
           at_exit (fun () -> try Unix.unlink file with _ -> ());
-          `Unix_domain_socket (`File file)
+          Lwt.return
+            (Conduit_lwt_unix.default_ctx, `Unix_domain_socket (`File file))
       | "tcp" -> (
+          let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
+          let+ ctx = Conduit_lwt_unix.init ~src:addr () in
           let port = Uri.port uri |> Option.value ~default:8888 in
           match tls_config with
-          | None -> `TCP (`Port port)
+          | None -> (ctx, `TCP (`Port port))
           | Some (`Cert_file crt, `Key_file key) ->
-              `TLS
-                ( `Crt_file_path crt,
-                  `Key_file_path key,
-                  `No_password,
-                  `Port port ))
+              ( ctx,
+                `TLS
+                  ( `Crt_file_path crt,
+                    `Key_file_path key,
+                    `No_password,
+                    `Port port ) ))
       | x -> invalid_arg ("Unknown server scheme: " ^ x)
     in
     let config = Irmin_pack_layered.config ~conf ~with_lower:true () in
@@ -52,48 +54,24 @@ module Make (X : Command.S) = struct
       Lwt.catch
         (fun () ->
           (* Get request header (command and number of arguments) *)
-          let* Request.Header.{ command; n_args } =
-            Request.Read.header conn.Conn.ic
-          in
+          let* Request.Header.{ command } = Request.Read.header conn.Conn.ic in
 
           (* Get command *)
           match Hashtbl.find_opt commands command with
-          | None -> Conn.err conn "unknown command"
+          | None ->
+              Logs.err (fun l -> l "Unknown command: %s" command);
+              Conn.err conn ("unknown command: " ^ command)
           | Some (module Cmd : X.CMD) ->
-              if n_args < fst Cmd.args then
-                (* Argument count doesn't match up *)
-                let* () = Conn.consume conn n_args in
-                let* () =
-                  Conn.err conn
-                    (Format.sprintf "expected at least %d arguments but got %d"
-                       (fst Cmd.args) n_args)
-                in
-                loop repo conn client
-              else
-                let args = Args.v ~mode:`Read ~count:n_args conn in
-                let* return =
-                  Lwt.catch
-                    (fun () ->
-                      let* args =
-                        Cmd.Server.recv client args
-                        >|= Error.unwrap "Invalid arguments"
-                      in
-                      Cmd.Server.handle conn client args)
-                    (function
-                      | Error.Error (a, b) -> raise (Error.Error (a, b))
-                      | End_of_file -> raise End_of_file
-                      | exn ->
-                          (* Try to recover *)
-                          raise
-                            (Error.Error
-                               (Args.remaining args, Printexc.to_string exn)))
-                in
-                let () = Return.check return ~n_results:(snd Cmd.args) in
-                Return.flush return)
+              let* req =
+                Conn.read_message conn Cmd.Req.t
+                >|= Error.unwrap "Invalid arguments"
+              in
+              let* res = Cmd.run conn client req in
+              Return.flush res)
         (function
-          | Error.Error (remaining, s) ->
+          | Error.Error s ->
               (* Recover *)
-              let* () = Conn.consume conn remaining in
+              Logs.debug (fun l -> l "Error response: %s" s);
               let* () = Conn.err conn s in
               Lwt_unix.sleep 0.01
           | End_of_file ->

@@ -6,7 +6,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module St = C.Store
   open C
   module Hash = Store.Hash
-  module Contents = Store.Contents
   module Key = Store.Key
 
   module Private = struct
@@ -76,18 +75,16 @@ module Make (C : Command.S with type Store.key = string list) = struct
     [@@inline]
 
   let send_command_header t (module Cmd : C.CMD) =
-    let n_args = fst Cmd.args in
-    let header = Request.Header.v ~command:Cmd.name ~n_args in
+    let header = Request.Header.v ~command:Cmd.name in
     Request.Write.header t.conn.Conn.oc header
 
   let request t (type x y)
-      (module Cmd : C.CMD with type res = x and type req = y) (a : y) =
+      (module Cmd : C.CMD with type Res.t = x and type Req.t = y) (a : y) =
     let name = Cmd.name in
     Logs.debug (fun l -> l "Starting request: command=%s" name);
     handle_disconnect t (fun () ->
         let* () = send_command_header t (module Cmd) in
-        let args = Args.v ~mode:`Write ~count:(fst Cmd.args) t.conn in
-        let* () = Cmd.Client.send args a in
+        let* () = Conn.write_message t.conn Cmd.Req.t a in
         let* () = Lwt_io.flush t.conn.oc in
         let* res = Response.Read.header t.conn.ic in
         Response.Read.get_error t.conn.ic res >>= function
@@ -95,16 +92,11 @@ module Make (C : Command.S with type Store.key = string list) = struct
             Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
             Lwt.return_error (`Msg err)
         | None ->
-            let args = Args.v ~mode:`Read ~count:res.n_items t.conn in
-            let+ x = Cmd.Client.recv args in
-            assert (Args.remaining args = 0);
+            let+ x = Conn.read_message t.conn Cmd.Res.t in
             Logs.debug (fun l -> l "Completed request: command=%s" name);
             x)
 
   let ping t = request t (module Commands.Ping) ()
-
-  let commit t ~info ~parents (_, tree) =
-    request t (module Commands.New_commit) (info (), parents, tree)
 
   let export t = request t (module Commands.Export) ()
 
@@ -133,7 +125,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
       request t (module Commands.Store.Set) (key, info (), value)
 
     let test_and_set t ~info key ~test ~set =
-      request t (module Commands.Store.Test_and_set) (key, info (), test, set)
+      request t (module Commands.Store.Test_and_set) (key, info (), (test, set))
 
     let remove t ~info key =
       request t (module Commands.Store.Remove) (key, info ())
@@ -154,7 +146,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
       let+ tree =
         request t
           (module Commands.Store.Test_and_set_tree)
-          (key, info (), test, set)
+          (key, info (), (test, set))
       in
       Result.map (Option.map (fun tree -> (t, tree))) tree
 
@@ -198,7 +190,22 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let of_local t x = (t, Private.Tree.Local x)
   end
 
+  module Contents = struct
+    include St.Contents
+
+    let of_hash t hash = request t (module Commands.Contents_of_hash) hash
+  end
+
   module Commit = struct
     include C.Commit
+
+    let create t ~info ~parents (_, tree) =
+      request t (module Commands.New_commit) (info (), parents, tree)
+
+    let of_hash t hash = request t (module Commands.Commit_of_hash) hash
+
+    let tree t commit =
+      let node = node commit in
+      (t, Private.Tree.Hash node)
   end
 end

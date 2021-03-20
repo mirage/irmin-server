@@ -64,7 +64,7 @@ Message `data` is encoded using `Irmin.Type.to_bin_string`
 
 | Field  | Type                 |
 | ------ | -------------------- |
-| length | int32, little endian |
+| length | int64, little endian |
 | data   | bytes                |
 
 
@@ -75,22 +75,22 @@ A request is sent from the client to the server
 | Field               | Type                        |
 | ------------------- | --------------------------- |
 | command             | `\n` delimited string       |
-| message count       | int32, little endian        |
-| messages            | zero or more Messages       |
+| request             | Message                     |
 
 ### Response
 
 A `response` is sent from the server back to the client after a `request` has been handled
 
-Responses with no messages (i.e. `message count` = 0) are used to signal an `OK` response with no data
 
-An error response is marked by setting `message count` to `-1`. It should always be followed
-by a single `string` Message containing a description of the error.
+An error response is marked by setting `status` >= `1`. It should always be followed
+by a `string` Message containing a description of the error.
+
+A successful response is marked by setting `status` to `0`.
 
 | Field           | Type                   |
 | --------------- | ---------------------- |
-| message count   | int32, little endian   |
-| messages        | zero or more Messages  |
+| status          | uint8                  |
+| response        | Message                |
 
 ### Handshake
 
@@ -105,3 +105,4 @@ The following is sent as a request from the client to server **AND** the respons
 | version | `\n` delimited string    |
 
 
+`V1` is the handshake version for the initial implementation

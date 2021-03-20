@@ -23,8 +23,6 @@ module type S = sig
 
   module Hash : Irmin.Hash.S with type t = hash
 
-  module Contents : Irmin.Contents.S with type t = contents
-
   module Private : sig
     module Tree :
       Tree.S
@@ -33,27 +31,54 @@ module type S = sig
          and type Private.Store.branch = branch
   end
 
-  module Commit : sig
-    include Irmin.Private.Commit.S with type hash = hash and type t = commit
-  end
-
   val connect : ?tls:bool -> uri:string -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
 
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
 
-  val commit :
-    t ->
-    info:Irmin.Info.f ->
-    parents:hash list ->
-    tree ->
-    commit Error.result Lwt.t
-  (** Create a new commit *)
-
   val export : t -> slice Error.result Lwt.t
 
   val import : t -> slice -> unit Error.result Lwt.t
+
+  module Commit : sig
+    val create :
+      t ->
+      info:Irmin.Info.f ->
+      parents:hash list ->
+      tree ->
+      commit Error.result Lwt.t
+    (** Create a new commit *)
+
+    val v : info:Irmin.Info.t -> node:hash -> parents:hash list -> commit
+
+    val of_hash : t -> hash -> commit option Error.result Lwt.t
+
+    val node : commit -> hash
+    (** The underlying node. *)
+
+    val parents : commit -> hash list
+    (** The commit parents. *)
+
+    val info : commit -> Irmin.Info.t
+    (** The commit info. *)
+
+    val t : commit Irmin.Type.t
+    (** [t] is the value type for {!t}. *)
+
+    val hash_t : hash Irmin.Type.t
+    (** [hash_t] is the value type for {!hash}. *)
+
+    val tree : t -> commit -> tree
+
+    type t = commit
+  end
+
+  module Contents : sig
+    val of_hash : t -> hash -> contents option Error.result Lwt.t
+
+    include Irmin.Contents.S with type t = contents
+  end
 
   module Branch : sig
     val set_current : t -> branch -> unit Error.result Lwt.t

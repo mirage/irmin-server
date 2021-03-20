@@ -2,7 +2,9 @@ open Lwt.Infix
 open Irmin_server
 module Rpc = KV (Irmin.Contents.String)
 
-let test f client _switch () = f client
+let test name f client _switch () =
+  Logs.debug (fun l -> l "Running: %s" name);
+  f client
 
 let run_server () =
   let path = Unix.getcwd () in
@@ -14,5 +16,6 @@ let run_server () =
 
 let suite client all =
   List.map
-    (fun (name, speed, f) -> Alcotest_lwt.test_case name speed (test f client))
+    (fun (name, speed, f) ->
+      Alcotest_lwt.test_case name speed (test name f client))
     all
