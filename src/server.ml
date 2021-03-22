@@ -27,6 +27,8 @@ module Make (X : Command.S) = struct
             (Conduit_lwt_unix.default_ctx, `Unix_domain_socket (`File file))
       | "tcp" -> (
           let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
+          let ip = Unix.gethostbyname addr in
+          let addr = ip.h_addr_list.(0) |> Unix.string_of_inet_addr in
           let+ ctx = Conduit_lwt_unix.init ~src:addr () in
           let port = Uri.port uri |> Option.value ~default:8888 in
           match tls_config with

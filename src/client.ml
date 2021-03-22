@@ -42,9 +42,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
       | "tcp" ->
           let ip = Unix.gethostbyname addr in
           let port = Uri.port uri |> Option.value ~default:8888 in
-          let x = Random.int (Array.length ip.h_addr_list) in
           let ip =
-            ip.h_addr_list.(x) |> Unix.string_of_inet_addr
+            ip.h_addr_list.(0) |> Unix.string_of_inet_addr
             |> Ipaddr.of_string_exn
           in
           if not tls then `TCP (`IP ip, `Port port)
