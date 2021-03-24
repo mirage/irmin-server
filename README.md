@@ -18,6 +18,12 @@ For more information:
 $ dune exec bin/server/server.exe -- --help
 ```
 
+`irmin-server` can also be executed using `Docker`:
+
+```shell
+$ docker run --env PORT=9999 $(docker build -q .)
+```
+
 ### Client
 
 `irmin-client` is a command-line application that can be used to query `irmin-server`
