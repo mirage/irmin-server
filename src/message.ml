@@ -9,7 +9,7 @@ let write_raw oc s : unit Lwt.t =
   let len = String.length s in
   Logs.debug (fun l -> l "Writing raw message: length=%d" len);
   let+ x =
-    Lwt_io.LE.write_int64 oc (Int64.of_int len) >>= fun () ->
+    Lwt_io.BE.write_int64 oc (Int64.of_int len) >>= fun () ->
     if len = 0 then Lwt.return_unit else Lwt_io.write oc s
   in
   x
@@ -20,9 +20,9 @@ let write oc t x : unit Lwt.t =
   [@@inline]
 
 let read_raw ic =
-  let* n = Lwt_io.LE.read_int64 ic in
+  let* n = Lwt_io.BE.read_int64 ic in
   Logs.debug (fun l -> l "Raw message length=%Ld" n);
-  if n = 0L then Lwt.return Bytes.empty
+  if n <= 0L then Lwt.return Bytes.empty
   else
     let n = Int64.to_int n in
     let buf = Bytes.create n in
