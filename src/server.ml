@@ -68,8 +68,8 @@ module Make (X : Command.S) = struct
                 Conn.read_message conn Cmd.Req.t
                 >|= Error.unwrap "Invalid arguments"
               in
-              let* res = Cmd.run conn client req in
-              Return.flush res)
+              let* _res = Cmd.run conn client req in
+              Lwt.return_unit)
         (function
           | Error.Error s ->
               (* Recover *)

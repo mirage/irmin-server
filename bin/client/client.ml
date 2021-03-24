@@ -40,7 +40,11 @@ let find (S ((module Client), client)) key =
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let* result = Client.Store.find client key >|= Error.unwrap "find" in
       match result with
-      | Some data -> Lwt_io.printl (Irmin.Type.to_string Client.Contents.t data)
+      | Some data ->
+          let* () =
+            Lwt_io.printl (Irmin.Type.to_string Client.Contents.t data)
+          in
+          Lwt_io.flush Lwt_io.stdout
       | None ->
           Logs.err (fun l -> l "Not found: %a" (Irmin.Type.pp Client.Key.t) key);
           Lwt.return_unit )

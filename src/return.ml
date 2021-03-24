@@ -28,5 +28,3 @@ let ok conn : unit t Lwt.t = v conn Irmin.Type.unit () [@@inline]
 
 let result conn t x =
   match x with Ok x -> v conn t x | Error (`Msg msg) -> err conn msg
-
-let flush t = Lwt_io.flush t.conn.oc [@@inline]
