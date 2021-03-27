@@ -31,6 +31,7 @@ let load_trace (type a)
   let* tree = Rpc.Client.Tree.empty client >|= Error.unwrap "tree" in
   let stream = Dataset.get_stream () in
   let count = ref 0 in
+  let hashmap = Hashtbl.create 8 in
   let rec aux client stream tree =
     if stream_is_empty stream then Lwt.return_unit
     else if max > 0 && !count >= max then Lwt.return_unit
@@ -97,8 +98,8 @@ let load_trace (type a)
           let key = key item in
           Rpc.Client.Tree.remove tree key >|= Error.unwrap "trace.Remove"
       | "Commit" ->
-          let* tree' =
-            Rpc.Client.Tree.clone tree >|= Error.unwrap "tree.clone"
+          let hash =
+            Yojson.Safe.Util.index 1 item |> Yojson.Safe.Util.to_string
           in
           let date =
             Yojson.Safe.Util.index 2 item
@@ -107,21 +108,32 @@ let load_trace (type a)
           let message =
             Yojson.Safe.Util.index 3 item |> Yojson.Safe.Util.to_string
           in
+          let info = Irmin.Info.v ~date ~author:"irmin-server" message in
           let* parent =
-            Rpc.Client.Branch.get client >|= Error.unwrap "parent"
+            Rpc.Client.Branch.get client >|= Error.unwrap "Branch.get"
           in
           let parents =
-            try [ Option.get parent |> Rpc.Client.Commit.node ] with _ -> []
+            try [ Rpc.Client.Commit.node (Option.get parent) ] with _ -> []
           in
-          let info = Irmin.Info.v ~date ~author:"irmin-server" message in
           let* (commit : Rpc.Client.Commit.t) =
             Rpc.Client.Commit.create client ~info:(fun () -> info) ~parents tree
             >|= Error.unwrap "trace.Commit"
           in
+          Hashtbl.replace hashmap hash (Rpc.Client.Commit.node commit);
           let+ () =
             Rpc.Client.Branch.set client commit >|= Error.unwrap "branch.set"
           in
-          tree'
+          tree
+      (* TODO: figure out why this isn't working: Rpc.Client.Commit.tree client commit*)
+      (*| "Checkout" ->
+          let hash =
+            Yojson.Safe.Util.index 1 item |> Yojson.Safe.Util.to_string
+          in
+          let hash = Hashtbl.find hashmap hash in
+          let+ commit =
+            Rpc.Client.Commit.of_hash client hash >|= Error.unwrap "of_hash"
+          in
+          Rpc.Client.Commit.tree client (Option.get commit)*)
       | s ->
           Logs.app (fun l -> l "Unknown command: %s" s);
           Lwt.return tree)

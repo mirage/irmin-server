@@ -58,6 +58,7 @@ jobs:
         with:
           ocaml-version: ${{ matrix.ocaml-version }}
 
+      - run: opam pin add https://github.com/icristescu/dataset.git
       - run: opam pin add irmin-server.dev . --no-action
       - run: opam pin add irmin-server-bench.dev . --no-action
       - run: opam depext irmin-server-bench --yes --with-doc

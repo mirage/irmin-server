@@ -55,6 +55,7 @@ module Make (X : Command.S) = struct
     else
       Lwt.catch
         (fun () ->
+          Logs.debug (fun l -> l "Receiving next command");
           (* Get request header (command and number of arguments) *)
           let* Request.Header.{ command } = Request.Read.header conn.Conn.ic in
 
@@ -68,6 +69,7 @@ module Make (X : Command.S) = struct
                 Conn.read_message conn Cmd.Req.t
                 >|= Error.unwrap "Invalid arguments"
               in
+              Logs.debug (fun l -> l "Command: %s" Cmd.name);
               let* _res = Cmd.run conn client req in
               Lwt.return_unit)
         (function
@@ -82,10 +84,12 @@ module Make (X : Command.S) = struct
               Lwt.return_unit
           | exn ->
               (* Unhandled exception *)
-              let* () = Lwt_io.close conn.ic in
+              (*let* () = Lwt_io.close conn.ic in*)
               let s = Printexc.to_string exn in
-              Logs.err (fun l -> l "Exception: %s" s);
-              Lwt.return_unit)
+              Logs.err (fun l ->
+                  l "Exception: %s\n%s" s (Printexc.get_backtrace ()));
+              let* () = Conn.err conn s in
+              Lwt_unix.sleep 0.01)
       >>= fun () -> loop repo conn client
 
   let callback repo flow ic oc =

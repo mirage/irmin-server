@@ -15,6 +15,7 @@ end
 
 module Read = struct
   let header t =
+    Logs.debug (fun l -> l "Starting response header read");
     let+ status = Lwt_io.read_char t in
     let status = int_of_char status in
     Logs.debug (fun l -> l "Read response header: status=%d" status);

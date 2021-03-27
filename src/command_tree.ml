@@ -70,9 +70,10 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     let name = "tree.find"
 
     let run conn ctx (tree, key) =
+      print_endline (Irmin.Type.to_string Req.t (tree, key));
       let* _, tree = resolve_tree ctx tree in
       let* contents = Store.Tree.find tree key in
-      Return.v conn (Irmin.Type.option Store.contents_t) contents
+      Return.v conn Res.t contents
   end
 
   module Find_tree = struct
@@ -97,7 +98,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
             Tree.ID id)
           tree
       in
-      Return.v conn (Irmin.Type.option Tree.t) tree
+      Return.v conn Res.t tree
   end
 
   module Remove = struct
@@ -214,8 +215,6 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     module Res = struct
       type t = (Store.Key.step * [ `Contents | `Tree ]) list [@@deriving irmin]
     end
-
-    let args = (2, 1)
 
     let name = "tree.list"
 
