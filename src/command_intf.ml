@@ -51,21 +51,22 @@ module type S = sig
     module Get_current_branch :
       CMD with type Req.t = unit and type Res.t = Store.branch
 
-    module Remove_branch :
-      CMD with type Req.t = Store.branch and type Res.t = unit
-
     module Export : CMD with type Req.t = unit and type Res.t = Store.slice
 
     module Import : CMD with type Req.t = Store.slice and type Res.t = unit
 
-    module Head :
+    (* Branch *)
+    module Branch_head :
       CMD with type Req.t = Store.branch option and type Res.t = Commit.t option
 
-    module Set_head :
+    module Branch_set_head :
       CMD with type Req.t = Store.branch option * Commit.t and type Res.t = unit
 
+    module Branch_remove :
+      CMD with type Req.t = Store.branch and type Res.t = unit
+
     (* Commit *)
-    module New_commit :
+    module Commit_create :
       CMD
         with type Req.t = Irmin.Info.t * Store.hash list * Tree.t
          and type Res.t = Commit.t
@@ -75,6 +76,7 @@ module type S = sig
 
     module Commit_tree : CMD with type Req.t = Commit.t and type Res.t = Tree.t
 
+    (* Contents *)
     module Contents_of_hash :
       CMD with type Req.t = Store.Hash.t and type Res.t = Store.contents option
 

@@ -55,23 +55,23 @@ let load_trace (type a)
           Rpc.Client.Tree.add tree key value >|= Error.unwrap "trace.Add"
       | "Find" ->
           let key = key item in
-          let result =
+          let _result =
             Yojson.Safe.Util.index 2 item |> Yojson.Safe.Util.to_bool
           in
-          let+ result' =
+          let+ _result' =
             Rpc.Client.Tree.find tree key >|= Error.unwrap "trace.Find"
           in
-          assert (Option.is_some result' = result);
+          (*assert (Option.is_some result' = result);*)
           tree
       | "Mem" ->
           let key = key item in
-          let result =
+          let _result =
             Yojson.Safe.Util.index 2 item |> Yojson.Safe.Util.to_bool
           in
-          let+ result' =
+          let+ _result' =
             Rpc.Client.Tree.mem tree key >|= Error.unwrap "trace.Mem"
           in
-          assert (result' = result);
+          (*assert (result' = result);*)
           tree
       | "Mem_tree" ->
           let key = key item in

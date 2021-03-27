@@ -109,12 +109,12 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let get_current t = request t (module Commands.Get_current_branch) ()
 
-    let get ?branch t = request t (module Commands.Head) branch
+    let get ?branch t = request t (module Commands.Branch_head) branch
 
     let set ?branch t commit =
-      request t (module Commands.Set_head) (branch, commit)
+      request t (module Commands.Branch_set_head) (branch, commit)
 
-    let remove t branch = request t (module Commands.Remove_branch) branch
+    let remove t branch = request t (module Commands.Branch_remove) branch
   end
 
   module Store = struct
@@ -208,7 +208,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
     include C.Commit
 
     let create t ~info ~parents (_, tree) =
-      request t (module Commands.New_commit) (info (), parents, tree)
+      request t (module Commands.Commit_create) (info (), parents, tree)
 
     let of_hash t hash = request t (module Commands.Commit_of_hash) hash
 
