@@ -73,6 +73,8 @@ module type S = sig
     module Commit_of_hash :
       CMD with type Req.t = Store.Hash.t and type Res.t = Commit.t option
 
+    module Commit_tree : CMD with type Req.t = Commit.t and type Res.t = Tree.t
+
     module Contents_of_hash :
       CMD with type Req.t = Store.Hash.t and type Res.t = Store.contents option
 

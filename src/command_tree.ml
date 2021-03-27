@@ -70,7 +70,6 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     let name = "tree.find"
 
     let run conn ctx (tree, key) =
-      print_endline (Irmin.Type.to_string Req.t (tree, key));
       let* _, tree = resolve_tree ctx tree in
       let* contents = Store.Tree.find tree key in
       Return.v conn Res.t contents

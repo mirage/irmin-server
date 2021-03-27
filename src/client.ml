@@ -213,7 +213,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let of_hash t hash = request t (module Commands.Commit_of_hash) hash
 
     let tree t commit =
-      let node = node commit in
-      (t, Private.Tree.Hash node)
+      let+ tree = request t (module Commands.Commit_tree) commit in
+      Result.map (fun tree -> (t, tree)) tree
   end
 end

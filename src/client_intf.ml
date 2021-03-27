@@ -69,7 +69,7 @@ module type S = sig
     val hash_t : hash Irmin.Type.t
     (** [hash_t] is the value type for {!hash}. *)
 
-    val tree : t -> commit -> tree
+    val tree : t -> commit -> tree Error.result Lwt.t
 
     type t = commit
   end

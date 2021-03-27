@@ -55,23 +55,23 @@ let load_trace (type a)
           Rpc.Client.Tree.add tree key value >|= Error.unwrap "trace.Add"
       | "Find" ->
           let key = key item in
-          let _result =
+          let result =
             Yojson.Safe.Util.index 2 item |> Yojson.Safe.Util.to_bool
           in
-          let+ _result' =
+          let+ result' =
             Rpc.Client.Tree.find tree key >|= Error.unwrap "trace.Find"
           in
-          (*assert (Option.is_some result' = result);*)
+          assert (Option.is_some result' = result);
           tree
       | "Mem" ->
           let key = key item in
-          let _result =
+          let result =
             Yojson.Safe.Util.index 2 item |> Yojson.Safe.Util.to_bool
           in
-          let+ _result' =
+          let+ result' =
             Rpc.Client.Tree.mem tree key >|= Error.unwrap "trace.Mem"
           in
-          (*assert (result' = result);*)
+          assert (result' = result);
           tree
       | "Mem_tree" ->
           let key = key item in
@@ -124,16 +124,16 @@ let load_trace (type a)
             Rpc.Client.Branch.set client commit >|= Error.unwrap "branch.set"
           in
           tree
-      (* TODO: figure out why this isn't working: Rpc.Client.Commit.tree client commit*)
-      (*| "Checkout" ->
+      | "Checkout" ->
           let hash =
             Yojson.Safe.Util.index 1 item |> Yojson.Safe.Util.to_string
           in
           let hash = Hashtbl.find hashmap hash in
-          let+ commit =
+          let* commit =
             Rpc.Client.Commit.of_hash client hash >|= Error.unwrap "of_hash"
           in
-          Rpc.Client.Commit.tree client (Option.get commit)*)
+          Rpc.Client.Commit.tree client (Option.get commit)
+          >|= Error.unwrap "tree"
       | s ->
           Logs.app (fun l -> l "Unknown command: %s" s);
           Lwt.return tree)
