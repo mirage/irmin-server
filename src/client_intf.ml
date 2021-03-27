@@ -108,6 +108,12 @@ module type S = sig
         NOTE: the tree that was passed in may no longer be valid
         after this call *)
 
+    val add_tree : tree -> key -> tree -> tree Error.result Lwt.t
+
+    val find : tree -> key -> contents option Error.result Lwt.t
+
+    val find_tree : tree -> key -> tree option Error.result Lwt.t
+
     val remove : tree -> key -> tree Error.result Lwt.t
     (** Remove value from a tree, returning a new tree
         NOTE: the tree that was passed in may no longer be valid

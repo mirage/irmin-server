@@ -39,6 +39,67 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       Return.v conn Tree.t (ID id)
   end
 
+  module Add_tree = struct
+    module Req = struct
+      type t = Tree.t * Store.key * Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    let name = "tree.add_tree"
+
+    let run conn ctx (tree, key, tr) =
+      let* id, tree = resolve_tree ctx tree in
+      let* _, tree' = resolve_tree ctx tr in
+      let* tree = Store.Tree.add_tree tree key tree' in
+      Hashtbl.replace ctx.trees id tree;
+      Return.v conn Tree.t (ID id)
+  end
+
+  module Find = struct
+    module Req = struct
+      type t = Tree.t * Store.key [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Store.contents option [@@deriving irmin]
+    end
+
+    let name = "tree.find"
+
+    let run conn ctx (tree, key) =
+      let* _, tree = resolve_tree ctx tree in
+      let* contents = Store.Tree.find tree key in
+      Return.v conn (Irmin.Type.option Store.contents_t) contents
+  end
+
+  module Find_tree = struct
+    module Req = struct
+      type t = Tree.t * Store.key [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Tree.t option [@@deriving irmin]
+    end
+
+    let name = "tree.find_tree"
+
+    let run conn ctx (tree, key) =
+      let* _, tree = resolve_tree ctx tree in
+      let* tree = Store.Tree.find_tree tree key in
+      let tree =
+        Option.map
+          (fun tree ->
+            let id = Random.bits () in
+            Hashtbl.replace ctx.trees id tree;
+            Tree.ID id)
+          tree
+      in
+      Return.v conn (Irmin.Type.option Tree.t) tree
+  end
+
   module Remove = struct
     module Req = struct
       type t = Tree.t * Store.key [@@deriving irmin]
@@ -182,5 +243,8 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       cmd (module List);
       cmd (module Clone);
       cmd (module To_local);
+      cmd (module Find);
+      cmd (module Find_tree);
+      cmd (module Add_tree);
     ]
 end

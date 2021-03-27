@@ -13,4 +13,4 @@
  (package irmin-server-bench)
  (preprocess
   (pps ppx_irmin))
- (libraries irmin-server lwt unix cmdliner logs memtrace bench_common))
+ (libraries irmin-server lwt unix cmdliner logs memtrace bench_common dataset))

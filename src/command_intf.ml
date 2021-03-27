@@ -126,10 +126,25 @@ module type S = sig
                 Tree.t * Tree.Private.Store.key * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
+      module Add_tree :
+        CMD
+          with type Req.t = Tree.t * Tree.Private.Store.key * Tree.t
+           and type Res.t = Tree.t
+
       module Remove :
         CMD
           with type Req.t = Tree.t * Tree.Private.Store.key
            and type Res.t = Tree.t
+
+      module Find :
+        CMD
+          with type Req.t = Tree.t * Tree.Private.Store.key
+           and type Res.t = Tree.Private.Store.contents option
+
+      module Find_tree :
+        CMD
+          with type Req.t = Tree.t * Tree.Private.Store.key
+           and type Res.t = Tree.t option
 
       module Abort : CMD with type Req.t = Tree.t and type Res.t = unit
 

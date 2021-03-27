@@ -168,6 +168,15 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let add (t, tree) key value =
       wrap t (request t (module Commands.Tree.Add) (tree, key, value))
 
+    let add_tree (t, tree) key (_, tr) =
+      wrap t (request t (module Commands.Tree.Add_tree) (tree, key, tr))
+
+    let find (t, tree) key = request t (module Commands.Tree.Find) (tree, key)
+
+    let find_tree (t, tree) key =
+      let+ tree = request t (module Commands.Tree.Find_tree) (tree, key) in
+      Result.map (Option.map (fun tree -> (t, tree))) tree
+
     let remove (t, tree) key =
       wrap t (request t (module Commands.Tree.Remove) (tree, key))
 
