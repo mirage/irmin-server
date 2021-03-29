@@ -62,6 +62,8 @@ jobs:
       - run: opam pin add irmin-server.dev . --no-action
       - run: opam pin add irmin-server-bench.dev . --no-action
       - run: opam depext irmin-server-bench --yes --with-doc
+      - run: opam install dune-site fmt yojson
+      - run: opam install dataset
       - run: opam install irmin-server irmin-server-bench --deps-only --with-doc --with-test
       - run: opam exec -- dune build
 

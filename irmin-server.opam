@@ -27,46 +27,46 @@ build: [
   ["dune" "build" "-p" name "-j" jobs]
   ["dune" "runtest" "-p" name] {with-test}
 ]
-dev-repo: "git+ssh://github.com/mirage/irmin-rpc"
+dev-repo: "git+ssh://github.com/zshipko/irmin-server"
 pin-depends: [
   [
     "ppx_irmin.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin-git.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin-fs.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin-graphql.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin-http.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin-layers.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin-pack.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin-unix.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
   [
     "irmin-test.dev"
-    "git+https://github.com/mirage/irmin#c79f280c7ef1e5e9e561033e708998172a26eda0"
+    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
   ]
 ]
