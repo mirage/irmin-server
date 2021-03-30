@@ -14,9 +14,11 @@ module type S = sig
 end
 
 module Conf = struct
-  let entries = 32
+  module Default = struct
+    let entries = 32
 
-  let stable_hash = 32
+    let stable_hash = 32
+  end
 end
 
 module type Irmin_server = sig
@@ -29,7 +31,16 @@ module type Irmin_server = sig
 
   module type S = S
 
-  module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) :
+  module Conf = Conf
+
+  module Make (Conf : sig
+    val entries : int
+
+    val stable_hash : int
+  end)
+  (H : Irmin.Hash.S)
+  (C : Irmin.Contents.S)
+  (B : Irmin.Branch.S) :
     S
       with type Store.hash = H.t
        and type Store.contents = C.t

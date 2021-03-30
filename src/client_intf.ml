@@ -57,6 +57,9 @@ module type S = sig
     val node : commit -> hash
     (** The underlying node. *)
 
+    val hash : t -> commit -> hash Error.result Lwt.t
+    (** Get commit hash *)
+
     val parents : commit -> hash list
     (** The commit parents. *)
 

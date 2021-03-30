@@ -215,5 +215,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let tree t commit =
       let+ tree = request t (module Commands.Commit_tree) commit in
       Result.map (fun tree -> (t, tree)) tree
+
+    let hash t commit = request t (module Commands.Commit_hash) commit
   end
 end

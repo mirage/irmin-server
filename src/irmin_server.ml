@@ -6,7 +6,14 @@ module Cli = Cli
 module Return = Return
 include Irmin_server_intf
 
-module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) =
+module Make (Conf : sig
+  val entries : int
+
+  val stable_hash : int
+end)
+(H : Irmin.Hash.S)
+(C : Irmin.Contents.S)
+(B : Irmin.Branch.S) =
 struct
   module Store =
     Irmin_pack_layered.Make (Conf) (Irmin.Metadata.None) (C)
@@ -19,13 +26,9 @@ struct
     include Command.Make (Store)
   end
 
-  (*module Lazy_tree = struct
-      type t = [ `Contents of Store.hash | `Tree of (Store.step * t) list ]
-    end*)
-
   module Client = Client.Make (Command)
   module Server = Server.Make (Command)
 end
 
 module KV (C : Irmin.Contents.S) =
-  Make (Irmin.Hash.BLAKE2B) (C) (Irmin.Branch.String)
+  Make (Conf.Default) (Irmin.Hash.BLAKE2B) (C) (Irmin.Branch.String)
