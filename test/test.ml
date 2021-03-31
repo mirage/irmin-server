@@ -71,9 +71,11 @@ let branch (client : Rpc.Client.t) =
   in
   let* head = Branch.get client >|= Error.unwrap "get" in
   let head = Option.get head in
-  let node = Commit.node head in
-  let commit =
-    Commit.v ~info:(Irmin_unix.info "test" ()) ~parents:[ node ] ~node
+  let* tree = Commit.tree client head >|= Error.unwrap "tree" in
+  let hash = Commit.node head in
+  let* commit =
+    Commit.create client ~info:(Irmin_unix.info "test") ~parents:[ hash ] tree
+    >|= Error.unwrap "Commit.create"
   in
   let* () = Branch.set client commit >|= Error.unwrap "set" in
   let+ head = Branch.get client >|= Error.unwrap "get" in

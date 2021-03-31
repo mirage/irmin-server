@@ -170,6 +170,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         let* commit = St.Commit.v ctx.repo ~info ~parents tree in
         let hash = St.Commit.hash commit in
         let head = Commit.v ~info ~parents ~node:hash in
+        let () = St.Tree.clear tree in
         Return.v conn Commit.t head
     end
 

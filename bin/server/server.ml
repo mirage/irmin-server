@@ -9,7 +9,7 @@ let main ~root ~uri ~tls ~level ~graphql ~contents ~hash =
   let (module Hash : Irmin.Hash.S) =
     Option.value ~default:Cli.default_hash hash
   in
-  let module Rpc = Make (Hash) (Contents) (Irmin.Branch.String) in
+  let module Rpc = Make (Conf.Default) (Hash) (Contents) (Irmin.Branch.String) in
   let open Rpc in
   let () = Logs.set_level (Some level) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in

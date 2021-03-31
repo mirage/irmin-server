@@ -3,4 +3,10 @@ data
 *.key
 *.pem
 server.conf
+test-bench
+_results
+*.ctf
+*.repr
+*.log
+*.dump
 
