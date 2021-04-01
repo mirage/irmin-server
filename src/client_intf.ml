@@ -106,6 +106,8 @@ module type S = sig
     val empty : t -> tree Error.result Lwt.t
     (** Create a new, empty tree *)
 
+    val clear : tree -> unit Error.result Lwt.t
+
     val add : tree -> key -> contents -> tree Error.result Lwt.t
     (** Add values to a tree, returning a new tree
         NOTE: the tree that was passed in may no longer be valid
@@ -116,6 +118,8 @@ module type S = sig
     val find : tree -> key -> contents option Error.result Lwt.t
 
     val find_tree : tree -> key -> tree option Error.result Lwt.t
+
+    val list_ignore : tree -> unit Error.result Lwt.t
 
     val remove : tree -> key -> tree Error.result Lwt.t
     (** Remove value from a tree, returning a new tree

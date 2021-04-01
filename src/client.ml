@@ -165,6 +165,11 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let empty t = wrap t (request t (module Commands.Tree.Empty) ())
 
+    let clear (t, tree) = request t (module Commands.Tree.Clear) tree
+
+    let list_ignore (t, tree) =
+      request t (module Commands.Tree.List_ignore) tree
+
     let add (t, tree) key value =
       wrap t (request t (module Commands.Tree.Add) (tree, key, value))
 

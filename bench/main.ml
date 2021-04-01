@@ -674,14 +674,14 @@ module Generate_trees_from_trace (Rpc : Store) = struct
     maybe_forget_ctx t in_ctx_id;
     let* _ =
       (* in tezos commits call Tree.list first for the unshallow operation *)
-      Client.Tree.list tree []
+      Client.Tree.list_ignore tree
     in
     let info () = Irmin.Info.v ~date ~author:"Tezos" message in
     let* commit =
       Client.Commit.create repo ~info ~parents:parents_store tree
       >|= Error.unwrap "Commit.create"
     in
-    (*Store.Tree.clear tree;*)
+    let* () = Client.Tree.clear tree >|= Error.unwrap "Tree.clear" in
     let+ h_store =
       Client.Commit.hash repo commit >|= Error.unwrap "Commit.hash"
     in
@@ -779,8 +779,6 @@ module Benchmark = struct
       result.size
 end
 
-module Hash = Irmin.Hash.SHA1
-
 module Bench_suite (Rpc : Store) = struct
   module Store = Rpc.Store
   module Client = Rpc.Client
@@ -867,9 +865,10 @@ module Bench_suite (Rpc : Store) = struct
         config.commit_data_file
     in
     let* repo, on_commit, on_end, repo_pp = Rpc.create_repo config in
-    let check_hash = false in
-
-    (*(not config.flatten) && config.inode_config = (32, 256) in*)
+    (*TODO: figure out why the hashes are different *)
+    let check_hash =
+      false && (not config.flatten) && config.inode_config = (32, 256)
+    in
     let t0_cpu = Sys.time () in
     let t0 = Mtime_clock.counter () in
     let+ result, n =
@@ -933,18 +932,30 @@ module Bench_suite (Rpc : Store) = struct
       raise e
 end
 
-module Make_store_layered (Conf : sig
+module type CONF = sig
   val entries : int
 
   val stable_hash : int
-end) =
-struct
+end
+
+let run_server (module Conf : CONF) config uri =
+  Lwt.async (fun () ->
+      let open Tezos_context_hash.Encoding in
+      let module Rpc = Irmin_server.Make (Conf) (Hash) (Contents) (Branch) in
+      let cfg = Irmin_pack.config config.root in
+      let* server = Rpc.Server.v ~uri cfg in
+      Rpc.Server.serve server)
+
+module Make_store_layered (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
   module Rpc = Irmin_server.Make (Conf) (Hash) (Contents) (Branch)
   include Rpc
 
   let create_repo config =
-    let* client = Client.connect ~uri:config.uri () in
+    let uri = config.uri ^ string_of_int (Random.int 4096) in
+    run_server (module Conf) config uri;
+    let* () = Lwt_unix.sleep 1.0 in
+    let* client = Client.connect ~uri () in
     let on_commit _ _ = Lwt.return_unit in
     let on_end () = Lwt.return_unit in
     let pp _ = () in
@@ -953,18 +964,16 @@ struct
   include Store
 end
 
-module Make_store_pack (Conf : sig
-  val entries : int
-
-  val stable_hash : int
-end) =
-struct
+module Make_store_pack (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
   module Rpc = Irmin_server.Make (Conf) (Hash) (Contents) (Branch)
   include Rpc
 
   let create_repo config =
-    let* client = Client.connect ~uri:config.uri () in
+    let uri = config.uri ^ string_of_int (Random.int 4096) in
+    run_server (module Conf) config uri;
+    let* () = Lwt_unix.sleep 1.0 in
+    let* client = Client.connect ~uri () in
     let on_commit _ _ = Lwt.return_unit in
     let on_end () = Lwt.return_unit in
     let pp _ = () in
@@ -1102,8 +1111,8 @@ let main () ncommits ncommits_trace suite_filter inode_config store_type
     {
       ncommits;
       ncommits_trace;
-      root = "test-bench";
-      uri = "tcp://127.0.0.1:8888";
+      root = "/tmp/irmin-server-bench";
+      uri = "unix:///tmp/irmin-server-bench.sock";
       flatten;
       depth;
       width;
@@ -1121,15 +1130,6 @@ let main () ncommits ncommits_trace suite_filter inode_config store_type
   FSHelper.rm_dir config.root;
   let suite = get_suite suite_filter in
   let run_benchmarks () =
-    Lwt.async (fun () ->
-        let module Rpc =
-          Irmin_server.Make (Conf.Default) (Tezos_context_hash.Encoding.Hash)
-            (Irmin.Contents.String)
-            (Irmin.Branch.String)
-        in
-        let cfg = Irmin_pack.config config.root in
-        let* server = Rpc.Server.v ~uri:config.uri cfg in
-        Rpc.Server.serve server);
     let* () = Lwt_unix.sleep 3. in
     Lwt_list.map_s (fun b -> b.run config) suite
   in

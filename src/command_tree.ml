@@ -230,6 +230,40 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       Return.v conn Irmin.Type.(list (pair Store.Key.step_t tree_t)) x
   end
 
+  module Clear = struct
+    module Req = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    let name = "tree.clear"
+
+    let run conn ctx tree =
+      let* _, tree = resolve_tree ctx tree in
+      Store.Tree.clear tree;
+      Return.v conn Irmin.Type.unit ()
+  end
+
+  module List_ignore = struct
+    module Req = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    let name = "tree.list_ignore"
+
+    let run conn ctx tree =
+      let* _, tree = resolve_tree ctx tree in
+      let* _ = Store.Tree.list tree [] in
+      Return.v conn Irmin.Type.unit ()
+  end
+
   let commands =
     [
       cmd (module Empty);
@@ -244,5 +278,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       cmd (module Find);
       cmd (module Find_tree);
       cmd (module Add_tree);
+      cmd (module Clear);
+      cmd (module List_ignore);
     ]
 end
