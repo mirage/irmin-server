@@ -170,8 +170,40 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         let* commit = St.Commit.v ctx.repo ~info ~parents tree in
         let hash = St.Commit.hash commit in
         let head = Commit.v ~info ~parents ~node:hash in
-        let () = St.Tree.clear tree in
+        St.flush ctx.repo;
         Return.v conn Commit.t head
+    end
+
+    module Flush = struct
+      module Req = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      let name = "flush"
+
+      let run conn ctx () =
+        St.flush ctx.repo;
+        Return.v conn Res.t ()
+    end
+
+    module Freeze = struct
+      module Req = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      let name = "freeze"
+
+      let run conn ctx () =
+        let* () = St.freeze ctx.repo in
+        Return.v conn Res.t ()
     end
 
     module Commit_of_hash = struct
@@ -270,6 +302,8 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
       cmd (module Commit_hash);
       cmd (module Commit_tree);
       cmd (module Contents_of_hash);
+      cmd (module Flush);
+      cmd (module Freeze);
     ]
     @ Store.commands @ Tree.commands
 

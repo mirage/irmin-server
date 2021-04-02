@@ -97,6 +97,10 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   let ping t = request t (module Commands.Ping) ()
 
+  let flush t = request t (module Commands.Flush) ()
+
+  let freeze t = request t (module Commands.Freeze) ()
+
   let export t = request t (module Commands.Export) ()
 
   let import t slice = request t (module Commands.Import) slice

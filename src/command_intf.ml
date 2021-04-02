@@ -44,6 +44,10 @@ module type S = sig
   module Commands : sig
     module Ping : CMD with type Req.t = unit and type Res.t = unit
 
+    module Flush : CMD with type Req.t = unit and type Res.t = unit
+
+    module Freeze : CMD with type Req.t = unit and type Res.t = unit
+
     (* Branch *)
     module Set_current_branch :
       CMD with type Req.t = Store.branch and type Res.t = unit

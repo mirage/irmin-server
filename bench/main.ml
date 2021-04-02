@@ -938,12 +938,12 @@ module type CONF = sig
   val stable_hash : int
 end
 
-let run_server (module Conf : CONF) config uri =
+let run_server (module Conf : CONF) config =
   Lwt.async (fun () ->
       let open Tezos_context_hash.Encoding in
       let module Rpc = Irmin_server.Make (Conf) (Hash) (Contents) (Branch) in
       let cfg = Irmin_pack.config config.root in
-      let* server = Rpc.Server.v ~uri cfg in
+      let* server = Rpc.Server.v ~uri:config.uri cfg in
       Rpc.Server.serve server)
 
 module Make_store_layered (Conf : CONF) = struct
@@ -952,11 +952,10 @@ module Make_store_layered (Conf : CONF) = struct
   include Rpc
 
   let create_repo config =
-    let uri = config.uri ^ string_of_int (Random.int 4096) in
-    run_server (module Conf) config uri;
-    let* () = Lwt_unix.sleep 1.0 in
-    let* client = Client.connect ~uri () in
-    let on_commit _ _ = Lwt.return_unit in
+    run_server (module Conf) config;
+    let* () = Lwt_unix.sleep 0.5 in
+    let* client = Client.connect ~uri:config.uri () in
+    let on_commit _ _ = Client.flush client >|= Error.unwrap "flush" in
     let on_end () = Lwt.return_unit in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
@@ -970,11 +969,10 @@ module Make_store_pack (Conf : CONF) = struct
   include Rpc
 
   let create_repo config =
-    let uri = config.uri ^ string_of_int (Random.int 4096) in
-    run_server (module Conf) config uri;
-    let* () = Lwt_unix.sleep 1.0 in
-    let* client = Client.connect ~uri () in
-    let on_commit _ _ = Lwt.return_unit in
+    run_server (module Conf) config;
+    let* () = Lwt_unix.sleep 0.5 in
+    let* client = Client.connect ~uri:config.uri () in
+    let on_commit _ _ = Client.flush client >|= Error.unwrap "flush" in
     let on_end () = Lwt.return_unit in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
@@ -1128,10 +1126,22 @@ let main () ncommits ncommits_trace suite_filter inode_config store_type
   Printexc.record_backtrace true;
   Random.self_init ();
   FSHelper.rm_dir config.root;
+  let () = try Unix.mkdir config.root 0o777 with _ -> () in
   let suite = get_suite suite_filter in
   let run_benchmarks () =
     let* () = Lwt_unix.sleep 3. in
-    Lwt_list.map_s (fun b -> b.run config) suite
+    Lwt_list.mapi_s
+      (fun n b ->
+        let i = string_of_int n in
+        let config =
+          {
+            config with
+            uri = config.uri ^ i;
+            root = Filename.concat config.root i;
+          }
+        in
+        b.run config)
+      suite
   in
   let results = Lwt_main.run (run_benchmarks ()) in
   Logs.app (fun l ->
