@@ -114,7 +114,7 @@ module Make (X : Command.S) = struct
 
   let on_exn x = raise x
 
-  let serve ?graphql { ctx; server; repo; uri; _ } =
+  let serve ?graphql ?stop { ctx; server; repo; uri; _ } =
     let () =
       match graphql with
       | Some port ->
@@ -138,5 +138,5 @@ module Make (X : Command.S) = struct
                 server)
       | None -> ()
     in
-    Conduit_lwt_unix.serve ~ctx ~on_exn ~mode:server (callback repo)
+    Conduit_lwt_unix.serve ?stop ~ctx ~on_exn ~mode:server (callback repo)
 end

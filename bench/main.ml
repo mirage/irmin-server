@@ -681,7 +681,7 @@ module Generate_trees_from_trace (Rpc : Store) = struct
       Client.Commit.create repo ~info ~parents:parents_store tree
       >|= Error.unwrap "Commit.create"
     in
-    let* () = Client.Tree.clear tree >|= Error.unwrap "Tree.clear" in
+    (*let* () = Client.Tree.clear tree >|= Error.unwrap "Tree.clear" in*)
     let+ h_store =
       Client.Commit.hash repo commit >|= Error.unwrap "Commit.hash"
     in
@@ -947,13 +947,13 @@ module type CONF = sig
   val stable_hash : int
 end
 
-let run_server (module Conf : CONF) config =
+let run_server (module Conf : CONF) config stop =
   Lwt.async (fun () ->
       let open Tezos_context_hash.Encoding in
       let module Rpc = Irmin_server.Make (Conf) (Hash) (Contents) (Branch) in
       let cfg = Irmin_pack.config config.root in
       let* server = Rpc.Server.v ~uri:config.uri cfg in
-      Rpc.Server.serve server)
+      Rpc.Server.serve ~stop server)
 
 module Make_store_layered (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
@@ -961,11 +961,12 @@ module Make_store_layered (Conf : CONF) = struct
   include Rpc
 
   let create_repo config =
-    run_server (module Conf) config;
+    let stop, wake = Lwt.wait () in
+    run_server (module Conf) config stop;
     let* () = Lwt_unix.sleep 0.5 in
     let* client = Client.connect ~uri:config.uri () in
     let on_commit _ _ = Client.flush client >|= Error.unwrap "flush" in
-    let on_end () = Lwt.return_unit in
+    let on_end () = Lwt.wrap (fun () -> Lwt.wakeup wake ()) in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
 
@@ -978,11 +979,12 @@ module Make_store_pack (Conf : CONF) = struct
   include Rpc
 
   let create_repo config =
-    run_server (module Conf) config;
+    let stop, wake = Lwt.wait () in
+    run_server (module Conf) config stop;
     let* () = Lwt_unix.sleep 0.5 in
     let* client = Client.connect ~uri:config.uri () in
     let on_commit _ _ = Client.flush client >|= Error.unwrap "flush" in
-    let on_end () = Lwt.return_unit in
+    let on_end () = Lwt.wrap (fun () -> Lwt.wakeup wake ()) in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
 end

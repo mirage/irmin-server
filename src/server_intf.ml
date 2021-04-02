@@ -12,7 +12,7 @@ module type S = sig
     t Lwt.t
   (** Create an instance of the server *)
 
-  val serve : ?graphql:int -> t -> unit Lwt.t
+  val serve : ?graphql:int -> ?stop:unit Lwt.t -> t -> unit Lwt.t
   (** Run the server, optionally enabling the GraphQL server as well *)
 
   val commands : (string, Command.t) Hashtbl.t
