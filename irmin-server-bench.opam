@@ -12,6 +12,7 @@ depends: [
   "irmin"
   "irmin-unix" {>= "dev"}
   "irmin-server"
+  "irmin-test"
   "uri"
   "alcotest-lwt" {with-test & >= "1.0.0"}
   "checkseum" {>= "0.3.0"}
@@ -22,6 +23,7 @@ depends: [
   "memtrace" {>= "0.1.2"}
   "ppx_irmin" {>= "dev"}
   "ppx_deriving_yojson"
+  "bentov"
 ]
 build: [
   ["dune" "subst"] {pinned}

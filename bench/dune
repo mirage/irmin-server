@@ -7,7 +7,7 @@
 
 (rule
  (alias runtest)
- (package irmin-server)
+ (package irmin-server-bench)
  (deps main.exe)
  (action (progn)))
 
