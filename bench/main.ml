@@ -767,16 +767,21 @@ module Generate_trees_from_trace (Rpc : Store) = struct
 end
 
 module Benchmark = struct
-  type result = { time : float; size : int }
+  type result = { time : float; size : string }
 
   let run config f =
-    let+ time, res = with_timer f in
-    let size = FSHelper.get_size config.root in
+    let* time, res = with_timer f in
+    let+ size =
+      Lwt_process.pread
+        (Lwt_process.shell
+           ("du -s -h " ^ config.root ^ "  | awk '{ print $1 }'"))
+    in
+    let size = String.trim size in
     ({ time; size }, res)
 
-  let pp_results ppf result =
-    Format.fprintf ppf "Total time: %f@\nSize on disk: %d M" result.time
-      result.size
+  let pp_results config ppf result =
+    Format.fprintf ppf "Total time: %f@\nSize on disk(%s): %s" result.time
+      config.root result.size
 end
 
 module Bench_suite (Rpc : Store) = struct
@@ -837,7 +842,8 @@ module Bench_suite (Rpc : Store) = struct
          %a"
         pp_inode_config config.inode_config pp_store_type config.store_type
         config.ncommits config.nlarge_trees config.width repo_pp
-        Benchmark.pp_results result
+        (Benchmark.pp_results config)
+        result
 
   let run_chains config =
     reset_stats ();
@@ -857,7 +863,8 @@ module Bench_suite (Rpc : Store) = struct
          %a"
         pp_inode_config config.inode_config pp_store_type config.store_type
         config.ncommits config.nchain_trees config.depth repo_pp
-        Benchmark.pp_results result
+        (Benchmark.pp_results config)
+        result
 
   let run_read_trace config stats =
     let commit_seq =
@@ -917,7 +924,9 @@ module Bench_suite (Rpc : Store) = struct
           config.store_type,
           elapsed_cpu,
           elapsed )
-        json_path Benchmark.pp_results result
+        json_path
+        (Benchmark.pp_results config)
+        result
 
   let run_read_trace config =
     reset_stats ();
