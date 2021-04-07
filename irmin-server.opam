@@ -21,6 +21,8 @@ depends: [
   "lwt" {>= "5.4.0"}
   "ppx_irmin" {>= "dev"}
   "conduit-lwt-unix" {>= "2.3.0" & < "3.0.0"}
+  "metrics"
+  "metrics-unix"
 ]
 build: [
   ["dune" "subst"] {pinned}
