@@ -47,6 +47,25 @@ module type Irmin_server = sig
        and type Store.branch = B.t
        and type Store.key = string list
 
+  module Make_ext (Conf : sig
+    val entries : int
+
+    val stable_hash : int
+  end)
+  (H : Irmin.Hash.S)
+  (C : Irmin.Contents.S)
+  (B : Irmin.Branch.S)
+  (N : Irmin.Private.Node.S
+         with type metadata = unit
+          and type hash = H.t
+          and type step = string)
+  (Cm : Irmin.Private.Commit.S with type hash = H.t) :
+    S
+      with type Store.hash = H.t
+       and type Store.contents = C.t
+       and type Store.branch = B.t
+       and type Store.key = string list
+
   module KV (C : Irmin.Contents.S) :
     S
       with type Store.hash = Irmin.Hash.BLAKE2B.t

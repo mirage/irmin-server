@@ -872,10 +872,7 @@ module Bench_suite (Rpc : Store) = struct
         config.commit_data_file
     in
     let* repo, on_commit, on_end, repo_pp = Rpc.create_repo config in
-    (*TODO: figure out why the hashes are different *)
-    let check_hash =
-      false && (not config.flatten) && config.inode_config = (32, 256)
-    in
+    let check_hash = (not config.flatten) && config.inode_config = (32, 256) in
     let t0_cpu = Sys.time () in
     let t0 = Mtime_clock.counter () in
     let+ result, n =
@@ -950,14 +947,17 @@ end
 let run_server (module Conf : CONF) config stop =
   Lwt.async (fun () ->
       let open Tezos_context_hash.Encoding in
-      let module Rpc = Irmin_server.Make (Conf) (Hash) (Contents) (Branch) in
+      let module Rpc =
+        Irmin_server.Make_ext (Conf) (Hash) (Contents) (Branch) (Node) (Commit)
+      in
       let cfg = Irmin_pack.config config.root in
       let* server = Rpc.Server.v ~uri:config.uri cfg in
       Rpc.Server.serve ~stop server)
 
 module Make_store_layered (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
-  module Rpc = Irmin_server.Make (Conf) (Hash) (Contents) (Branch)
+  module Rpc =
+    Irmin_server.Make_ext (Conf) (Hash) (Contents) (Branch) (Node) (Commit)
   include Rpc
 
   let create_repo config =
@@ -975,7 +975,8 @@ end
 
 module Make_store_pack (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
-  module Rpc = Irmin_server.Make (Conf) (Hash) (Contents) (Branch)
+  module Rpc =
+    Irmin_server.Make_ext (Conf) (Hash) (Contents) (Branch) (Node) (Commit)
   include Rpc
 
   let create_repo config =

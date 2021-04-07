@@ -30,5 +30,36 @@ struct
   module Server = Server.Make (Command)
 end
 
+module Make_ext (Conf : sig
+  val entries : int
+
+  val stable_hash : int
+end)
+(H : Irmin.Hash.S)
+(C : Irmin.Contents.S)
+(B : Irmin.Branch.S)
+(N : Irmin.Private.Node.S
+       with type metadata = unit
+        and type hash = H.t
+        and type step = string)
+(Cm : Irmin.Private.Commit.S with type hash = H.t) =
+struct
+  module Store =
+    Irmin_pack_layered.Make_ext (Conf) (Irmin.Metadata.None) (C)
+      (Irmin.Path.String_list)
+      (B)
+      (H)
+      (N)
+      (Cm)
+
+  module Command = struct
+    include Command
+    include Command.Make (Store)
+  end
+
+  module Client = Client.Make (Command)
+  module Server = Server.Make (Command)
+end
+
 module KV (C : Irmin.Contents.S) =
   Make (Conf.Default) (Irmin.Hash.BLAKE2B) (C) (Irmin.Branch.String)
