@@ -1,6 +1,6 @@
 (library
  (name irmin_server)
  (public_name irmin-server)
- (libraries irmin-unix irmin-pack.layered conduit-lwt-unix)
+ (libraries irmin-unix irmin-pack.layered conduit-lwt-unix metrics metrics-unix)
  (preprocess
   (pps ppx_irmin)))

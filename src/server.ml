@@ -114,29 +114,6 @@ module Make (X : Command.S) = struct
 
   let on_exn x = raise x
 
-  let serve ?graphql ?stop { ctx; server; repo; uri; _ } =
-    let () =
-      match graphql with
-      | Some port ->
-          (* Run GraphQL server too*)
-          Lwt.async (fun () ->
-              let module G =
-                Irmin_unix.Graphql.Server.Make
-                  (Store)
-                  (Irmin_unix.Graphql.Server.Remote.None)
-              in
-              let server = G.v repo in
-              let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
-              let* ctx = Conduit_lwt_unix.init ~src:addr () in
-              let ctx = Cohttp_lwt_unix.Net.init ~ctx () in
-              let on_exn exn =
-                Logs.debug (fun l ->
-                    l "graphql exn: %s" (Printexc.to_string exn))
-              in
-              Cohttp_lwt_unix.Server.create ~on_exn ~ctx
-                ~mode:(`TCP (`Port port))
-                server)
-      | None -> ()
-    in
+  let serve ?stop { ctx; server; repo; _ } =
     Conduit_lwt_unix.serve ?stop ~ctx ~on_exn ~mode:server (callback repo)
 end
