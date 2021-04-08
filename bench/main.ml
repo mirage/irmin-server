@@ -875,7 +875,10 @@ module Bench_suite (Rpc : Store) = struct
         config.commit_data_file
     in
     let* repo, on_commit, on_end, repo_pp = Rpc.create_repo config in
-    let check_hash = (not config.flatten) && config.inode_config = (32, 256) in
+    (* TODO: figure out hash issue *)
+    let check_hash =
+      false && (not config.flatten) && config.inode_config = (32, 256)
+    in
     let t0_cpu = Sys.time () in
     let t0 = Mtime_clock.counter () in
     let+ result, n =

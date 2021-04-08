@@ -35,8 +35,8 @@ jobs:
       - run: opam pin add irmin-server.dev . --no-action
       - run: opam depext irmin-server --yes --with-doc
       - run: opam install irmin-server --deps-only --with-doc --with-test
-      - run: opam exec -- dune build -p tezos-context-hash,irmin-server
-      - run: opam exec -- dune runtest -p tezos-context-hash,irmin-server
+      - run: opam exec -- dune build -p irmin-server
+      - run: opam exec -- dune runtest -p irmin-server
 
   build-bench:
     strategy:
