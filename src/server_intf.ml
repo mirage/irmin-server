@@ -12,7 +12,7 @@ module type S = sig
     t Lwt.t
   (** Create an instance of the server *)
 
-  val serve :  ?stop:unit Lwt.t -> t -> unit Lwt.t
+  val serve : ?stop:unit Lwt.t -> t -> unit Lwt.t
   (** Run the server *)
 
   val commands : (string, Command.t) Hashtbl.t

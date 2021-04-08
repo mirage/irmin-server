@@ -9,7 +9,8 @@ let main ~root ~uri ~tls ~level ~contents ~hash =
   let (module Hash : Irmin.Hash.S) =
     Option.value ~default:Cli.default_hash hash
   in
-  let module Rpc = Make (Conf.Default) (Hash) (Contents) (Irmin.Branch.String) in
+  let module Rpc = Make (Conf.Default) (Hash) (Contents) (Irmin.Branch.String)
+  in
   let open Rpc in
   let () = Logs.set_level (Some level) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
@@ -36,8 +37,7 @@ let tls =
 
 let main_term =
   Term.(
-    const main $ root $ Cli.uri $ tls $ Cli.log_level $ Cli.contents
-    $ Cli.hash)
+    const main $ root $ Cli.uri $ tls $ Cli.log_level $ Cli.contents $ Cli.hash)
 
 let () =
   let info = Term.info "irmin-server" in
