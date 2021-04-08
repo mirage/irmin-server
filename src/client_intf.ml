@@ -107,10 +107,16 @@ module type S = sig
   end
 
   module Tree : sig
+    val split : tree -> t * Private.Tree.t
+
+    val of_hash : t -> hash -> tree
+
     val empty : t -> tree Error.result Lwt.t
     (** Create a new, empty tree *)
 
     val clear : tree -> unit Error.result Lwt.t
+
+    val hash : tree -> hash Error.result Lwt.t
 
     val add : tree -> key -> contents -> tree Error.result Lwt.t
     (** Add values to a tree, returning a new tree

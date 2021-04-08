@@ -183,6 +183,9 @@ module type S = sig
       module Clear : CMD with type Req.t = Tree.t and type Res.t = unit
 
       module List_ignore : CMD with type Req.t = Tree.t and type Res.t = unit
+
+      module Hash :
+        CMD with type Req.t = Tree.t and type Res.t = Tree.Private.Store.Hash.t
     end
   end
 end

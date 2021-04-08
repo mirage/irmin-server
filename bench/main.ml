@@ -610,14 +610,16 @@ module Generate_trees_from_trace (Rpc : Store) = struct
     let v = Bytes.of_string v in
     let { tree } = Hashtbl.find t.contexts (unscope in_ctx_id) in
     maybe_forget_ctx t in_ctx_id;
-    let+ tree = Client.Tree.add tree key v >|= Error.unwrap "Tree.add" in
+    let* tree = Client.Tree.add tree key v >|= Error.unwrap "Tree.add" in
+    let+ tree = Client.Tree.clone tree >|= Error.unwrap "Tree.clone" in
     Hashtbl.add t.contexts (unscope out_ctx_id) { tree };
     maybe_forget_ctx t out_ctx_id
 
   let exec_remove t keys in_ctx_id out_ctx_id () =
     let { tree } = Hashtbl.find t.contexts (unscope in_ctx_id) in
     maybe_forget_ctx t in_ctx_id;
-    let+ tree = Client.Tree.remove tree keys >|= Error.unwrap "Tree.remove" in
+    let* tree = Client.Tree.remove tree keys >|= Error.unwrap "Tree.remove" in
+    let+ tree = Client.Tree.clone tree >|= Error.unwrap "Tree.clone" in
     Hashtbl.add t.contexts (unscope out_ctx_id) { tree };
     maybe_forget_ctx t out_ctx_id
 
@@ -634,6 +636,7 @@ module Generate_trees_from_trace (Rpc : Store) = struct
           Client.Tree.add_tree tree to_ sub_tree
           >|= Error.unwrap "Tree.add_tree"
         in
+        let* tree = Client.Tree.clone tree >|= Error.unwrap "Tree.clone" in
         Hashtbl.add t.contexts (unscope out_ctx_id) { tree };
         maybe_forget_ctx t out_ctx_id;
         Lwt.return_unit

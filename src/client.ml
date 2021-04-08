@@ -169,7 +169,13 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let empty t = wrap t (request t (module Commands.Tree.Empty) ())
 
+    let split t = t
+
+    let of_hash t hash = (t, Private.Tree.Hash hash)
+
     let clear (t, tree) = request t (module Commands.Tree.Clear) tree
+
+    let hash (t, tree) = request t (module Commands.Tree.Hash) tree
 
     let list_ignore (t, tree) =
       request t (module Commands.Tree.List_ignore) tree

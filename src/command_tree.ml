@@ -18,7 +18,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       let empty = Store.Tree.empty in
       let id = Random.bits () in
       Hashtbl.replace ctx.trees id empty;
-      Return.v conn Tree.t (ID id)
+      Return.v conn Res.t (ID id)
   end
 
   module Add = struct
@@ -36,7 +36,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       let* id, tree = resolve_tree ctx tree in
       let* tree = Store.Tree.add tree key value in
       Hashtbl.replace ctx.trees id tree;
-      Return.v conn Tree.t (ID id)
+      Return.v conn Res.t (ID id)
   end
 
   module Add_tree = struct
@@ -55,7 +55,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       let* _, tree' = resolve_tree ctx tr in
       let* tree = Store.Tree.add_tree tree key tree' in
       Hashtbl.replace ctx.trees id tree;
-      Return.v conn Tree.t (ID id)
+      Return.v conn Res.t (ID id)
   end
 
   module Find = struct
@@ -115,7 +115,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       let* id, tree = resolve_tree ctx tree in
       let* tree = Store.Tree.remove tree key in
       Hashtbl.replace ctx.trees id tree;
-      Return.v conn Tree.t (ID id)
+      Return.v conn Res.t (ID id)
   end
 
   module Abort = struct
@@ -151,7 +151,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       let* _, tree = resolve_tree ctx tree in
       let id = Random.bits () in
       Hashtbl.replace ctx.trees id tree;
-      Return.v conn Tree.t (Tree.ID id)
+      Return.v conn Res.t (Tree.ID id)
   end
 
   module To_local = struct
@@ -167,7 +167,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
 
     let run conn ctx tree =
       let* _, tree = resolve_tree ctx tree in
-      Return.v conn Tree.Local.t tree
+      Return.v conn Res.t tree
   end
 
   module Mem = struct
@@ -184,7 +184,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     let run conn ctx (tree, key) =
       let* _, tree = resolve_tree ctx tree in
       let* res = Store.Tree.mem tree key in
-      Return.v conn Irmin.Type.bool res
+      Return.v conn Res.t res
   end
 
   module Mem_tree = struct
@@ -201,7 +201,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     let run conn ctx (tree, key) =
       let* _, tree = resolve_tree ctx tree in
       let* res = Store.Tree.mem_tree tree key in
-      Return.v conn Irmin.Type.bool res
+      Return.v conn Res.t res
   end
 
   module List = struct
@@ -227,7 +227,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
             if exists then (k, `Tree) else (k, `Contents))
           l
       in
-      Return.v conn Irmin.Type.(list (pair Store.Key.step_t tree_t)) x
+      Return.v conn Res.t x
   end
 
   module Clear = struct
@@ -244,7 +244,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     let run conn ctx tree =
       let* _, tree = resolve_tree ctx tree in
       Store.Tree.clear tree;
-      Return.v conn Irmin.Type.unit ()
+      Return.v conn Res.t ()
   end
 
   module List_ignore = struct
@@ -261,7 +261,24 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     let run conn ctx tree =
       let* _, tree = resolve_tree ctx tree in
       let* _ = Store.Tree.list tree [] in
-      Return.v conn Irmin.Type.unit ()
+      Return.v conn Res.t ()
+  end
+
+  module Hash = struct
+    module Req = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Store.Hash.t [@@deriving irmin]
+    end
+
+    let name = "tree.hash"
+
+    let run conn ctx tree =
+      let* _, tree = resolve_tree ctx tree in
+      let hash = Store.Tree.hash tree in
+      Return.v conn Res.t hash
   end
 
   let commands =
@@ -280,5 +297,6 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       cmd (module Add_tree);
       cmd (module Clear);
       cmd (module List_ignore);
+      cmd (module Hash);
     ]
 end
