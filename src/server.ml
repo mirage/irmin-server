@@ -22,7 +22,6 @@ module Make (X : Command.S) = struct
       match String.lowercase_ascii scheme with
       | "unix" ->
           let file = Uri.path uri in
-          at_exit (fun () -> try Unix.unlink file with _ -> ());
           Lwt.return
             (Conduit_lwt_unix.default_ctx, `Unix_domain_socket (`File file))
       | "tcp" -> (
@@ -114,6 +113,24 @@ module Make (X : Command.S) = struct
 
   let on_exn x = raise x
 
-  let serve ?stop { ctx; server; repo; _ } =
-    Conduit_lwt_unix.serve ?stop ~ctx ~on_exn ~mode:server (callback repo)
+  let serve ?stop { ctx; server; repo; uri; _ } =
+    let unlink () =
+      match Uri.scheme uri with
+      | Some "unix" -> Unix.unlink (Uri.path uri)
+      | _ -> ()
+    in
+    let _ =
+      Lwt_unix.on_signal 2 (fun _ ->
+          unlink ();
+          exit 0)
+    in
+    let _ =
+      Lwt_unix.on_signal 15 (fun _ ->
+          unlink ();
+          exit 0)
+    in
+    let* () =
+      Conduit_lwt_unix.serve ?stop ~ctx ~on_exn ~mode:server (callback repo)
+    in
+    Lwt.wrap (fun () -> unlink ())
 end
