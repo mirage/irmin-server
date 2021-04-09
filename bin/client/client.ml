@@ -152,8 +152,10 @@ let config =
     in
     let (module Contents : Irmin.Contents.S) = contents in
     let module Rpc =
-      Irmin_server.Make (Irmin_server.Conf.Default) (Hash) (Contents)
+      Irmin_server.Make (Irmin_server.Conf.Default) (Irmin.Metadata.None)
+        (Contents)
         (Irmin.Branch.String)
+        (Hash)
     in
     init ~uri ~tls ~level (module Rpc)
   in

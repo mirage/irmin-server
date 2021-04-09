@@ -94,8 +94,9 @@ let all =
 
 let () =
   Lwt_main.run
-    (let uri = run_server () in
+    (let wake, uri = run_server () in
      let* () = Lwt_unix.sleep 1. in
      let* client = Rpc.Client.connect ~uri () in
      Logs.debug (fun l -> l "Connected");
-     Alcotest_lwt.run "irmin-server" [ ("all", suite client all) ])
+     let+ () = Alcotest_lwt.run "irmin-server" [ ("all", suite client all) ] in
+     Lwt.wakeup wake ())

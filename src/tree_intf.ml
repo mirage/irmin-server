@@ -63,7 +63,7 @@ end
 
 module type S = sig
   module Private : sig
-    module Store : Irmin_pack_layered.S with type key = string list
+    module Store : Irmin.S with type key = string list
   end
 
   open Private

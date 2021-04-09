@@ -118,7 +118,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       Return.v conn Res.t (ID id)
   end
 
-  module Abort = struct
+  module Cleanup = struct
     module Req = struct
       type t = Tree.t [@@deriving irmin]
     end
@@ -127,7 +127,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       type t = unit [@@deriving irmin]
     end
 
-    let name = "tree.abort"
+    let name = "tree.cleanup"
 
     let run conn ctx tree =
       let () =
@@ -281,12 +281,28 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       Return.v conn Res.t hash
   end
 
+  module Reset_all = struct
+    module Req = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    let name = "tree.reset_all"
+
+    let run conn ctx () =
+      Hashtbl.reset ctx.trees;
+      Return.v conn Res.t ()
+  end
+
   let commands =
     [
       cmd (module Empty);
       cmd (module Add);
       cmd (module Remove);
-      cmd (module Abort);
+      cmd (module Cleanup);
       cmd (module Mem);
       cmd (module Mem_tree);
       cmd (module List);

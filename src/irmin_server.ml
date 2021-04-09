@@ -11,15 +11,13 @@ module Make (Conf : sig
 
   val stable_hash : int
 end)
-(H : Irmin.Hash.S)
+(M : Irmin.Metadata.S)
 (C : Irmin.Contents.S)
-(B : Irmin.Branch.S) =
+(B : Irmin.Branch.S)
+(H : Irmin.Hash.S) =
 struct
   module Store =
-    Irmin_pack_layered.Make (Conf) (Irmin.Metadata.None) (C)
-      (Irmin.Path.String_list)
-      (B)
-      (H)
+    Irmin_pack_layered.Make (Conf) (M) (C) (Irmin.Path.String_list) (B) (H)
 
   module Command = struct
     include Command
@@ -35,9 +33,10 @@ module Make_ext (Conf : sig
 
   val stable_hash : int
 end)
-(H : Irmin.Hash.S)
+(M : Irmin.Metadata.S)
 (C : Irmin.Contents.S)
 (B : Irmin.Branch.S)
+(H : Irmin.Hash.S)
 (N : Irmin.Private.Node.S
        with type metadata = unit
         and type hash = H.t
@@ -62,4 +61,5 @@ struct
 end
 
 module KV (C : Irmin.Contents.S) =
-  Make (Conf.Default) (Irmin.Hash.BLAKE2B) (C) (Irmin.Branch.String)
+  Make (Conf.Default) (Irmin.Metadata.None) (C) (Irmin.Branch.String)
+    (Irmin.Hash.BLAKE2B)

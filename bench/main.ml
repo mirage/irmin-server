@@ -680,14 +680,12 @@ module Generate_trees_from_trace (Rpc : Store) = struct
       Client.Tree.list_ignore tree
     in
     let info () = Irmin.Info.v ~date ~author:"Tezos" message in
-    let* commit =
+    let+ commit =
       Client.Commit.create repo ~info ~parents:parents_store tree
       >|= Error.unwrap "Commit.create"
     in
     (*let* () = Client.Tree.clear tree >|= Error.unwrap "Tree.clear" in*)
-    let+ h_store =
-      Client.Commit.hash repo commit >|= Error.unwrap "Commit.hash"
-    in
+    let h_store = Client.Commit.node commit in
     if check_hash then check_hash_trace (unscope h_trace) h_store;
     (* It's okey to have [h_trace] already in history. It corresponds to
      * re-commiting the same thing, hence the [.replace] below. *)
@@ -954,7 +952,9 @@ let run_server (module Conf : CONF) config stop =
   Lwt.async (fun () ->
       let open Tezos_context_hash.Encoding in
       let module Rpc =
-        Irmin_server.Make_ext (Conf) (Hash) (Contents) (Branch) (Node) (Commit)
+        Irmin_server.Make_ext (Conf) (Metadata) (Contents) (Branch) (Hash)
+          (Node)
+          (Commit)
       in
       let cfg = Irmin_pack.config config.root in
       let* server = Rpc.Server.v ~uri:config.uri cfg in
@@ -963,7 +963,8 @@ let run_server (module Conf : CONF) config stop =
 module Make_store_layered (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
   module Rpc =
-    Irmin_server.Make_ext (Conf) (Hash) (Contents) (Branch) (Node) (Commit)
+    Irmin_server.Make_ext (Conf) (Metadata) (Contents) (Branch) (Hash) (Node)
+      (Commit)
   include Rpc
 
   let create_repo config =
@@ -982,7 +983,8 @@ end
 module Make_store_pack (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
   module Rpc =
-    Irmin_server.Make_ext (Conf) (Hash) (Contents) (Branch) (Node) (Commit)
+    Irmin_server.Make_ext (Conf) (Metadata) (Contents) (Branch) (Hash) (Node)
+      (Commit)
   include Rpc
 
   let create_repo config =

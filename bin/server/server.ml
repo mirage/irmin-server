@@ -9,7 +9,9 @@ let main ~root ~uri ~tls ~level ~contents ~hash =
   let (module Hash : Irmin.Hash.S) =
     Option.value ~default:Cli.default_hash hash
   in
-  let module Rpc = Make (Conf.Default) (Hash) (Contents) (Irmin.Branch.String)
+  let module Rpc =
+    Make (Conf.Default) (Irmin.Metadata.None) (Contents) (Irmin.Branch.String)
+      (Hash)
   in
   let open Rpc in
   let () = Logs.set_level (Some level) in

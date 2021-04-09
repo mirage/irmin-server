@@ -195,7 +195,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let remove (t, tree) key =
       wrap t (request t (module Commands.Tree.Remove) (tree, key))
 
-    let abort (t, tree) = request t (module Commands.Tree.Abort) tree
+    let cleanup (t, tree) = request t (module Commands.Tree.Cleanup) tree
 
     let clone (t, tree) = wrap t (request t (module Commands.Tree.Clone) tree)
 
@@ -211,6 +211,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let to_local (t, tree) = request t (module Commands.Tree.To_local) tree
 
     let of_local t x = (t, Private.Tree.Local x)
+
+    let reset_all t = request t (module Commands.Tree.Reset_all) ()
   end
 
   module Contents = struct

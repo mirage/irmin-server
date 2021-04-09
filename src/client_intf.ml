@@ -116,6 +116,8 @@ module type S = sig
 
     val clear : tree -> unit Error.result Lwt.t
 
+    val reset_all : t -> unit Error.result Lwt.t
+
     val hash : tree -> hash Error.result Lwt.t
 
     val add : tree -> key -> contents -> tree Error.result Lwt.t
@@ -140,7 +142,7 @@ module type S = sig
     (** Copies an existing tree, this can be used to create a new copy of a tree before passing it to a
         function that may invalidate it *)
 
-    val abort : tree -> unit Error.result Lwt.t
+    val cleanup : tree -> unit Error.result Lwt.t
     (** Invalidate a tree, this frees the tree on the server side *)
 
     val mem : tree -> key -> bool Error.result Lwt.t
@@ -196,7 +198,7 @@ module type S = sig
     val set_tree :
       t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
     (** Set a tree at the given key
-        NOTE: the tree parameter may no longer be valid after this call, the
+        NOTE: the tree parameter will not be valid after this call, the
         returned tree should be used instead *)
 
     val test_and_set_tree :
@@ -207,7 +209,7 @@ module type S = sig
       set:Tree.t option ->
       Tree.t option Error.result Lwt.t
     (** Set a value only if the [test] parameter matches the existing value
-        NOTE: the tree parameter may no longer be valid after this call, the
+        NOTE: the tree parameter will not be valid after this call, the
         returned tree should be used instead *)
 
     val mem : t -> key -> bool Error.result Lwt.t

@@ -1,5 +1,7 @@
+module type STORE = Irmin_pack_layered.S with type key = string list
+
 module type S = sig
-  module Store : Irmin_pack_layered.S with type key = string list
+  module Store : STORE
 
   module Tree : Tree.S with module Private.Store = Store
 
@@ -157,7 +159,7 @@ module type S = sig
           with type Req.t = Tree.t * Tree.Private.Store.key
            and type Res.t = Tree.t option
 
-      module Abort : CMD with type Req.t = Tree.t and type Res.t = unit
+      module Cleanup : CMD with type Req.t = Tree.t and type Res.t = unit
 
       module Clone : CMD with type Req.t = Tree.t and type Res.t = Tree.t
 
@@ -186,6 +188,8 @@ module type S = sig
 
       module Hash :
         CMD with type Req.t = Tree.t and type Res.t = Tree.Private.Store.Hash.t
+
+      module Reset_all : CMD with type Req.t = unit and type Res.t = unit
     end
   end
 end
@@ -193,6 +197,8 @@ end
 module type Command = sig
   module type S = S
 
-  module Make (Store : Irmin_pack_layered.S with type key = string list) :
+  module type STORE = STORE
+
+  module Make (Store : STORE with type key = string list) :
     S with module Store = Store
 end

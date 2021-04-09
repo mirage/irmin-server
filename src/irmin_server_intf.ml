@@ -1,5 +1,5 @@
 module type S = sig
-  module Store : Irmin_pack_layered.S with type key = string list
+  module Store : Command.STORE
 
   module Command : Command.S with module Store = Store
 
@@ -38,23 +38,26 @@ module type Irmin_server = sig
 
     val stable_hash : int
   end)
-  (H : Irmin.Hash.S)
+  (M : Irmin.Metadata.S)
   (C : Irmin.Contents.S)
-  (B : Irmin.Branch.S) :
+  (B : Irmin.Branch.S)
+  (H : Irmin.Hash.S) :
     S
       with type Store.hash = H.t
        and type Store.contents = C.t
        and type Store.branch = B.t
        and type Store.key = string list
+       and type Store.metadata = M.t
 
   module Make_ext (Conf : sig
     val entries : int
 
     val stable_hash : int
   end)
-  (H : Irmin.Hash.S)
+  (M : Irmin.Metadata.S with type t = unit)
   (C : Irmin.Contents.S)
   (B : Irmin.Branch.S)
+  (H : Irmin.Hash.S)
   (N : Irmin.Private.Node.S
          with type metadata = unit
           and type hash = H.t
@@ -65,6 +68,7 @@ module type Irmin_server = sig
        and type Store.contents = C.t
        and type Store.branch = B.t
        and type Store.key = string list
+       and type Store.metadata = M.t
 
   module KV (C : Irmin.Contents.S) :
     S

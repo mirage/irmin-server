@@ -16,7 +16,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
 
     let run conn ctx key =
       let* x = Store.find ctx.store key in
-      Return.v conn (Irmin.Type.option Store.contents_t) x
+      Return.v conn Res.t x
   end
 
   module Set = struct
@@ -87,7 +87,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
     let run conn ctx key =
       let* x = Store.find_tree ctx.store key in
       let x = Option.map (fun x -> Tree.Hash (Store.Tree.hash x)) x in
-      Return.v conn (Irmin.Type.option Tree.t) x
+      Return.v conn Res.t x
   end
 
   module Set_tree = struct
@@ -105,7 +105,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
       let* id, tree = resolve_tree ctx tree in
       let* () = Store.set_tree_exn ctx.store key ~info:(fun () -> info) tree in
       Hashtbl.remove ctx.trees id;
-      Return.v conn Tree.t (Tree.Hash (Store.Tree.hash tree))
+      Return.v conn Res.t (Tree.Hash (Store.Tree.hash tree))
   end
 
   module Test_and_set_tree = struct
@@ -141,7 +141,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
           ~test ~set
       in
       Option.iter (Hashtbl.remove ctx.trees) id;
-      Return.v conn (Irmin.Type.option Tree.t)
+      Return.v conn Res.t
         (Option.map (fun tree -> Tree.Hash (Store.Tree.hash tree)) set)
   end
 
@@ -158,7 +158,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
 
     let run conn ctx key =
       let* res = Store.mem ctx.store key in
-      Return.v conn Irmin.Type.bool res
+      Return.v conn Res.t res
   end
 
   module Mem_tree = struct
@@ -174,7 +174,7 @@ module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
 
     let run conn ctx key =
       let* res = Store.mem_tree ctx.store key in
-      Return.v conn Irmin.Type.bool res
+      Return.v conn Res.t res
   end
 
   let commands =
