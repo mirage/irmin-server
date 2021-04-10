@@ -9,10 +9,11 @@ let test name f client _switch () =
 let run_server () =
   let path = Unix.getcwd () in
   let uri = "unix://" ^ Filename.concat path "test.socket" in
+  let stop, wake = Lwt.wait () in
   Lwt.async (fun () ->
       let conf = Irmin_pack.config "test-db" in
-      Rpc.Server.v ~uri conf >>= Rpc.Server.serve);
-  uri
+      Rpc.Server.v ~uri conf >>= Rpc.Server.serve ~stop);
+  (wake, uri)
 
 let suite client all =
   List.map

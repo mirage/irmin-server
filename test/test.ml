@@ -71,9 +71,11 @@ let branch (client : Rpc.Client.t) =
   in
   let* head = Branch.get client >|= Error.unwrap "get" in
   let head = Option.get head in
-  let node = Commit.node head in
-  let commit =
-    Commit.v ~info:(Irmin_unix.info "test" ()) ~parents:[ node ] ~node
+  let* tree = Commit.tree client head >|= Error.unwrap "tree" in
+  let hash = Commit.node head in
+  let* commit =
+    Commit.create client ~info:(Irmin_unix.info "test") ~parents:[ hash ] tree
+    >|= Error.unwrap "Commit.create"
   in
   let* () = Branch.set client commit >|= Error.unwrap "set" in
   let+ head = Branch.get client >|= Error.unwrap "get" in
@@ -92,8 +94,9 @@ let all =
 
 let () =
   Lwt_main.run
-    (let uri = run_server () in
+    (let wake, uri = run_server () in
      let* () = Lwt_unix.sleep 1. in
      let* client = Rpc.Client.connect ~uri () in
      Logs.debug (fun l -> l "Connected");
-     Alcotest_lwt.run "irmin-server" [ ("all", suite client all) ])
+     let+ () = Alcotest_lwt.run "irmin-server" [ ("all", suite client all) ] in
+     Lwt.wakeup wake ())

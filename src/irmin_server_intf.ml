@@ -1,5 +1,5 @@
 module type S = sig
-  module Store : Irmin_pack_layered.S with type key = string list
+  module Store : Command.STORE
 
   module Command : Command.S with module Store = Store
 
@@ -14,9 +14,11 @@ module type S = sig
 end
 
 module Conf = struct
-  let entries = 32
+  module Default = struct
+    let entries = 32
 
-  let stable_hash = 32
+    let stable_hash = 32
+  end
 end
 
 module type Irmin_server = sig
@@ -29,12 +31,44 @@ module type Irmin_server = sig
 
   module type S = S
 
-  module Make (H : Irmin.Hash.S) (C : Irmin.Contents.S) (B : Irmin.Branch.S) :
+  module Conf = Conf
+
+  module Make (Conf : sig
+    val entries : int
+
+    val stable_hash : int
+  end)
+  (M : Irmin.Metadata.S)
+  (C : Irmin.Contents.S)
+  (B : Irmin.Branch.S)
+  (H : Irmin.Hash.S) :
     S
       with type Store.hash = H.t
        and type Store.contents = C.t
        and type Store.branch = B.t
        and type Store.key = string list
+       and type Store.metadata = M.t
+
+  module Make_ext (Conf : sig
+    val entries : int
+
+    val stable_hash : int
+  end)
+  (M : Irmin.Metadata.S with type t = unit)
+  (C : Irmin.Contents.S)
+  (B : Irmin.Branch.S)
+  (H : Irmin.Hash.S)
+  (N : Irmin.Private.Node.S
+         with type metadata = unit
+          and type hash = H.t
+          and type step = string)
+  (Cm : Irmin.Private.Commit.S with type hash = H.t) :
+    S
+      with type Store.hash = H.t
+       and type Store.contents = C.t
+       and type Store.branch = B.t
+       and type Store.key = string list
+       and type Store.metadata = M.t
 
   module KV (C : Irmin.Contents.S) :
     S

@@ -13,7 +13,17 @@ module Make (X : Command.S) = struct
     server : Conduit_lwt_unix.server;
     config : Irmin.config;
     repo : Store.Repo.t;
+    clients : (X.context, unit) Hashtbl.t;
   }
+
+  module Client_set = Set.Make (struct
+    type t = X.context
+
+    let compare a b =
+      let conn = a.X.conn.ic in
+      let conn' = b.X.conn.ic in
+      compare conn conn'
+  end)
 
   let v ?tls_config ~uri conf =
     let uri = Uri.of_string uri in
@@ -22,9 +32,12 @@ module Make (X : Command.S) = struct
       match String.lowercase_ascii scheme with
       | "unix" ->
           let file = Uri.path uri in
-          at_exit (fun () -> try Unix.unlink file with _ -> ());
-          Lwt.return
-            (Conduit_lwt_unix.default_ctx, `Unix_domain_socket (`File file))
+          let+ () =
+            Lwt.catch
+              (fun () -> Lwt_unix.unlink file)
+              (fun _ -> Lwt.return_unit)
+          in
+          (Conduit_lwt_unix.default_ctx, `Unix_domain_socket (`File file))
       | "tcp" -> (
           let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
           let ip = Unix.gethostbyname addr in
@@ -44,17 +57,21 @@ module Make (X : Command.S) = struct
     in
     let config = Irmin_pack_layered.config ~conf ~with_lower:true () in
     let+ repo = Store.Repo.v config in
-    { ctx; uri; server; config; repo }
+    let clients = Hashtbl.create 8 in
+    { ctx; uri; server; config; repo; clients }
 
   let commands = Hashtbl.create 8
 
   let () = Hashtbl.replace_seq commands (List.to_seq Command.commands)
 
-  let[@tailrec] rec loop repo conn client : unit Lwt.t =
-    if Lwt_io.is_closed conn.Conn.ic then Lwt.return_unit
+  let[@tailrec] rec loop repo clients conn client : unit Lwt.t =
+    if Lwt_io.is_closed conn.Conn.ic then
+      let () = Hashtbl.remove clients client in
+      Lwt.return_unit
     else
       Lwt.catch
         (fun () ->
+          Logs.debug (fun l -> l "Receiving next command");
           (* Get request header (command and number of arguments) *)
           let* Request.Header.{ command } = Request.Read.header conn.Conn.ic in
 
@@ -68,6 +85,7 @@ module Make (X : Command.S) = struct
                 Conn.read_message conn Cmd.Req.t
                 >|= Error.unwrap "Invalid arguments"
               in
+              Logs.debug (fun l -> l "Command: %s" Cmd.name);
               let* _res = Cmd.run conn client req in
               Lwt.return_unit)
         (function
@@ -82,13 +100,15 @@ module Make (X : Command.S) = struct
               Lwt.return_unit
           | exn ->
               (* Unhandled exception *)
-              let* () = Lwt_io.close conn.ic in
+              (*let* () = Lwt_io.close conn.ic in*)
               let s = Printexc.to_string exn in
-              Logs.err (fun l -> l "Exception: %s" s);
-              Lwt.return_unit)
-      >>= fun () -> loop repo conn client
+              Logs.err (fun l ->
+                  l "Exception: %s\n%s" s (Printexc.get_backtrace ()));
+              let* () = Conn.err conn s in
+              Lwt_unix.sleep 0.01)
+      >>= fun () -> loop repo clients conn client
 
-  let callback repo flow ic oc =
+  let callback { repo; clients; _ } flow ic oc =
     (* Handshake check *)
     let* check =
       Lwt.catch (fun () -> Handshake.V1.check ic oc) (fun _ -> Lwt.return_false)
@@ -106,33 +126,30 @@ module Make (X : Command.S) = struct
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
       let client = Command.{ conn; repo; branch; store; trees } in
-      loop repo conn client
+      Hashtbl.replace clients client ();
+      loop repo clients conn client
 
   let on_exn x = raise x
 
-  let serve ?graphql { ctx; server; repo; uri; _ } =
-    let () =
-      match graphql with
-      | Some port ->
-          (* Run GraphQL server too*)
-          Lwt.async (fun () ->
-              let module G =
-                Irmin_unix.Graphql.Server.Make
-                  (Store)
-                  (Irmin_unix.Graphql.Server.Remote.None)
-              in
-              let server = G.v repo in
-              let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
-              let* ctx = Conduit_lwt_unix.init ~src:addr () in
-              let ctx = Cohttp_lwt_unix.Net.init ~ctx () in
-              let on_exn exn =
-                Logs.debug (fun l ->
-                    l "graphql exn: %s" (Printexc.to_string exn))
-              in
-              Cohttp_lwt_unix.Server.create ~on_exn ~ctx
-                ~mode:(`TCP (`Port port))
-                server)
-      | None -> ()
+  let serve ?stop t =
+    let unlink () =
+      match Uri.scheme t.uri with
+      | Some "unix" -> Unix.unlink (Uri.path t.uri)
+      | _ -> ()
     in
-    Conduit_lwt_unix.serve ~ctx ~on_exn ~mode:server (callback repo)
+    let _ =
+      Lwt_unix.on_signal 2 (fun _ ->
+          unlink ();
+          exit 0)
+    in
+    let _ =
+      Lwt_unix.on_signal 15 (fun _ ->
+          unlink ();
+          exit 0)
+    in
+    let* () =
+      Conduit_lwt_unix.serve ?stop ~ctx:t.ctx ~on_exn ~mode:t.server
+        (callback t)
+    in
+    Lwt.wrap (fun () -> unlink ())
 end

@@ -31,6 +31,7 @@ jobs:
         with:
           ocaml-version: ${{ matrix.ocaml-version }}
 
+      - run: git submodule update --init
       - run: opam pin add irmin-server.dev . --no-action
       - run: opam depext irmin-server --yes --with-doc
       - run: opam install irmin-server --deps-only --with-doc --with-test
@@ -58,6 +59,7 @@ jobs:
         with:
           ocaml-version: ${{ matrix.ocaml-version }}
 
+      - run: git submodule update --init
       - run: opam pin add irmin-server.dev . --no-action
       - run: opam pin add irmin-server-bench.dev . --no-action
       - run: opam depext irmin-server-bench --yes --with-doc

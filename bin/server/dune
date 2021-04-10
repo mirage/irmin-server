@@ -2,4 +2,4 @@
  (public_name irmin-server)
  (package irmin-server)
  (name server)
- (libraries irmin-server))
+ (libraries irmin-server tezos-context-hash))

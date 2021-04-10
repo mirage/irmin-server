@@ -37,6 +37,10 @@ module type S = sig
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
 
+  val flush : t -> unit Error.result Lwt.t
+
+  val freeze : t -> unit Error.result Lwt.t
+
   val export : t -> slice Error.result Lwt.t
 
   val import : t -> slice -> unit Error.result Lwt.t
@@ -57,6 +61,9 @@ module type S = sig
     val node : commit -> hash
     (** The underlying node. *)
 
+    val hash : t -> commit -> hash Error.result Lwt.t
+    (** Get commit hash *)
+
     val parents : commit -> hash list
     (** The commit parents. *)
 
@@ -69,7 +76,7 @@ module type S = sig
     val hash_t : hash Irmin.Type.t
     (** [hash_t] is the value type for {!hash}. *)
 
-    val tree : t -> commit -> tree
+    val tree : t -> commit -> tree Error.result Lwt.t
 
     type t = commit
   end
@@ -100,13 +107,31 @@ module type S = sig
   end
 
   module Tree : sig
+    val split : tree -> t * Private.Tree.t
+
+    val of_hash : t -> hash -> tree
+
     val empty : t -> tree Error.result Lwt.t
     (** Create a new, empty tree *)
+
+    val clear : tree -> unit Error.result Lwt.t
+
+    val reset_all : t -> unit Error.result Lwt.t
+
+    val hash : tree -> hash Error.result Lwt.t
 
     val add : tree -> key -> contents -> tree Error.result Lwt.t
     (** Add values to a tree, returning a new tree
         NOTE: the tree that was passed in may no longer be valid
         after this call *)
+
+    val add_tree : tree -> key -> tree -> tree Error.result Lwt.t
+
+    val find : tree -> key -> contents option Error.result Lwt.t
+
+    val find_tree : tree -> key -> tree option Error.result Lwt.t
+
+    val list_ignore : tree -> unit Error.result Lwt.t
 
     val remove : tree -> key -> tree Error.result Lwt.t
     (** Remove value from a tree, returning a new tree
@@ -117,7 +142,7 @@ module type S = sig
     (** Copies an existing tree, this can be used to create a new copy of a tree before passing it to a
         function that may invalidate it *)
 
-    val abort : tree -> unit Error.result Lwt.t
+    val cleanup : tree -> unit Error.result Lwt.t
     (** Invalidate a tree, this frees the tree on the server side *)
 
     val mem : tree -> key -> bool Error.result Lwt.t
@@ -173,7 +198,7 @@ module type S = sig
     val set_tree :
       t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
     (** Set a tree at the given key
-        NOTE: the tree parameter may no longer be valid after this call, the
+        NOTE: the tree parameter will not be valid after this call, the
         returned tree should be used instead *)
 
     val test_and_set_tree :
@@ -184,7 +209,7 @@ module type S = sig
       set:Tree.t option ->
       Tree.t option Error.result Lwt.t
     (** Set a value only if the [test] parameter matches the existing value
-        NOTE: the tree parameter may no longer be valid after this call, the
+        NOTE: the tree parameter will not be valid after this call, the
         returned tree should be used instead *)
 
     val mem : t -> key -> bool Error.result Lwt.t

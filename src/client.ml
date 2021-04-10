@@ -97,6 +97,10 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   let ping t = request t (module Commands.Ping) ()
 
+  let flush t = request t (module Commands.Flush) ()
+
+  let freeze t = request t (module Commands.Freeze) ()
+
   let export t = request t (module Commands.Export) ()
 
   let import t slice = request t (module Commands.Import) slice
@@ -109,12 +113,12 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let get_current t = request t (module Commands.Get_current_branch) ()
 
-    let get ?branch t = request t (module Commands.Head) branch
+    let get ?branch t = request t (module Commands.Branch_head) branch
 
     let set ?branch t commit =
-      request t (module Commands.Set_head) (branch, commit)
+      request t (module Commands.Branch_set_head) (branch, commit)
 
-    let remove t branch = request t (module Commands.Remove_branch) branch
+    let remove t branch = request t (module Commands.Branch_remove) branch
   end
 
   module Store = struct
@@ -165,13 +169,33 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let empty t = wrap t (request t (module Commands.Tree.Empty) ())
 
+    let split t = t
+
+    let of_hash t hash = (t, Private.Tree.Hash hash)
+
+    let clear (t, tree) = request t (module Commands.Tree.Clear) tree
+
+    let hash (t, tree) = request t (module Commands.Tree.Hash) tree
+
+    let list_ignore (t, tree) =
+      request t (module Commands.Tree.List_ignore) tree
+
     let add (t, tree) key value =
       wrap t (request t (module Commands.Tree.Add) (tree, key, value))
+
+    let add_tree (t, tree) key (_, tr) =
+      wrap t (request t (module Commands.Tree.Add_tree) (tree, key, tr))
+
+    let find (t, tree) key = request t (module Commands.Tree.Find) (tree, key)
+
+    let find_tree (t, tree) key =
+      let+ tree = request t (module Commands.Tree.Find_tree) (tree, key) in
+      Result.map (Option.map (fun tree -> (t, tree))) tree
 
     let remove (t, tree) key =
       wrap t (request t (module Commands.Tree.Remove) (tree, key))
 
-    let abort (t, tree) = request t (module Commands.Tree.Abort) tree
+    let cleanup (t, tree) = request t (module Commands.Tree.Cleanup) tree
 
     let clone (t, tree) = wrap t (request t (module Commands.Tree.Clone) tree)
 
@@ -187,6 +211,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let to_local (t, tree) = request t (module Commands.Tree.To_local) tree
 
     let of_local t x = (t, Private.Tree.Local x)
+
+    let reset_all t = request t (module Commands.Tree.Reset_all) ()
   end
 
   module Contents = struct
@@ -199,12 +225,14 @@ module Make (C : Command.S with type Store.key = string list) = struct
     include C.Commit
 
     let create t ~info ~parents (_, tree) =
-      request t (module Commands.New_commit) (info (), parents, tree)
+      request t (module Commands.Commit_create) (info (), parents, tree)
 
     let of_hash t hash = request t (module Commands.Commit_of_hash) hash
 
     let tree t commit =
-      let node = node commit in
-      (t, Private.Tree.Hash node)
+      let+ tree = request t (module Commands.Commit_tree) commit in
+      Result.map (fun tree -> (t, tree)) tree
+
+    let hash t commit = request t (module Commands.Commit_hash) commit
   end
 end

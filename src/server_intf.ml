@@ -1,7 +1,7 @@
 module type S = sig
   type t
 
-  module Store : Irmin_pack_layered.S with type key = string list
+  module Store : Command.STORE
 
   module Command : Command.S with module Store = Store
 
@@ -12,8 +12,8 @@ module type S = sig
     t Lwt.t
   (** Create an instance of the server *)
 
-  val serve : ?graphql:int -> t -> unit Lwt.t
-  (** Run the server, optionally enabling the GraphQL server as well *)
+  val serve : ?stop:unit Lwt.t -> t -> unit Lwt.t
+  (** Run the server *)
 
   val commands : (string, Command.t) Hashtbl.t
   (** A table mapping commands to command names *)

@@ -49,6 +49,22 @@ let find (S ((module Client), client)) key =
           Logs.err (fun l -> l "Not found: %a" (Irmin.Type.pp Client.Key.t) key);
           Lwt.return_unit )
 
+let mem (S ((module Client), client)) key =
+  run
+    ( client >>= fun client ->
+      let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
+      let* result = Client.Store.mem client key >|= Error.unwrap "mem" in
+      Lwt_io.printl (if result then "true" else "false") )
+
+let mem_tree (S ((module Client), client)) key =
+  run
+    ( client >>= fun client ->
+      let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
+      let* result =
+        Client.Store.mem_tree client key >|= Error.unwrap "mem_tree"
+      in
+      Lwt_io.printl (if result then "true" else "false") )
+
 let set (S ((module Client), client)) key author message contents =
   run
     ( client >>= fun client ->
@@ -135,7 +151,11 @@ let config =
         (Option.value ~default:Cli.default_contents contents)
     in
     let (module Contents : Irmin.Contents.S) = contents in
-    let module Rpc = Irmin_server.Make (Hash) (Contents) (Irmin.Branch.String)
+    let module Rpc =
+      Irmin_server.Make (Irmin_server.Conf.Default) (Irmin.Metadata.None)
+        (Contents)
+        (Irmin.Branch.String)
+        (Hash)
     in
     init ~uri ~tls ~level (module Rpc)
   in
@@ -168,4 +188,8 @@ let () =
            Term.info ~doc:"Import from dump file" "import" );
          ( Term.(const export $ config $ filename 0 $ time),
            Term.info ~doc:"Export to dump file" "export" );
+         ( Term.(const mem $ config $ key 0 $ time),
+           Term.info ~doc:"Check if key is set" "mem" );
+         ( Term.(const mem_tree $ config $ key 0 $ time),
+           Term.info ~doc:"Check if key is set to a tree value" "mem_tree" );
        ]

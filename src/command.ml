@@ -2,7 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 include Command_intf
 
-module Make (St : Irmin_pack_layered.S with type key = string list) = struct
+module Make (St : STORE) = struct
   module Store = St
   include Context.Make (St)
 
@@ -38,29 +38,6 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         let* store = Store.of_branch ctx.repo branch in
         ctx.branch <- branch;
         ctx.store <- store;
-        Return.ok conn
-    end
-
-    module Remove_branch = struct
-      module Req = struct
-        type t = St.Branch.t [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      let name = "remove_branch"
-
-      let run conn ctx branch =
-        let* () = Store.Branch.remove ctx.repo branch in
-        let* () =
-          if Irmin.Type.(unstage (equal Store.Branch.t)) ctx.branch branch then
-            let+ store = Store.master ctx.repo in
-            let () = ctx.branch <- Store.Branch.master in
-            ctx.store <- store
-          else Lwt.return_unit
-        in
         Return.ok conn
     end
 
@@ -110,7 +87,30 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         Return.ok conn
     end
 
-    module Head = struct
+    module Branch_remove = struct
+      module Req = struct
+        type t = St.Branch.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      let name = "branch.remove"
+
+      let run conn ctx branch =
+        let* () = Store.Branch.remove ctx.repo branch in
+        let* () =
+          if Irmin.Type.(unstage (equal Store.Branch.t)) ctx.branch branch then
+            let+ store = Store.master ctx.repo in
+            let () = ctx.branch <- Store.Branch.master in
+            ctx.store <- store
+          else Lwt.return_unit
+        in
+        Return.ok conn
+    end
+
+    module Branch_head = struct
       module Req = struct
         type t = St.branch option [@@deriving irmin]
       end
@@ -119,7 +119,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         type t = Commit.t option [@@deriving irmin]
       end
 
-      let name = "head"
+      let name = "branch.head"
 
       let run conn ctx branch =
         let branch = Option.value ~default:ctx.branch branch in
@@ -134,26 +134,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
             Return.v conn (Irmin.Type.option Commit.t) (Some head)
     end
 
-    module New_commit = struct
-      module Req = struct
-        type t = Irmin.Info.t * St.Hash.t list * Tree.t [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = Commit.t [@@deriving irmin]
-      end
-
-      let name = "new_commit"
-
-      let run conn ctx (info, parents, tree) =
-        let* _, tree = resolve_tree ctx tree in
-        let* commit = St.Commit.v ctx.repo ~info ~parents tree in
-        let hash = St.Commit.hash commit in
-        let head = Commit.v ~info ~parents ~node:hash in
-        Return.v conn Commit.t head
-    end
-
-    module Set_head = struct
+    module Branch_set_head = struct
       module Req = struct
         type t = St.branch option * Commit.t [@@deriving irmin]
       end
@@ -162,7 +143,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         type t = unit [@@deriving irmin]
       end
 
-      let name = "set_head"
+      let name = "branch.set_head"
 
       let run conn ctx (branch, commit) =
         let branch = Option.value ~default:ctx.branch branch in
@@ -171,6 +152,59 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         in
         let* () = St.Branch.set ctx.repo branch commit in
         Return.ok conn
+    end
+
+    module Commit_create = struct
+      module Req = struct
+        type t = Irmin.Info.t * St.Hash.t list * Tree.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = Commit.t [@@deriving irmin]
+      end
+
+      let name = "commit.create"
+
+      let run conn ctx (info, parents, tree) =
+        let* _, tree = resolve_tree ctx tree in
+        let* commit = St.Commit.v ctx.repo ~info ~parents tree in
+        let hash = St.Commit.hash commit in
+        let head = Commit.v ~info ~parents ~node:hash in
+        (*St.flush ctx.repo;*)
+        St.Tree.clear tree;
+        Return.v conn Commit.t head
+    end
+
+    module Flush = struct
+      module Req = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      let name = "flush"
+
+      let run conn ctx () =
+        St.flush ctx.repo;
+        Return.v conn Res.t ()
+    end
+
+    module Freeze = struct
+      module Req = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      let name = "freeze"
+
+      let run conn ctx () =
+        let* () = St.freeze ctx.repo in
+        Return.v conn Res.t ()
     end
 
     module Commit_of_hash = struct
@@ -182,7 +216,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         type t = Commit.t option [@@deriving irmin]
       end
 
-      let name = "commit_of_hash"
+      let name = "commit.of_hash"
 
       let run conn ctx hash =
         let* commit = St.Commit.of_hash ctx.repo hash in
@@ -195,7 +229,42 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
               Commit.v ~info ~parents ~node:hash)
             commit
         in
-        Return.v conn (Irmin.Type.option Commit.t) commit
+        Return.v conn Res.t commit
+    end
+
+    module Commit_hash = struct
+      module Req = struct
+        type t = Commit.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = St.Hash.t [@@deriving irmin]
+      end
+
+      let name = "commit.hash"
+
+      let run conn ctx commit =
+        let* commit = St.Commit.of_hash ctx.repo (Commit.node commit) in
+        let hash = St.Commit.hash (Option.get commit) in
+        Return.v conn Res.t hash
+    end
+
+    module Commit_tree = struct
+      module Req = struct
+        type t = Commit.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = Tree.t [@@deriving irmin]
+      end
+
+      let name = "commit.tree"
+
+      let run conn ctx commit =
+        let* commit = St.Commit.of_hash ctx.repo (Commit.node commit) in
+        let tree = St.Commit.tree (Option.get commit) in
+        let hash = St.Tree.hash tree in
+        Return.v conn Res.t (Tree.Hash hash)
     end
 
     module Contents_of_hash = struct
@@ -207,7 +276,7 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
         type t = St.contents option [@@deriving irmin]
       end
 
-      let name = "contents_of_hash"
+      let name = "contents.of_hash"
 
       let run conn ctx hash =
         let* contents = St.Contents.of_hash ctx.repo hash in
@@ -226,12 +295,16 @@ module Make (St : Irmin_pack_layered.S with type key = string list) = struct
       cmd (module Get_current_branch);
       cmd (module Import);
       cmd (module Export);
-      cmd (module Head);
-      cmd (module New_commit);
-      cmd (module Set_head);
-      cmd (module Remove_branch);
+      cmd (module Branch_head);
+      cmd (module Commit_create);
+      cmd (module Branch_set_head);
+      cmd (module Branch_remove);
       cmd (module Commit_of_hash);
+      cmd (module Commit_hash);
+      cmd (module Commit_tree);
       cmd (module Contents_of_hash);
+      cmd (module Flush);
+      cmd (module Freeze);
     ]
     @ Store.commands @ Tree.commands
 
