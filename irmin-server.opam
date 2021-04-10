@@ -72,4 +72,8 @@ pin-depends: [
     "irmin-test.dev"
     "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
+  [
+    "index.dev"
+    "git+https://github.com/mirage/index#bb36d615fbdac36c7bf794bd3ea5565644cbf274"
+  ]
 ]
