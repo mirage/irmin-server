@@ -952,7 +952,15 @@ let run_server (module Conf : CONF) config stop =
   Lwt.async (fun () ->
       let open Tezos_context_hash.Encoding in
       let module Rpc =
-        Irmin_server.Make_ext (Conf) (Metadata) (Contents) (Branch) (Hash)
+        Irmin_server.Make_ext
+          (Conf)
+          (struct
+            let version = `V1
+          end)
+          (Metadata)
+          (Contents)
+          (Branch)
+          (Hash)
           (Node)
           (Commit)
       in
@@ -963,7 +971,8 @@ let run_server (module Conf : CONF) config stop =
 module Make_store_layered (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
   module Rpc =
-    Irmin_server.Make_ext (Conf) (Metadata) (Contents) (Branch) (Hash) (Node)
+    Irmin_server.Make_layered (Conf) (Metadata) (Contents) (Branch) (Hash)
+      (Node)
       (Commit)
   include Rpc
 
@@ -982,9 +991,20 @@ end
 
 module Make_store_pack (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
+
   module Rpc =
-    Irmin_server.Make_ext (Conf) (Metadata) (Contents) (Branch) (Hash) (Node)
+    Irmin_server.Make_ext
+      (Conf)
+      (struct
+        let version = `V1
+      end)
+      (Metadata)
+      (Contents)
+      (Branch)
+      (Hash)
+      (Node)
       (Commit)
+
   include Rpc
 
   let create_repo config =

@@ -16,8 +16,7 @@ end)
 (B : Irmin.Branch.S)
 (H : Irmin.Hash.S) =
 struct
-  module Store =
-    Irmin_pack_layered.Make (Conf) (M) (C) (Irmin.Path.String_list) (B) (H)
+  module Store = Irmin_pack.Make (Conf) (M) (C) (Irmin.Path.String_list) (B) (H)
 
   module Command = struct
     include Command
@@ -29,6 +28,39 @@ struct
 end
 
 module Make_ext (Conf : sig
+  val entries : int
+
+  val stable_hash : int
+end)
+(V : Irmin_pack.Version.S)
+(M : Irmin.Metadata.S)
+(C : Irmin.Contents.S)
+(B : Irmin.Branch.S)
+(H : Irmin.Hash.S)
+(N : Irmin.Private.Node.S
+       with type metadata = unit
+        and type hash = H.t
+        and type step = string)
+(Cm : Irmin.Private.Commit.S with type hash = H.t) =
+struct
+  module Store =
+    Irmin_pack.Make_ext (V) (Conf) (Irmin.Metadata.None) (C)
+      (Irmin.Path.String_list)
+      (B)
+      (H)
+      (N)
+      (Cm)
+
+  module Command = struct
+    include Command
+    include Command.Make (Store)
+  end
+
+  module Client = Client.Make (Command)
+  module Server = Server.Make (Command)
+end
+
+module Make_layered (Conf : sig
   val entries : int
 
   val stable_hash : int

@@ -1,4 +1,4 @@
-module type STORE = Irmin_pack_layered.S with type key = string list
+module type STORE = Tree_intf.STORE
 
 module type S = sig
   module Store : STORE
@@ -47,8 +47,6 @@ module type S = sig
     module Ping : CMD with type Req.t = unit and type Res.t = unit
 
     module Flush : CMD with type Req.t = unit and type Res.t = unit
-
-    module Freeze : CMD with type Req.t = unit and type Res.t = unit
 
     (* Branch *)
     module Set_current_branch :

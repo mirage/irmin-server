@@ -1,6 +1,6 @@
 open Lwt.Syntax
 
-module Make (Store : Irmin_pack_layered.S with type key = string list) = struct
+module Make (Store : Command_intf.STORE) = struct
   include Context.Make (Store)
 
   module Find = struct

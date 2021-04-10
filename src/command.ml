@@ -191,22 +191,6 @@ module Make (St : STORE) = struct
         Return.v conn Res.t ()
     end
 
-    module Freeze = struct
-      module Req = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      let name = "freeze"
-
-      let run conn ctx () =
-        let* () = St.freeze ctx.repo in
-        Return.v conn Res.t ()
-    end
-
     module Commit_of_hash = struct
       module Req = struct
         type t = St.Hash.t [@@deriving irmin]
@@ -304,7 +288,6 @@ module Make (St : STORE) = struct
       cmd (module Commit_tree);
       cmd (module Contents_of_hash);
       cmd (module Flush);
-      cmd (module Freeze);
     ]
     @ Store.commands @ Tree.commands
 

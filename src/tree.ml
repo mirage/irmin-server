@@ -1,7 +1,7 @@
 open Lwt.Syntax
 include Tree_intf
 
-module Make (Store : Irmin_pack_layered.S) = struct
+module Make (Store : STORE) = struct
   module Private = struct
     module Store = Store
   end

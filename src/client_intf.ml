@@ -39,8 +39,6 @@ module type S = sig
 
   val flush : t -> unit Error.result Lwt.t
 
-  val freeze : t -> unit Error.result Lwt.t
-
   val export : t -> slice Error.result Lwt.t
 
   val import : t -> slice -> unit Error.result Lwt.t
