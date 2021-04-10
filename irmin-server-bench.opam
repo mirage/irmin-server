@@ -9,7 +9,7 @@ bug-reports: "https://github.com/zshipko/irmin-server/issues"
 depends: [
   "ocaml" {>= "4.11.0"}
   "dune" {>= "2.0.0"}
-  "optint" {>= "0.2.0"}
+  "optint" {>= "0.1.0"}
   "irmin"
   "irmin-unix" {>= "dev"}
   "irmin-server"
