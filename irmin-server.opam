@@ -33,42 +33,42 @@ dev-repo: "git+ssh://github.com/zshipko/irmin-server"
 pin-depends: [
   [
     "ppx_irmin.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin-git.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin-fs.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin-graphql.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin-http.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin-layers.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin-pack.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin-unix.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
   [
     "irmin-test.dev"
-    "git+https://github.com/mirage/irmin#8715c5f60fc4ec8b64635b4c31bbfa2f59a7cacc"
+    "git+https://github.com/mirage/irmin#398bd2e9a0432556052313fe18256f8dddc0b216"
   ]
 ]
