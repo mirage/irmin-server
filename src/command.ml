@@ -267,6 +267,44 @@ module Make (St : STORE) = struct
         Return.v conn Res.t contents
     end
 
+    module Contents_save = struct
+      module Req = struct
+        type t = St.contents [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = St.Hash.t [@@deriving irmin]
+      end
+
+      let name = "contents.save"
+
+      let run conn ctx contents =
+        let* hash =
+          St.Private.Repo.batch ctx.repo (fun t _ _ ->
+              St.save_contents t contents)
+        in
+        Return.v conn Res.t hash
+    end
+
+    module Contents_mem = struct
+      module Req = struct
+        type t = St.Hash.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = bool [@@deriving irmin]
+      end
+
+      let name = "contents.mem"
+
+      let run conn ctx hash =
+        let* exists =
+          St.Private.Repo.batch ctx.repo (fun t _ _ ->
+              St.Private.Contents.mem t hash)
+        in
+        Return.v conn Res.t exists
+    end
+
     module Store = Command_store.Make (St)
     module Tree = Command_tree.Make (St)
   end
@@ -287,6 +325,8 @@ module Make (St : STORE) = struct
       cmd (module Commit_hash);
       cmd (module Commit_tree);
       cmd (module Contents_of_hash);
+      cmd (module Contents_save);
+      cmd (module Contents_mem);
       cmd (module Flush);
     ]
     @ Store.commands @ Tree.commands

@@ -87,6 +87,12 @@ module type S = sig
     module Contents_of_hash :
       CMD with type Req.t = Store.Hash.t and type Res.t = Store.contents option
 
+    module Contents_mem :
+      CMD with type Req.t = Store.Hash.t and type Res.t = bool
+
+    module Contents_save :
+      CMD with type Req.t = Store.contents and type Res.t = Store.Hash.t
+
     (* Store *)
     module Store : sig
       module Find :

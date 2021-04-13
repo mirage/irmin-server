@@ -225,6 +225,12 @@ module Make (C : Command.S with type Store.key = string list) = struct
     include St.Contents
 
     let of_hash t hash = request t (module Commands.Contents_of_hash) hash
+
+    let mem t contents =
+      let hash = hash contents in
+      request t (module Commands.Contents_mem) hash
+
+    let save t contents = request t (module Commands.Contents_save) contents
   end
 
   module Commit = struct

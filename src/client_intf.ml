@@ -82,6 +82,10 @@ module type S = sig
   module Contents : sig
     val of_hash : t -> hash -> contents option Error.result Lwt.t
 
+    val mem : t -> contents -> bool Error.result Lwt.t
+
+    val save : t -> contents -> hash Error.result Lwt.t
+
     include Irmin.Contents.S with type t = contents
   end
 
