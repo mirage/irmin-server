@@ -19,7 +19,15 @@ module type LOCAL = sig
 
   type metadata
 
+  type concrete
+
   val t : t Irmin.Type.t
+
+  val concrete_t : concrete Irmin.Type.t
+
+  val of_concrete : concrete -> t
+
+  val to_concrete : t -> concrete Lwt.t
 
   val empty : t
 
@@ -81,7 +89,7 @@ module type S = sig
        and type hash = Store.hash
        and type step = Store.Key.step
 
-  type t = Hash of Store.Hash.t | ID of int | Local of Local.t
+  type t = Hash of Store.Hash.t | ID of int | Local of Local.concrete
   [@@deriving irmin]
 end
 

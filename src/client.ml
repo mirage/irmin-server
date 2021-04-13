@@ -206,9 +206,17 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     module Local = Private.Tree.Local
 
-    let to_local (t, tree) = request t (module Commands.Tree.To_local) tree
+    let to_local (t, tree) =
+      let+ res = request t (module Commands.Tree.To_local) tree in
+      match res with
+      | Ok x ->
+          let x = Private.Tree.Local.of_concrete x in
+          Ok x
+      | Error e -> Error e
 
-    let of_local t x = (t, Private.Tree.Local x)
+    let of_local t x =
+      let+ x = Private.Tree.Local.to_concrete x in
+      (t, Private.Tree.Local x)
 
     let reset_all t = request t (module Commands.Tree.Reset_all) ()
   end

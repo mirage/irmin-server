@@ -162,7 +162,7 @@ module type S = sig
       module Clone : CMD with type Req.t = Tree.t and type Res.t = Tree.t
 
       module To_local :
-        CMD with type Req.t = Tree.t and type Res.t = Tree.Local.t
+        CMD with type Req.t = Tree.t and type Res.t = Tree.Local.concrete
 
       module Mem :
         CMD

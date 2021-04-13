@@ -1,6 +1,12 @@
 open Lwt.Infix
 open Irmin_server
-module Rpc = KV (Irmin.Contents.String)
+
+module Rpc =
+  KV
+    (struct
+      let version = `V1
+    end)
+    (Irmin.Contents.String)
 
 let test name f client _switch () =
   Logs.debug (fun l -> l "Running: %s" name);

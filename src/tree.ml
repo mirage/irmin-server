@@ -33,6 +33,6 @@ module Make (Store : STORE) = struct
           `Node l
   end
 
-  type t = Hash of Store.Hash.t | ID of int | Local of Local.t
+  type t = Hash of Store.Hash.t | ID of int | Local of Local.concrete
   [@@deriving irmin]
 end

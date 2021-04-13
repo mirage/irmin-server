@@ -164,7 +164,7 @@ module type S = sig
     (** Exchange [tree], which may be a hash or ID, for a tree
         NOTE: this will encode the full tree  *)
 
-    val of_local : t -> Local.t -> tree
+    val of_local : t -> Local.t -> tree Lwt.t
     (** Convert a local tree into a remote tree *)
 
     type t = tree
