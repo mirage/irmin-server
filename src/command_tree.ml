@@ -160,13 +160,14 @@ module Make (Store : Command_intf.STORE) = struct
     end
 
     module Res = struct
-      type t = Tree.Local.t [@@deriving irmin]
+      type t = Tree.Local.concrete [@@deriving irmin]
     end
 
     let name = "tree.to_local"
 
     let run conn ctx tree =
       let* _, tree = resolve_tree ctx tree in
+      let* tree = Tree.Local.to_concrete tree in
       Return.v conn Res.t tree
   end
 

@@ -10,7 +10,14 @@ let main ~root ~uri ~tls ~level ~contents ~hash =
     Option.value ~default:Cli.default_hash hash
   in
   let module Rpc =
-    Make (Conf.Default) (Irmin.Metadata.None) (Contents) (Irmin.Branch.String)
+    Make
+      (struct
+        let version = `V1
+      end)
+      (Conf.Default)
+      (Irmin.Metadata.None)
+      (Contents)
+      (Irmin.Branch.String)
       (Hash)
   in
   let open Rpc in

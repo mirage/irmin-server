@@ -953,16 +953,16 @@ let run_server (module Conf : CONF) config stop =
       let open Tezos_context_hash.Encoding in
       let module Rpc =
         Irmin_server.Make_ext
-          (Conf)
           (struct
             let version = `V1
           end)
+          (Conf)
+          (Node)
+          (Commit)
           (Metadata)
           (Contents)
           (Branch)
           (Hash)
-          (Node)
-          (Commit)
       in
       let cfg = Irmin_pack.config config.root in
       let* server = Rpc.Server.v ~uri:config.uri cfg in
@@ -971,9 +971,9 @@ let run_server (module Conf : CONF) config stop =
 module Make_store_layered (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
   module Rpc =
-    Irmin_server.Make_layered (Conf) (Metadata) (Contents) (Branch) (Hash)
-      (Node)
-      (Commit)
+    Irmin_server.Make_layered (Conf) (Node) (Commit) (Metadata) (Contents)
+      (Branch)
+      (Hash)
   include Rpc
 
   let create_repo config =
@@ -994,16 +994,16 @@ module Make_store_pack (Conf : CONF) = struct
 
   module Rpc =
     Irmin_server.Make_ext
-      (Conf)
       (struct
         let version = `V1
       end)
+      (Conf)
+      (Node)
+      (Commit)
       (Metadata)
       (Contents)
       (Branch)
       (Hash)
-      (Node)
-      (Commit)
 
   include Rpc
 

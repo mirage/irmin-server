@@ -40,7 +40,7 @@ module Make (St : Command_intf.STORE with type key = string list) = struct
       | Tree.ID x -> Lwt.return @@ (x, Hashtbl.find_opt ctx.trees x)
       | Hash x ->
           St.Tree.of_hash ctx.repo (`Node x) >|= fun x -> (Random.bits (), x)
-      | Local x -> Lwt.return (Random.bits (), Some x)
+      | Local x -> Lwt.return (Random.bits (), Some (Tree.Local.of_concrete x))
     in
     match tree with
     | Some t -> Lwt.return (id, t)

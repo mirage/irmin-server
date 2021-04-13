@@ -33,15 +33,16 @@ module type Irmin_server = sig
 
   module Conf = Conf
 
-  module Make (Conf : sig
-    val entries : int
+  module Make
+      (V : Irmin_pack.Version.S) (Conf : sig
+        val entries : int
 
-    val stable_hash : int
-  end)
-  (M : Irmin.Metadata.S)
-  (C : Irmin.Contents.S)
-  (B : Irmin.Branch.S)
-  (H : Irmin.Hash.S) :
+        val stable_hash : int
+      end)
+      (M : Irmin.Metadata.S)
+      (C : Irmin.Contents.S)
+      (B : Irmin.Branch.S)
+      (H : Irmin.Hash.S) :
     S
       with type Store.hash = H.t
        and type Store.contents = C.t
@@ -49,21 +50,18 @@ module type Irmin_server = sig
        and type Store.key = string list
        and type Store.metadata = M.t
 
-  module Make_ext (Conf : sig
-    val entries : int
+  module Make_ext
+      (V : Irmin_pack.Version.S) (Conf : sig
+        val entries : int
 
-    val stable_hash : int
-  end)
-  (V : Irmin_pack.Version.S)
-  (M : Irmin.Metadata.S with type t = unit)
-  (C : Irmin.Contents.S)
-  (B : Irmin.Branch.S)
-  (H : Irmin.Hash.S)
-  (N : Irmin.Private.Node.S
-         with type metadata = unit
-          and type hash = H.t
-          and type step = string)
-  (Cm : Irmin.Private.Commit.S with type hash = H.t) :
+        val stable_hash : int
+      end)
+      (N : Irmin.Private.Node.Maker)
+      (Cm : Irmin.Private.Commit.Maker)
+      (M : Irmin.Metadata.S with type t = unit)
+      (C : Irmin.Contents.S)
+      (B : Irmin.Branch.S)
+      (H : Irmin.Hash.S) :
     S
       with type Store.hash = H.t
        and type Store.contents = C.t
@@ -76,15 +74,12 @@ module type Irmin_server = sig
 
     val stable_hash : int
   end)
+  (N : Irmin.Private.Node.Maker)
+  (Cm : Irmin.Private.Commit.Maker)
   (M : Irmin.Metadata.S with type t = unit)
   (C : Irmin.Contents.S)
   (B : Irmin.Branch.S)
-  (H : Irmin.Hash.S)
-  (N : Irmin.Private.Node.S
-         with type metadata = unit
-          and type hash = H.t
-          and type step = string)
-  (Cm : Irmin.Private.Commit.S with type hash = H.t) :
+  (H : Irmin.Hash.S) :
     S
       with type Store.hash = H.t
        and type Store.contents = C.t
@@ -92,7 +87,7 @@ module type Irmin_server = sig
        and type Store.key = string list
        and type Store.metadata = M.t
 
-  module KV (C : Irmin.Contents.S) :
+  module KV (V : Irmin_pack.Version.S) (C : Irmin.Contents.S) :
     S
       with type Store.hash = Irmin.Hash.BLAKE2B.t
        and type Store.contents = C.t

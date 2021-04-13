@@ -152,7 +152,12 @@ let config =
     in
     let (module Contents : Irmin.Contents.S) = contents in
     let module Rpc =
-      Irmin_server.Make (Irmin_server.Conf.Default) (Irmin.Metadata.None)
+      Irmin_server.Make
+        (struct
+          let version = `V1
+        end)
+        (Irmin_server.Conf.Default)
+        (Irmin.Metadata.None)
         (Contents)
         (Irmin.Branch.String)
         (Hash)
