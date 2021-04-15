@@ -594,15 +594,13 @@ module Generate_trees_from_trace (Rpc : Store) = struct
   let exec_checkout t repo h_trace out_ctx_id () =
     let h_store = Hashtbl.find t.hash_corresps (unscope h_trace) in
     maybe_forget_hash t h_trace;
-    let* commit =
+    let+ commit =
       Client.Commit.of_hash repo h_store >|= Error.unwrap "Commit.of_hash"
     in
     match commit with
     | None -> failwith "prev commit not found"
     | Some commit ->
-        let+ tree =
-          Client.Commit.tree repo commit >|= Error.unwrap "Commit.tree"
-        in
+        let tree = Client.Commit.tree repo commit in
         Hashtbl.add t.contexts (unscope out_ctx_id) { tree };
         maybe_forget_ctx t out_ctx_id
 
@@ -618,8 +616,7 @@ module Generate_trees_from_trace (Rpc : Store) = struct
   let exec_remove t keys in_ctx_id out_ctx_id () =
     let { tree } = Hashtbl.find t.contexts (unscope in_ctx_id) in
     maybe_forget_ctx t in_ctx_id;
-    let* tree = Client.Tree.remove tree keys >|= Error.unwrap "Tree.remove" in
-    let+ tree = Client.Tree.clone tree >|= Error.unwrap "Tree.clone" in
+    let+ tree = Client.Tree.remove tree keys >|= Error.unwrap "Tree.remove" in
     Hashtbl.add t.contexts (unscope out_ctx_id) { tree };
     maybe_forget_ctx t out_ctx_id
 
@@ -636,7 +633,6 @@ module Generate_trees_from_trace (Rpc : Store) = struct
           Client.Tree.add_tree tree to_ sub_tree
           >|= Error.unwrap "Tree.add_tree"
         in
-        let* tree = Client.Tree.clone tree >|= Error.unwrap "Tree.clone" in
         Hashtbl.add t.contexts (unscope out_ctx_id) { tree };
         maybe_forget_ctx t out_ctx_id;
         Lwt.return_unit
@@ -681,11 +677,11 @@ module Generate_trees_from_trace (Rpc : Store) = struct
     in
     let info () = Irmin.Info.v ~date ~author:"Tezos" message in
     let+ commit =
-      Client.Commit.create repo ~info ~parents:parents_store tree
-      >|= Error.unwrap "Commit.create"
+      Client.Commit.v repo ~info ~parents:parents_store tree
+      >|= Error.unwrap "Commit.v"
     in
     (*let* () = Client.Tree.clear tree >|= Error.unwrap "Tree.clear" in*)
-    let h_store = Client.Commit.node commit in
+    let h_store = Client.Commit.hash commit in
     if check_hash then check_hash_trace (unscope h_trace) h_store;
     (* It's okey to have [h_trace] already in history. It corresponds to
      * re-commiting the same thing, hence the [.replace] below. *)
@@ -791,8 +787,7 @@ module Bench_suite (Rpc : Store) = struct
 
   let init_commit repo =
     let* empty = Client.Tree.empty repo >|= Error.unwrap "empty" in
-    Client.Commit.create repo ~info ~parents:[] empty
-    >|= Error.unwrap "Commit.create"
+    Client.Commit.v repo ~info ~parents:[] empty >|= Error.unwrap "Commit.v"
 
   module Trees = Generate_trees (Rpc)
   module Trees_trace = Generate_trees_from_trace (Rpc)
@@ -802,11 +797,9 @@ module Bench_suite (Rpc : Store) = struct
     | Error (`Msg e) -> Lwt.fail_with ("Commit error:" ^ e)
     | Ok None -> Lwt.fail_with "commit not found"
     | Ok (Some commit) ->
-        let* tree =
-          Client.Commit.tree repo commit >|= Error.unwrap "Commit.tree"
-        in
+        let tree = Client.Commit.tree repo commit in
         let* tree = f tree in
-        Client.Commit.create repo ~info ~parents:[ prev_commit ] tree
+        Client.Commit.v repo ~info ~parents:[ prev_commit ] tree
         >|= Error.unwrap "Commit.create"
 
   let add_commits ~message (repo : Client.t) ncommits on_commit on_end f () =
@@ -815,10 +808,10 @@ module Bench_suite (Rpc : Store) = struct
     let rec aux c i =
       if i >= ncommits then on_end ()
       else
-        let* h = Client.Commit.hash repo c >|= Error.unwrap "commit hash" in
+        let h = Client.Commit.hash c in
         let* c' = checkout_and_commit repo h f in
 
-        let* h = Client.Commit.hash repo c' >|= Error.unwrap "commit hash" in
+        let h = Client.Commit.hash c' in
         let* () = on_commit i h in
         prog Int64.one;
         aux c' (i + 1)
@@ -873,10 +866,7 @@ module Bench_suite (Rpc : Store) = struct
         config.commit_data_file
     in
     let* repo, on_commit, on_end, repo_pp = Rpc.create_repo config in
-    (* TODO: figure out hash issue *)
-    let check_hash =
-      false && (not config.flatten) && config.inode_config = (32, 256)
-    in
+    let check_hash = (not config.flatten) && config.inode_config = (32, 256) in
     let t0_cpu = Sys.time () in
     let t0 = Mtime_clock.counter () in
     let+ result, n =
@@ -1067,50 +1057,50 @@ let suite : suite_elt list =
           let (module Store) = store_of_config config in
           Store.run_read_trace config);
     };
-    {
-      mode = `Chains;
-      speed = `Quick;
-      run =
-        (fun config ->
-          let config =
-            { config with inode_config = (32, 256); store_type = `Pack }
-          in
-          let (module Store) = store_of_config config in
-          Store.run_chains config);
-    };
-    {
-      mode = `Chains;
-      speed = `Slow;
-      run =
-        (fun config ->
-          let config =
-            { config with inode_config = (2, 5); store_type = `Pack }
-          in
-          let (module Store) = store_of_config config in
-          Store.run_chains config);
-    };
-    {
-      mode = `Large;
-      speed = `Quick;
-      run =
-        (fun config ->
-          let config =
-            { config with inode_config = (32, 256); store_type = `Pack }
-          in
-          let (module Store) = store_of_config config in
-          Store.run_large config);
-    };
-    {
-      mode = `Large;
-      speed = `Slow;
-      run =
-        (fun config ->
-          let config =
-            { config with inode_config = (2, 5); store_type = `Pack }
-          in
-          let (module Store) = store_of_config config in
-          Store.run_large config);
-    };
+    (*{
+        mode = `Chains;
+        speed = `Quick;
+        run =
+          (fun config ->
+            let config =
+              { config with inode_config = (32, 256); store_type = `Pack }
+            in
+            let (module Store) = store_of_config config in
+            Store.run_chains config);
+      };
+      {
+        mode = `Chains;
+        speed = `Slow;
+        run =
+          (fun config ->
+            let config =
+              { config with inode_config = (2, 5); store_type = `Pack }
+            in
+            let (module Store) = store_of_config config in
+            Store.run_chains config);
+      };
+      {
+        mode = `Large;
+        speed = `Quick;
+        run =
+          (fun config ->
+            let config =
+              { config with inode_config = (32, 256); store_type = `Pack }
+            in
+            let (module Store) = store_of_config config in
+            Store.run_large config);
+      };
+      {
+        mode = `Large;
+        speed = `Slow;
+        run =
+          (fun config ->
+            let config =
+              { config with inode_config = (2, 5); store_type = `Pack }
+            in
+            let (module Store) = store_of_config config in
+            Store.run_large config);
+      };*)
     {
       mode = `Read_trace;
       speed = `Custom;

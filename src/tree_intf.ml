@@ -19,9 +19,10 @@ module type LOCAL = sig
 
   type metadata
 
-  type concrete
-
   val t : t Irmin.Type.t
+
+  type concrete =
+    [ `Tree of (step * concrete) list | `Contents of contents * metadata ]
 
   val concrete_t : concrete Irmin.Type.t
 
@@ -97,6 +98,8 @@ module type Tree = sig
   module type S = S
 
   module type STORE = STORE
+
+  module type LOCAL = LOCAL
 
   module Make (S : STORE) :
     S with module Private.Store = S and type Local.t = S.tree

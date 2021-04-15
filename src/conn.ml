@@ -21,12 +21,3 @@ let err t msg =
   let msg = "ERROR " ^ msg in
   let* () = Response.Write.header t.oc header in
   Message.write t.oc Irmin.Type.string msg
-
-(*let consume t n =
-  let rec aux t n =
-    if n = 0 then Lwt.return_unit
-    else
-      let* _ = Message.read_raw t.ic in
-      aux t (n - 1)
-  in
-  aux t n*)

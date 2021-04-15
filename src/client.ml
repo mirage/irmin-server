@@ -95,6 +95,20 @@ module Make (C : Command.S with type Store.key = string list) = struct
             Logs.debug (fun l -> l "Completed request: command=%s" name);
             x)
 
+  module Cache = struct
+    module Hash_commit = Irmin.Private.Lru.Make (struct
+      type t = Hash.t
+
+      let hash = Hashtbl.hash
+
+      let hash_equal = Irmin.Type.(unstage (equal Hash.t))
+
+      let equal a b = hash_equal a b
+    end)
+
+    let hash_commit = Hash_commit.create 32
+  end
+
   let ping t = request t (module Commands.Ping) ()
 
   let flush t = request t (module Commands.Flush) ()
@@ -154,6 +168,18 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let mem t key = request t (module Commands.Store.Mem) key
 
     let mem_tree t key = request t (module Commands.Store.Mem_tree) key
+  end
+
+  module Contents = struct
+    include St.Contents
+
+    let of_hash t hash = request t (module Commands.Contents_of_hash) hash
+
+    let mem t contents =
+      let hash = hash contents in
+      request t (module Commands.Contents_mem) hash
+
+    let save t contents = request t (module Commands.Contents_save) contents
   end
 
   module Tree = struct
@@ -219,32 +245,26 @@ module Make (C : Command.S with type Store.key = string list) = struct
       (t, Private.Tree.Local x)
 
     let reset_all t = request t (module Commands.Tree.Reset_all) ()
-  end
 
-  module Contents = struct
-    include St.Contents
+    (*module New = struct
+        let empty = `Tree []
 
-    let of_hash t hash = request t (module Commands.Contents_of_hash) hash
-
-    let mem t contents =
-      let hash = hash contents in
-      request t (module Commands.Contents_mem) hash
-
-    let save t contents = request t (module Commands.Contents_save) contents
+        type t = [ `Contents of Hash.t | `Tree of Key.step * t ]
+        [@@deriving irmin]
+      end*)
   end
 
   module Commit = struct
     include C.Commit
 
-    let create t ~info ~parents (_, tree) =
-      request t (module Commands.Commit_create) (info (), parents, tree)
+    let v t ~info ~parents (_, tree) =
+      request t (module Commands.Commit_v) (info (), parents, tree)
 
-    let of_hash t hash = request t (module Commands.Commit_of_hash) hash
+    let of_hash t hash =
+      if Cache.(Hash_commit.mem hash_commit hash) then
+        Lwt.return_ok Cache.(Hash_commit.find hash_commit hash)
+      else request t (module Commands.Commit_of_hash) hash
 
-    let tree t commit =
-      let+ tree = request t (module Commands.Commit_tree) commit in
-      Result.map (fun tree -> (t, tree)) tree
-
-    let hash t commit = request t (module Commands.Commit_hash) commit
+    let tree t commit = (t, tree commit)
   end
 end

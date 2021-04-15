@@ -44,22 +44,18 @@ module type S = sig
   val import : t -> slice -> unit Error.result Lwt.t
 
   module Commit : sig
-    val create :
+    val v :
       t ->
       info:Irmin.Info.f ->
       parents:hash list ->
       tree ->
       commit Error.result Lwt.t
-    (** Create a new commit *)
-
-    val v : info:Irmin.Info.t -> node:hash -> parents:hash list -> commit
+    (** Create a new commit
+        NOTE: this will invalidate all intermediate trees *)
 
     val of_hash : t -> hash -> commit option Error.result Lwt.t
 
-    val node : commit -> hash
-    (** The underlying node. *)
-
-    val hash : t -> commit -> hash Error.result Lwt.t
+    val hash : commit -> hash
     (** Get commit hash *)
 
     val parents : commit -> hash list
@@ -74,7 +70,7 @@ module type S = sig
     val hash_t : hash Irmin.Type.t
     (** [hash_t] is the value type for {!hash}. *)
 
-    val tree : t -> commit -> tree Error.result Lwt.t
+    val tree : t -> commit -> tree
 
     type t = commit
   end
@@ -158,7 +154,7 @@ module type S = sig
     (** List entries at the specified root *)
 
     module Local :
-      Tree_intf.LOCAL
+      Tree.LOCAL
         with type key = key
          and type contents = contents
          and type hash = hash
