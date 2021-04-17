@@ -138,6 +138,18 @@ module type S = sig
                 Tree.t * Tree.Private.Store.key * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
+      module Add_hash :
+        CMD
+          with type Req.t =
+                Tree.t * Tree.Private.Store.key * Tree.Private.Store.hash
+           and type Res.t = Tree.t
+
+      module Add_multiple_hash :
+        CMD
+          with type Req.t =
+                Tree.t * (Tree.Private.Store.key * Tree.Private.Store.hash) list
+           and type Res.t = Tree.t
+
       module Add_tree :
         CMD
           with type Req.t = Tree.t * Tree.Private.Store.key * Tree.t
@@ -159,8 +171,6 @@ module type S = sig
            and type Res.t = Tree.t option
 
       module Cleanup : CMD with type Req.t = Tree.t and type Res.t = unit
-
-      module Clone : CMD with type Req.t = Tree.t and type Res.t = Tree.t
 
       module To_local :
         CMD with type Req.t = Tree.t and type Res.t = Tree.Local.concrete

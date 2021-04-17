@@ -118,10 +118,12 @@ module type S = sig
 
     val hash : tree -> hash Error.result Lwt.t
 
-    val add : tree -> key -> contents -> tree Error.result Lwt.t
+    val add' : tree -> key -> contents -> tree Error.result Lwt.t
     (** Add values to a tree, returning a new tree
         NOTE: the tree that was passed in may no longer be valid
         after this call *)
+
+    val add : tree -> key -> contents -> tree Error.result Lwt.t
 
     val add_tree : tree -> key -> tree -> tree Error.result Lwt.t
 
@@ -135,10 +137,6 @@ module type S = sig
     (** Remove value from a tree, returning a new tree
         NOTE: the tree that was passed in may no longer be valid
         after this call *)
-
-    val clone : tree -> tree Error.result Lwt.t
-    (** Copies an existing tree, this can be used to create a new copy of a tree before passing it to a
-        function that may invalidate it *)
 
     val cleanup : tree -> unit Error.result Lwt.t
     (** Invalidate a tree, this frees the tree on the server side *)
@@ -166,6 +164,20 @@ module type S = sig
 
     val of_local : t -> Local.t -> tree Lwt.t
     (** Convert a local tree into a remote tree *)
+
+    type builder
+
+    module Builder : sig
+      val v : t -> builder
+
+      val add : builder -> key -> contents -> builder Lwt.t
+
+      val remove : builder -> key -> builder
+
+      val build : ?tree:tree -> builder -> tree Error.result Lwt.t
+
+      type t = builder
+    end
 
     type t = tree
   end

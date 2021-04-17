@@ -96,7 +96,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
             x)
 
   module Cache = struct
-    module Hash_commit = Irmin.Private.Lru.Make (struct
+    module Hash = Irmin.Private.Lru.Make (struct
       type t = Hash.t
 
       let hash = Hashtbl.hash
@@ -106,7 +106,9 @@ module Make (C : Command.S with type Store.key = string list) = struct
       let equal a b = hash_equal a b
     end)
 
-    let hash_commit = Hash_commit.create 32
+    let hash_commit : commit Hash.t = Hash.create 64
+
+    let contents : contents Hash.t = Hash.create 64
   end
 
   let ping t = request t (module Commands.Ping) ()
@@ -173,13 +175,26 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module Contents = struct
     include St.Contents
 
-    let of_hash t hash = request t (module Commands.Contents_of_hash) hash
+    let of_hash t hash =
+      if Cache.Hash.mem Cache.contents hash then
+        Lwt.return_ok (Some (Cache.Hash.find Cache.contents hash))
+      else request t (module Commands.Contents_of_hash) hash
 
     let mem t contents =
       let hash = hash contents in
-      request t (module Commands.Contents_mem) hash
+      if Cache.Hash.mem Cache.contents hash then Lwt.return_ok true
+      else
+        let* res = request t (module Commands.Contents_mem) hash in
+        match res with
+        | Ok true ->
+            Cache.Hash.add Cache.contents hash contents;
+            Lwt.return_ok true
+        | x -> Lwt.return x
 
-    let save t contents = request t (module Commands.Contents_save) contents
+    let save t contents =
+      let hash = hash contents in
+      if Cache.Hash.mem Cache.contents hash then Lwt.return_ok hash
+      else request t (module Commands.Contents_save) contents
   end
 
   module Tree = struct
@@ -204,8 +219,21 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let list_ignore (t, tree) =
       request t (module Commands.Tree.List_ignore) tree
 
-    let add (t, tree) key value =
+    let add' (t, tree) key value =
       wrap t (request t (module Commands.Tree.Add) (tree, key, value))
+
+    let add_hash (t, tree) key hash =
+      wrap t (request t (module Commands.Tree.Add_hash) (tree, key, hash))
+
+    let add_multiple_hash (t, tree) l =
+      wrap t (request t (module Commands.Tree.Add_multiple_hash) (tree, l))
+
+    let add (t, tree) key value =
+      let* exists = Contents.mem t value >|= Error.unwrap "Contents.mem" in
+      if exists then
+        let hash = Contents.hash value in
+        add_hash (t, tree) key hash
+      else add' (t, tree) key value
 
     let add_tree (t, tree) key (_, tr) =
       wrap t (request t (module Commands.Tree.Add_tree) (tree, key, tr))
@@ -220,8 +248,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
       wrap t (request t (module Commands.Tree.Remove) (tree, key))
 
     let cleanup (t, tree) = request t (module Commands.Tree.Cleanup) tree
-
-    let clone (t, tree) = wrap t (request t (module Commands.Tree.Clone) tree)
 
     let mem (t, tree) key = request t (module Commands.Tree.Mem) (tree, key)
 
@@ -246,12 +272,34 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let reset_all t = request t (module Commands.Tree.Reset_all) ()
 
-    (*module New = struct
-        let empty = `Tree []
+    type builder = store * (key * hash) list
 
-        type t = [ `Contents of Hash.t | `Tree of Key.step * t ]
-        [@@deriving irmin]
-      end*)
+    module Builder = struct
+      let v t = (t, [])
+
+      let add (t, b) k v =
+        let* exists = Contents.mem t v >|= Error.unwrap "Contents.mem" in
+        if exists then
+          let hash = Contents.hash v in
+          Lwt.return (t, (k, hash) :: b)
+        else
+          let* hash = Contents.save t v >|= Error.unwrap "Contents.save" in
+          Lwt.return (t, (k, hash) :: b)
+
+      let remove (t, b) k =
+        let b = List.remove_assoc k b in
+        (t, b)
+
+      let build ?tree (t, b) : tree Error.result Lwt.t =
+        let* tree =
+          match tree with
+          | Some tree -> Lwt.return tree
+          | None -> empty t >|= Error.unwrap "empty"
+        in
+        add_multiple_hash tree b
+
+      type t = builder
+    end
   end
 
   module Commit = struct
@@ -261,9 +309,15 @@ module Make (C : Command.S with type Store.key = string list) = struct
       request t (module Commands.Commit_v) (info (), parents, tree)
 
     let of_hash t hash =
-      if Cache.(Hash_commit.mem hash_commit hash) then
-        Lwt.return_ok Cache.(Hash_commit.find hash_commit hash)
-      else request t (module Commands.Commit_of_hash) hash
+      if Cache.(Hash.mem hash_commit hash) then
+        Lwt.return_ok (Some Cache.(Hash.find hash_commit hash))
+      else
+        let* commit = request t (module Commands.Commit_of_hash) hash in
+        match commit with
+        | Ok c ->
+            Option.iter (Cache.Hash.add Cache.hash_commit hash) c;
+            Lwt.return_ok c
+        | Error e -> Lwt.return_error e
 
     let tree t commit = (t, tree commit)
   end

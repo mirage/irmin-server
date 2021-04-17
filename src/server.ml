@@ -60,9 +60,11 @@ module Make (X : Command.S) = struct
     let clients = Hashtbl.create 8 in
     { ctx; uri; server; config; repo; clients }
 
-  let commands = Hashtbl.create 8
+  let commands = Hashtbl.create (List.length Command.commands)
 
   let () = Hashtbl.replace_seq commands (List.to_seq Command.commands)
+
+  let invalid_arguments a = Error.unwrap "Invalid arguments" a [@@inline]
 
   let[@tailrec] rec loop repo clients conn client : unit Lwt.t =
     if Lwt_io.is_closed conn.Conn.ic then
@@ -82,12 +84,11 @@ module Make (X : Command.S) = struct
               Conn.err conn ("unknown command: " ^ command)
           | Some (module Cmd : X.CMD) ->
               let* req =
-                Conn.read_message conn Cmd.Req.t
-                >|= Error.unwrap "Invalid arguments"
+                Conn.read_message conn Cmd.Req.t >|= invalid_arguments
               in
               Logs.debug (fun l -> l "Command: %s" Cmd.name);
-              let* _res = Cmd.run conn client req in
-              Lwt.return_unit)
+              let* res = Cmd.run conn client req in
+              Return.finish Cmd.Res.t res)
         (function
           | Error.Error s ->
               (* Recover *)

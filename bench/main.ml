@@ -608,8 +608,7 @@ module Generate_trees_from_trace (Rpc : Store) = struct
     let v = Bytes.of_string v in
     let { tree } = Hashtbl.find t.contexts (unscope in_ctx_id) in
     maybe_forget_ctx t in_ctx_id;
-    let* tree = Client.Tree.add tree key v >|= Error.unwrap "Tree.add" in
-    let+ tree = Client.Tree.clone tree >|= Error.unwrap "Tree.clone" in
+    let+ tree = Client.Tree.add tree key v >|= Error.unwrap "Tree.add" in
     Hashtbl.add t.contexts (unscope out_ctx_id) { tree };
     maybe_forget_ctx t out_ctx_id
 
@@ -938,8 +937,10 @@ module type CONF = sig
   val stable_hash : int
 end
 
-let run_server (module Conf : CONF) config stop =
-  Lwt.async (fun () ->
+let run_server (module Conf : CONF) config =
+  match Lwt_unix.fork () with
+  | x when x < 0 -> assert false
+  | 0 ->
       let open Tezos_context_hash.Encoding in
       let module Rpc =
         Irmin_server.Make_ext
@@ -954,9 +955,14 @@ let run_server (module Conf : CONF) config stop =
           (Branch)
           (Hash)
       in
-      let cfg = Irmin_pack.config config.root in
-      let* server = Rpc.Server.v ~uri:config.uri cfg in
-      Rpc.Server.serve ~stop server)
+      let () =
+        Lwt_main.run
+          (let cfg = Irmin_pack.config config.root in
+           let* server = Rpc.Server.v ~uri:config.uri cfg in
+           Rpc.Server.serve server)
+      in
+      0
+  | pid -> pid
 
 module Make_store_layered (Conf : CONF) = struct
   open Tezos_context_hash.Encoding
@@ -967,12 +973,9 @@ module Make_store_layered (Conf : CONF) = struct
   include Rpc
 
   let create_repo config =
-    let stop, wake = Lwt.wait () in
-    run_server (module Conf) config stop;
-    let* () = Lwt_unix.sleep 0.5 in
     let* client = Client.connect ~uri:config.uri () in
     let on_commit _ _ = Client.flush client >|= Error.unwrap "flush" in
-    let on_end () = Lwt.wrap (fun () -> Lwt.wakeup wake ()) in
+    let on_end () = Lwt.wrap (fun () -> ()) in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
 
@@ -998,12 +1001,9 @@ module Make_store_pack (Conf : CONF) = struct
   include Rpc
 
   let create_repo config =
-    let stop, wake = Lwt.wait () in
-    run_server (module Conf) config stop;
-    let* () = Lwt_unix.sleep 0.5 in
     let* client = Client.connect ~uri:config.uri () in
     let on_commit _ _ = Client.flush client >|= Error.unwrap "flush" in
-    let on_end () = Lwt.wrap (fun () -> Lwt.wakeup wake ()) in
+    let on_end () = Lwt.wrap (fun () -> ()) in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
 end
@@ -1158,6 +1158,24 @@ let main () ncommits ncommits_trace suite_filter inode_config store_type
   FSHelper.rm_dir config.root;
   let () = try Unix.mkdir config.root 0o777 with _ -> () in
   let suite = get_suite suite_filter in
+  let pids =
+    List.mapi
+      (fun n _ ->
+        let i = string_of_int n in
+        let config =
+          {
+            config with
+            uri = config.uri ^ i;
+            root = Filename.concat config.root i;
+          }
+        in
+        let module Conf = struct
+          let entries, stable_hash = config.inode_config
+        end in
+        run_server (module Conf) config)
+      suite
+  in
+
   let run_benchmarks () =
     let* () = Lwt_unix.sleep 3. in
     Lwt_list.mapi_s
@@ -1175,7 +1193,8 @@ let main () ncommits ncommits_trace suite_filter inode_config store_type
   in
   let results = Lwt_main.run (run_benchmarks ()) in
   Logs.app (fun l ->
-      l "%a@." Fmt.(list ~sep:(any "@\n@\n") (fun ppf f -> f ppf)) results)
+      l "%a@." Fmt.(list ~sep:(any "@\n@\n") (fun ppf f -> f ppf)) results);
+  List.iter (fun pid -> Unix.kill pid Sys.sigint) pids
 
 open Cmdliner
 

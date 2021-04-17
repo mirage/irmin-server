@@ -40,6 +40,51 @@ module Make (Store : Command_intf.STORE) = struct
       Return.v conn Res.t (ID id)
   end
 
+  module Add_hash = struct
+    module Req = struct
+      type t = Tree.t * Store.key * Store.Hash.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    let name = "tree.add_hash"
+
+    let run conn ctx (tree, key, value) =
+      let* _, tree = resolve_tree ctx tree in
+      let* value = Store.Contents.of_hash ctx.repo value in
+      let* tree = Store.Tree.add tree key (Option.get value) in
+      let id = incr_id () in
+      Hashtbl.replace ctx.trees id tree;
+      Return.v conn Res.t (ID id)
+  end
+
+  module Add_multiple_hash = struct
+    module Req = struct
+      type t = Tree.t * (Store.key * Store.Hash.t) list [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    let name = "tree.add_multiple_hash"
+
+    let run conn ctx (tree, l) =
+      let* _, tree = resolve_tree ctx tree in
+      let* tree =
+        Lwt_list.fold_left_s
+          (fun tree (key, value) ->
+            let* value = Store.Contents.of_hash ctx.repo value in
+            Store.Tree.add tree key (Option.get value))
+          tree l
+      in
+      let id = incr_id () in
+      Hashtbl.replace ctx.trees id tree;
+      Return.v conn Res.t (ID id)
+  end
+
   module Add_tree = struct
     module Req = struct
       type t = Tree.t * Store.key * Tree.t [@@deriving irmin]
@@ -137,24 +182,6 @@ module Make (Store : Command_intf.STORE) = struct
         match tree with Tree.ID id -> Hashtbl.remove ctx.trees id | _ -> ()
       in
       Return.ok conn
-  end
-
-  module Clone = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    let name = "tree.clone"
-
-    let run conn ctx tree =
-      let* _, tree = resolve_tree ctx tree in
-      let id = incr_id () in
-      Hashtbl.replace ctx.trees id tree;
-      Return.v conn Res.t (Tree.ID id)
   end
 
   module To_local = struct
@@ -305,12 +332,13 @@ module Make (Store : Command_intf.STORE) = struct
     [
       cmd (module Empty);
       cmd (module Add);
+      cmd (module Add_hash);
+      cmd (module Add_multiple_hash);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Mem);
       cmd (module Mem_tree);
       cmd (module List);
-      cmd (module Clone);
       cmd (module To_local);
       cmd (module Find);
       cmd (module Find_tree);
