@@ -4,11 +4,12 @@ type t = {
   flow : Conduit_lwt_unix.flow;
   ic : Conduit_lwt_unix.ic;
   oc : Conduit_lwt_unix.oc;
+  buffer : bytes;
 }
 
-let v flow ic oc = { flow; ic; oc } [@@inline]
+let v flow ic oc = { flow; ic; oc; buffer = Bytes.create 4096 } [@@inline]
 
-let read_message t ty = Message.read t.ic ty [@@inline]
+let read_message t ty = Message.read t.buffer t.ic ty [@@inline]
 
 let write_message t ty x = Message.write t.oc ty x [@@inline]
 

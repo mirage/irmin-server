@@ -86,7 +86,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
         let* () = Conn.write_message t.conn Cmd.Req.t a in
         let* () = Lwt_io.flush t.conn.oc in
         let* res = Response.Read.header t.conn.ic in
-        Response.Read.get_error t.conn.ic res >>= function
+        Response.Read.get_error t.conn.buffer t.conn.ic res >>= function
         | Some err ->
             Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
             Lwt.return_error (`Msg err)

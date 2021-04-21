@@ -477,7 +477,9 @@ module Generate_trees_from_trace (Rpc : Store) = struct
   module Store = Rpc.Store
   module Client = Rpc.Client
 
-  type context = { tree : Client.tree }
+  type context = {
+    tree : Client.tree; (*mutable builder : Client.Tree.builder*)
+  }
 
   type t = {
     contexts : (int64, context) Hashtbl.t;
@@ -767,6 +769,7 @@ module Benchmark = struct
 
   let run config f =
     let* time, res = with_timer f in
+    Logs.app (fun l -> l "Benchmark complete");
     let+ size =
       Lwt_process.pread
         (Lwt_process.shell
@@ -1175,9 +1178,8 @@ let main () ncommits ncommits_trace suite_filter inode_config store_type
         run_server (module Conf) config)
       suite
   in
-
+  let () = Unix.sleep 3 in
   let run_benchmarks () =
-    let* () = Lwt_unix.sleep 3. in
     Lwt_list.mapi_s
       (fun n b ->
         let i = string_of_int n in
