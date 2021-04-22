@@ -48,6 +48,7 @@ module type Irmin_server = sig
        and type Store.contents = C.t
        and type Store.branch = B.t
        and type Store.key = string list
+       and type Store.step = string
        and type Store.metadata = M.t
 
   module Make_ext
@@ -67,6 +68,7 @@ module type Irmin_server = sig
        and type Store.contents = C.t
        and type Store.branch = B.t
        and type Store.key = string list
+       and type Store.step = string
        and type Store.metadata = M.t
 
   module Make_layered (Conf : sig
@@ -85,6 +87,7 @@ module type Irmin_server = sig
        and type Store.contents = C.t
        and type Store.branch = B.t
        and type Store.key = string list
+       and type Store.step = string
        and type Store.metadata = M.t
 
   module KV (V : Irmin_pack.Version.S) (C : Irmin.Contents.S) :
@@ -93,4 +96,5 @@ module type Irmin_server = sig
        and type Store.contents = C.t
        and type Store.branch = string
        and type Store.key = string list
+       and type Store.step = string
 end

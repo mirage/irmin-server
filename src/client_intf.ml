@@ -34,6 +34,8 @@ module type S = sig
   val connect : ?tls:bool -> uri:string -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
 
+  val close : t -> unit Lwt.t
+
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
 

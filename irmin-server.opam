@@ -34,43 +34,43 @@ dev-repo: "git+ssh://github.com/zshipko/irmin-server"
 pin-depends: [
   [
     "ppx_irmin.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin-git.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin-fs.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin-graphql.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin-http.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin-layers.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin-pack.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin-unix.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "irmin-test.dev"
-    "git+https://github.com/mirage/irmin#daa077e59c49d7cd618502ce1cd6813efdde0b35"
+    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
   ]
   [
     "index.dev"

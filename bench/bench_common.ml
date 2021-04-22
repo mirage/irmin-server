@@ -1,3 +1,19 @@
+(*
+ * Copyright (c) 2018-2021 Tarides <contact@tarides.com>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *)
+
 open Irmin.Export_for_backends
 
 let reporter ?(prefix = "") () =
@@ -37,11 +53,11 @@ let random_blob () = random_string 10 |> Bytes.of_string
 
 let random_key () = random_string 5
 
-let default_results_dir =
+let default_artefacts_dir =
   let ( / ) = Filename.concat in
-  Unix.getcwd () / "_results" / Uuidm.to_string (Uuidm.v `V4)
+  Unix.getcwd () / "_artefacts" / Uuidm.to_string (Uuidm.v `V4)
 
-let prepare_results_dir path =
+let prepare_artefacts_dir path =
   let rec mkdir_p path =
     if Sys.file_exists path then ()
     else
@@ -119,12 +135,10 @@ module FSHelper = struct
 end
 
 module Generate_trees
-    (Rpc : Irmin_server.S
-             with type Store.contents = bytes
-              and type Store.key = string list) =
+    (Store : Irmin_server.S
+               with type Store.contents = bytes
+                and type Store.key = string list) =
 struct
-  module Client = Rpc.Client
-
   let key depth =
     let rec aux i acc =
       if i >= depth then acc
@@ -136,8 +150,8 @@ struct
 
   let chain_tree tree depth path =
     let k = path @ key depth in
-    Client.Tree.add tree k (random_blob ())
-    >|= Irmin_server.Error.unwrap "Tree.add (chain_tree)"
+    Store.Client.Tree.add tree k (random_blob ())
+    >|= Irmin_server.Error.unwrap "add"
 
   let add_chain_trees depth nb tree =
     let path = key 2 in
@@ -155,8 +169,8 @@ struct
       else
         let k = path @ [ random_key () ] in
         let* tree =
-          Client.Tree.add tree k (random_blob ())
-          >|= Irmin_server.Error.unwrap "Tree.add (large_tree)"
+          Store.Client.Tree.add tree k (random_blob ())
+          >|= Irmin_server.Error.unwrap "add"
         in
         aux (i + 1) tree
     in

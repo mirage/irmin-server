@@ -63,6 +63,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let client = conf ?tls ~uri () in
     connect' client
 
+  let close t = Conduit_lwt_server.close (t.conn.ic, t.conn.oc)
+
   let handle_disconnect t f =
     Lwt.catch f (function
       | End_of_file ->
@@ -306,7 +308,12 @@ module Make (C : Command.S with type Store.key = string list) = struct
     include C.Commit
 
     let v t ~info ~parents (_, tree) =
-      request t (module Commands.Commit_v) (info (), parents, tree)
+      request t (module Commands.Commit_v) (info (), parents, tree) >|= function
+      | Error e -> Error e
+      | Ok x ->
+          let hash = Commit.hash x in
+          Cache.Hash.add Cache.hash_commit hash x;
+          Ok x
 
     let of_hash t hash =
       if Cache.(Hash.mem hash_commit hash) then

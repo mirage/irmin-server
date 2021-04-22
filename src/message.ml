@@ -18,9 +18,8 @@ let write_raw oc s : unit Lwt.t =
 let write oc t x : unit Lwt.t =
   let s = encode t x in
   write_raw oc s
-  [@@inline]
 
-let read_raw buffer ic =
+let read_raw ~buffer ic =
   let* n = Lwt_io.BE.read_int64 ic in
   Logs.debug (fun l -> l "Raw message length=%Ld" n);
   if n <= 0L then Lwt.return Bytes.empty
@@ -32,7 +31,7 @@ let read_raw buffer ic =
     let+ () = Lwt_io.read_into_exactly ic buf 0 n in
     buf
 
-let read buffer ic t =
-  let+ buf = read_raw buffer ic in
+let read ~buffer ic t =
+  let+ buf = read_raw ~buffer ic in
   decode t (Bytes.unsafe_to_string buf)
   [@@inline]
