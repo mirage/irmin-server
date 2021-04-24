@@ -382,7 +382,7 @@ module Trace_replay (Store : Store) = struct
     in
 
     (* Manually add genesis context *)
-    let* empty = Client.Tree.empty repo >|= Error.unwrap "Tree.empty" in
+    let empty = Client.Tree.empty repo in
     Hashtbl.add t.contexts 0L { tree = empty };
 
     let rec aux commit_seq i =
@@ -469,7 +469,7 @@ module Bench_suite (Store : Store) = struct
   module Client = Store.Client
 
   let init_commit repo =
-    let* empty = Client.Tree.empty repo >|= Error.unwrap "Tree.empty" in
+    let empty = Client.Tree.empty repo in
     Client.Commit.v repo ~info ~parents:[] empty >|= Error.unwrap "Commit.v"
 
   module Trees = Generate_trees (Store)

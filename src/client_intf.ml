@@ -1,5 +1,5 @@
 module type S = sig
-  type conf = Conduit_lwt_unix.client
+  type conf = { client : Conduit_lwt_unix.client; batch_size : int }
 
   type t
 
@@ -31,7 +31,13 @@ module type S = sig
          and type Private.Store.branch = branch
   end
 
-  val connect : ?tls:bool -> uri:string -> unit -> t Lwt.t
+  type batch =
+    (key
+    * [ `Contents of [ `Hash of hash | `Value of contents ]
+      | `Tree of Private.Tree.t ])
+    list
+
+  val connect : ?batch_size:int -> ?tls:bool -> uri:string -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
 
   val close : t -> unit Lwt.t
@@ -107,11 +113,13 @@ module type S = sig
   end
 
   module Tree : sig
-    val split : tree -> t * Private.Tree.t
+    val split : tree -> t * Private.Tree.t * batch
+
+    val v : t -> ?batch:batch -> Private.Tree.t -> tree
 
     val of_hash : t -> hash -> tree
 
-    val empty : t -> tree Error.result Lwt.t
+    val empty : t -> tree
     (** Create a new, empty tree *)
 
     val clear : tree -> unit Error.result Lwt.t
@@ -120,20 +128,27 @@ module type S = sig
 
     val hash : tree -> hash Error.result Lwt.t
 
-    val add' : tree -> key -> contents -> tree Error.result Lwt.t
-    (** Add values to a tree, returning a new tree
-        NOTE: the tree that was passed in may no longer be valid
-        after this call *)
-
     val add : tree -> key -> contents -> tree Error.result Lwt.t
 
+    val add' : tree -> key -> contents -> tree Error.result Lwt.t
+    (** Non-batch version of [add] *)
+
     val add_tree : tree -> key -> tree -> tree Error.result Lwt.t
+
+    val add_tree' : tree -> key -> tree -> tree Error.result Lwt.t
+    (** Non-batch version of [add_tree] *)
+
+    val add_multiple :
+      tree ->
+      (key
+      * [ `Contents of [ `Hash of hash | `Value of contents ]
+        | `Tree of Private.Tree.t ])
+      list ->
+      tree Error.result Lwt.t
 
     val find : tree -> key -> contents option Error.result Lwt.t
 
     val find_tree : tree -> key -> tree option Error.result Lwt.t
-
-    val list_ignore : tree -> unit Error.result Lwt.t
 
     val remove : tree -> key -> tree Error.result Lwt.t
     (** Remove value from a tree, returning a new tree
@@ -166,20 +181,6 @@ module type S = sig
 
     val of_local : t -> Local.t -> tree Lwt.t
     (** Convert a local tree into a remote tree *)
-
-    type builder
-
-    module Builder : sig
-      val v : t -> builder
-
-      val add : builder -> key -> contents -> builder Lwt.t
-
-      val remove : builder -> key -> builder
-
-      val build : ?tree:tree -> builder -> tree Error.result Lwt.t
-
-      type t = builder
-    end
 
     type t = tree
   end

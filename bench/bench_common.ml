@@ -151,14 +151,15 @@ struct
   let chain_tree tree depth path =
     let k = path @ key depth in
     Store.Client.Tree.add tree k (random_blob ())
-    >|= Irmin_server.Error.unwrap "add"
 
   let add_chain_trees depth nb tree =
     let path = key 2 in
     let rec aux i tree =
       if i >= nb then Lwt.return tree
       else
-        let* tree = chain_tree tree depth path in
+        let* tree =
+          chain_tree tree depth path >|= Irmin_server.Error.unwrap "chain_tree"
+        in
         aux (i + 1) tree
     in
     aux 0 tree
@@ -170,7 +171,7 @@ struct
         let k = path @ [ random_key () ] in
         let* tree =
           Store.Client.Tree.add tree k (random_blob ())
-          >|= Irmin_server.Error.unwrap "add"
+          >|= Irmin_server.Error.unwrap "large_tree:add"
         in
         aux (i + 1) tree
     in

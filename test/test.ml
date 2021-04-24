@@ -38,7 +38,7 @@ let get_missing client =
 
 let tree client =
   let open Rpc.Client in
-  let* tree = Tree.empty client >|= Error.unwrap "tree" in
+  let tree = Tree.empty client in
   let* local = Tree.to_local tree >|= Error.unwrap "local" in
   Alcotest.(check (ty Tree.Local.t)) "empty tree" Tree.Local.empty local;
   let* tree = Tree.add tree [ "x" ] "foo" >|= Error.unwrap "x" in

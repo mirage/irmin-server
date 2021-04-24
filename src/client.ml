@@ -12,8 +12,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
     module Tree = C.Tree
   end
 
-  type t = { client : Conduit_lwt_unix.client; mutable conn : Conn.t }
-
   type hash = Store.hash
 
   type contents = Store.contents
@@ -24,15 +22,25 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   type commit = C.Commit.t
 
-  type tree = t * Private.Tree.t
-
   type slice = St.slice
 
   let slice_t = St.slice_t
 
-  type conf = Conduit_lwt_unix.client
+  type conf = { client : Conduit_lwt_unix.client; batch_size : int }
 
-  let conf ?(tls = false) ~uri () =
+  type t = { conf : conf; mutable conn : Conn.t }
+
+  type batch =
+    (key
+    * [ `Contents of
+        [ `Hash of Tree.Private.Store.hash
+        | `Value of Tree.Private.Store.contents ]
+      | `Tree of Tree.t ])
+    list
+
+  type tree = t * Private.Tree.t * batch
+
+  let conf ?(batch_size = 32) ?(tls = false) ~uri () =
     let uri = Uri.of_string uri in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
@@ -50,17 +58,17 @@ module Make (C : Command.S with type Store.key = string list) = struct
           else `TLS (`Hostname addr, `IP ip, `Port port)
       | x -> invalid_arg ("Unknown client scheme: " ^ x)
     in
-    client
+    { client; batch_size }
 
-  let connect' client =
+  let connect' conf =
     let ctx = Conduit_lwt_unix.default_ctx in
-    let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx client in
+    let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx conf.client in
     let conn = Conn.v flow ic oc in
     let+ () = Handshake.V1.send ic oc in
-    { client; conn }
+    { conf; conn }
 
-  let connect ?tls ~uri () =
-    let client = conf ?tls ~uri () in
+  let connect ?batch_size ?tls ~uri () =
+    let client = conf ?batch_size ?tls ~uri () in
     connect' client
 
   let close t = Conduit_lwt_server.close (t.conn.ic, t.conn.oc)
@@ -69,7 +77,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
     Lwt.catch f (function
       | End_of_file ->
           Logs.info (fun l -> l "Reconnecting to server");
-          let* conn = connect' t.client in
+          let* conn = connect' t.conf in
           t.conn <- conn.conn;
           f ()
       | exn -> raise exn)
@@ -79,7 +87,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let header = Request.Header.v ~command:Cmd.name in
     Request.Write.header t.conn.Conn.oc header
 
-  let request t (type x y)
+  let request (t : t) (type x y)
       (module Cmd : C.CMD with type Res.t = x and type Req.t = y) (a : y) =
     let name = Cmd.name in
     Logs.debug (fun l -> l "Starting request: command=%s" name);
@@ -151,23 +159,23 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let find_tree t key =
       let+ tree = request t (module Commands.Store.Find_tree) key in
-      Result.map (fun x -> Option.map (fun x -> (t, x)) x) tree
+      Result.map (fun x -> Option.map (fun x -> (t, x, [])) x) tree
 
-    let set_tree t ~info key (_, tree) =
+    let set_tree t ~info key (_, tree, _) =
       let+ tree =
         request t (module Commands.Store.Set_tree) (key, info (), tree)
       in
-      Result.map (fun tree -> (t, tree)) tree
+      Result.map (fun tree -> (t, tree, [])) tree
 
     let test_and_set_tree t ~info key ~test ~set =
-      let test = Option.map snd test in
-      let set = Option.map snd set in
+      let test = Option.map (fun (_, x, _) -> x) test in
+      let set = Option.map (fun (_, x, _) -> x) set in
       let+ tree =
         request t
           (module Commands.Store.Test_and_set_tree)
           (key, info (), (test, set))
       in
-      Result.map (Option.map (fun tree -> (t, tree))) tree
+      Result.map (Option.map (fun tree -> (t, tree, []))) tree
 
     let mem t key = request t (module Commands.Store.Mem) key
 
@@ -193,6 +201,17 @@ module Make (C : Command.S with type Store.key = string list) = struct
             Lwt.return_ok true
         | x -> Lwt.return x
 
+    let mem' t contents =
+      let hash = hash contents in
+      if Cache.Hash.mem Cache.contents hash then Lwt.return_ok (hash, true)
+      else
+        let* res = request t (module Commands.Contents_mem) hash in
+        match res with
+        | Ok true ->
+            Cache.Hash.add Cache.contents hash contents;
+            Lwt.return_ok (hash, true)
+        | x -> Lwt.return (Result.map (fun y -> (hash, y)) x)
+
     let save t contents =
       let hash = hash contents in
       if Cache.Hash.mem Cache.contents hash then Lwt.return_ok hash
@@ -202,118 +221,184 @@ module Make (C : Command.S with type Store.key = string list) = struct
   module Tree = struct
     type store = t
 
-    type t = store * Private.Tree.t
+    let rec build (t : store) ?tree b : tree Error.result Lwt.t =
+      let tree =
+        match tree with
+        | Some tree -> tree
+        | None ->
+            let _, tree, _ = empty t in
+            tree
+      in
+      match b with
+      | [] -> Lwt.return_ok (t, tree, [])
+      | b -> add_multiple (t, tree, []) b
 
-    let wrap store tree =
+    and add_multiple (((t : store), tree, batch) : tree) l =
+      let l = List.rev l in
+      wrap t (request t (module Commands.Tree.Add_multiple) (tree, batch @ l))
+
+    and wrap ?(batch = []) store tree =
       let* tree = tree in
-      Lwt.return (Result.map (fun tree -> (store, tree)) tree)
+      Lwt.return (Result.map (fun tree -> (store, tree, batch)) tree)
 
-    let empty t = wrap t (request t (module Commands.Tree.Empty) ())
+    and empty (t : store) : tree = (t, Tree.Local (`Tree []), [])
+
+    module Batch = struct
+      let key_equal = Irmin.Type.(unstage (equal Key.t))
+
+      let find b k =
+        List.find_opt
+          (fun (a, b) ->
+            match b with `Contents _ -> key_equal k a | _ -> false)
+          b
+        |> Option.map snd
+
+      let find_tree b k =
+        List.find_opt
+          (fun (a, b) -> match b with `Tree _ -> key_equal k a | _ -> false)
+          b
+        |> Option.map snd
+
+      let mem b k =
+        List.exists
+          (fun (a, b) ->
+            match b with `Contents _ -> key_equal k a | _ -> false)
+          b
+
+      let mem_tree b k =
+        List.exists
+          (fun (a, b) -> match b with `Tree _ -> key_equal k a | _ -> false)
+          b
+
+      let remove b k = List.filter (fun (a, _) -> not (key_equal k a)) b
+
+      let add batch key value = (key, `Contents (`Value value)) :: batch
+
+      let add_hash batch key hash = (key, `Contents (`Hash hash)) :: batch
+
+      let add_tree batch key (_, tree, batch') =
+        (key, `Tree tree) :: batch' @ batch
+    end
 
     let split t = t
 
-    let of_hash t hash = (t, Private.Tree.Hash hash)
+    let v t ?(batch = []) tr = (t, tr, batch)
 
-    let clear (t, tree) = request t (module Commands.Tree.Clear) tree
+    let of_hash t hash = (t, Private.Tree.Hash hash, [])
 
-    let hash (t, tree) = request t (module Commands.Tree.Hash) tree
+    let map_tree tree f =
+      Result.map (fun (_, tree, _) -> f tree) tree |> function
+      | Ok x -> (
+          x >>= function
+          | Ok x -> Lwt.return_ok x
+          | Error e -> Lwt.return_error e)
+      | Error e -> Lwt.return_error e
 
-    let list_ignore (t, tree) =
-      request t (module Commands.Tree.List_ignore) tree
+    let clear (t, tree, batch) =
+      let* tree = build t ~tree batch in
+      map_tree tree (fun tree -> request t (module Commands.Tree.Clear) tree)
 
-    let add' (t, tree) key value =
-      wrap t (request t (module Commands.Tree.Add) (tree, key, value))
+    let hash (t, tree, batch) =
+      let* tree = build t ~tree batch in
+      map_tree tree (fun tree -> request t (module Commands.Tree.Hash) tree)
 
-    let add_hash (t, tree) key hash =
-      wrap t (request t (module Commands.Tree.Add_hash) (tree, key, hash))
+    let add' (t, tree, batch) key value =
+      wrap ~batch t (request t (module Commands.Tree.Add) (tree, key, value))
 
-    let add_multiple_hash (t, tree) l =
-      wrap t (request t (module Commands.Tree.Add_multiple_hash) (tree, l))
+    let add ((t, tree, batch) : tree) key value =
+      let* hash, exists =
+        Contents.mem' t value >|= Error.unwrap "Contents.mem"
+      in
+      let batch =
+        if exists then Batch.add_hash batch key hash
+        else Batch.add batch key value
+      in
+      if List.length batch > t.conf.batch_size then build t ~tree batch
+      else Lwt.return_ok (t, tree, batch)
 
-    let add (t, tree) key value =
-      let* exists = Contents.mem t value >|= Error.unwrap "Contents.mem" in
-      if exists then
-        let hash = Contents.hash value in
-        add_hash (t, tree) key hash
-      else add' (t, tree) key value
+    let add_tree ((t, tree, batch) : tree) key tr =
+      let batch = Batch.add_tree batch key tr in
+      if List.length batch > t.conf.batch_size then build t ~tree batch
+      else Lwt.return_ok (t, tree, batch)
 
-    let add_tree (t, tree) key (_, tr) =
-      wrap t (request t (module Commands.Tree.Add_tree) (tree, key, tr))
+    let add_tree' (t, tree, batch) key (_, tr, batch') =
+      wrap ~batch:(batch @ batch') t
+        (request t (module Commands.Tree.Add_tree) (tree, key, tr))
 
-    let find (t, tree) key = request t (module Commands.Tree.Find) (tree, key)
+    let find ((t, tree, batch) : tree) key : contents option Error.result Lwt.t
+        =
+      let x = Batch.find batch key in
+      match x with
+      | Some (`Contents (`Value x)) -> Lwt.return_ok (Some x)
+      | Some (`Contents (`Hash x)) -> Contents.of_hash t x
+      | _ -> request t (module Commands.Tree.Find) (tree, key)
 
-    let find_tree (t, tree) key =
-      let+ tree = request t (module Commands.Tree.Find_tree) (tree, key) in
-      Result.map (Option.map (fun tree -> (t, tree))) tree
+    let find_tree ((t, tree, batch) : tree) key : tree option Error.result Lwt.t
+        =
+      let x = Batch.find_tree batch key in
+      match x with
+      | Some (`Tree x) -> Lwt.return_ok (Some (t, x, []))
+      | _ ->
+          let+ tree = request t (module Commands.Tree.Find_tree) (tree, key) in
+          Result.map (Option.map (fun tree -> (t, tree, []))) tree
 
-    let remove (t, tree) key =
-      wrap t (request t (module Commands.Tree.Remove) (tree, key))
+    let remove (t, tree, batch) key =
+      let batch = Batch.remove batch key in
+      wrap ~batch t (request t (module Commands.Tree.Remove) (tree, key))
 
-    let cleanup (t, tree) = request t (module Commands.Tree.Cleanup) tree
+    let cleanup (t, tree, _) = request t (module Commands.Tree.Cleanup) tree
 
-    let mem (t, tree) key = request t (module Commands.Tree.Mem) (tree, key)
+    let mem (t, tree, batch) key =
+      if Batch.mem batch key then Lwt.return_ok true
+      else request t (module Commands.Tree.Mem) (tree, key)
 
-    let mem_tree (t, tree) key =
-      request t (module Commands.Tree.Mem_tree) (tree, key)
+    let mem_tree (t, tree, batch) key =
+      if Batch.mem_tree batch key then Lwt.return_ok true
+      else request t (module Commands.Tree.Mem_tree) (tree, key)
 
-    let list (t, tree) key = request t (module Commands.Tree.List) (tree, key)
+    let list (t, tree, batch) key =
+      let* tree = build t ~tree batch in
+      map_tree tree (fun tree ->
+          request t (module Commands.Tree.List) (tree, key))
 
     module Local = Private.Tree.Local
 
-    let to_local (t, tree) =
-      let+ res = request t (module Commands.Tree.To_local) tree in
-      match res with
-      | Ok x ->
-          let x = Private.Tree.Local.of_concrete x in
-          Ok x
-      | Error e -> Error e
+    let to_local (t, tree, batch) =
+      let* tree = build t ~tree batch in
+      match tree with
+      | Error e -> Lwt.return_error e
+      | Ok (_, tree, _) -> (
+          let+ res = request t (module Commands.Tree.To_local) tree in
+          match res with
+          | Ok x ->
+              let x = Private.Tree.Local.of_concrete x in
+              Ok x
+          | Error e -> Error e)
 
     let of_local t x =
       let+ x = Private.Tree.Local.to_concrete x in
-      (t, Private.Tree.Local x)
+      (t, Private.Tree.Local x, [])
 
     let reset_all t = request t (module Commands.Tree.Reset_all) ()
 
-    type builder = store * (key * hash) list
-
-    module Builder = struct
-      let v t = (t, [])
-
-      let add (t, b) k v =
-        let* exists = Contents.mem t v >|= Error.unwrap "Contents.mem" in
-        if exists then
-          let hash = Contents.hash v in
-          Lwt.return (t, (k, hash) :: b)
-        else
-          let* hash = Contents.save t v >|= Error.unwrap "Contents.save" in
-          Lwt.return (t, (k, hash) :: b)
-
-      let remove (t, b) k =
-        let b = List.remove_assoc k b in
-        (t, b)
-
-      let build ?tree (t, b) : tree Error.result Lwt.t =
-        let* tree =
-          match tree with
-          | Some tree -> Lwt.return tree
-          | None -> empty t >|= Error.unwrap "empty"
-        in
-        add_multiple_hash tree b
-
-      type t = builder
-    end
+    type t = tree
   end
 
   module Commit = struct
     include C.Commit
 
-    let v t ~info ~parents (_, tree) =
-      request t (module Commands.Commit_v) (info (), parents, tree) >|= function
-      | Error e -> Error e
-      | Ok x ->
-          let hash = Commit.hash x in
-          Cache.Hash.add Cache.hash_commit hash x;
-          Ok x
+    let v t ~info ~parents ((_, tree, batch) : Tree.t) : t Error.result Lwt.t =
+      let* tree = Tree.build t ~tree batch in
+      match tree with
+      | Error e -> Lwt.return_error e
+      | Ok (_, tree, _) -> (
+          request t (module Commands.Commit_v) (info (), parents, tree)
+          >|= function
+          | Error e -> Error e
+          | Ok (x : t) ->
+              let hash = Commit.hash x in
+              Cache.Hash.add Cache.hash_commit hash x;
+              Ok x)
 
     let of_hash t hash =
       if Cache.(Hash.mem hash_commit hash) then
@@ -326,6 +411,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
             Lwt.return_ok c
         | Error e -> Lwt.return_error e
 
-    let tree t commit = (t, tree commit)
+    let tree t commit = (t, tree commit, [])
   end
 end

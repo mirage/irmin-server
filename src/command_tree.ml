@@ -40,44 +40,36 @@ module Make (Store : Command_intf.STORE) = struct
       Return.v conn Res.t (ID id)
   end
 
-  module Add_hash = struct
+  module Add_multiple = struct
     module Req = struct
-      type t = Tree.t * Store.key * Store.Hash.t [@@deriving irmin]
+      type t =
+        Tree.t
+        * (Store.key
+          * [ `Contents of [ `Hash of Store.Hash.t | `Value of Store.contents ]
+            | `Tree of Tree.t ])
+          list
+      [@@deriving irmin]
     end
 
     module Res = struct
       type t = Tree.t [@@deriving irmin]
     end
 
-    let name = "tree.add_hash"
-
-    let run conn ctx (tree, key, value) =
-      let* _, tree = resolve_tree ctx tree in
-      let* value = Store.Contents.of_hash ctx.repo value in
-      let* tree = Store.Tree.add tree key (Option.get value) in
-      let id = incr_id () in
-      Hashtbl.replace ctx.trees id tree;
-      Return.v conn Res.t (ID id)
-  end
-
-  module Add_multiple_hash = struct
-    module Req = struct
-      type t = Tree.t * (Store.key * Store.Hash.t) list [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    let name = "tree.add_multiple_hash"
+    let name = "tree.add_multiple"
 
     let run conn ctx (tree, l) =
       let* _, tree = resolve_tree ctx tree in
       let* tree =
         Lwt_list.fold_left_s
           (fun tree (key, value) ->
-            let* value = Store.Contents.of_hash ctx.repo value in
-            Store.Tree.add tree key (Option.get value))
+            match value with
+            | `Contents (`Hash value) ->
+                let* value = Store.Contents.of_hash ctx.repo value in
+                Store.Tree.add tree key (Option.get value)
+            | `Contents (`Value value) -> Store.Tree.add tree key value
+            | `Tree t ->
+                let* _, tree' = resolve_tree ctx t in
+                Store.Tree.add_tree tree key tree')
           tree l
       in
       let id = incr_id () in
@@ -278,23 +270,6 @@ module Make (Store : Command_intf.STORE) = struct
       Return.v conn Res.t ()
   end
 
-  module List_ignore = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
-
-    let name = "tree.list_ignore"
-
-    let run conn ctx tree =
-      let* _, tree = resolve_tree ctx tree in
-      let* _ = Store.Tree.list tree [] in
-      Return.v conn Res.t ()
-  end
-
   module Hash = struct
     module Req = struct
       type t = Tree.t [@@deriving irmin]
@@ -332,8 +307,7 @@ module Make (Store : Command_intf.STORE) = struct
     [
       cmd (module Empty);
       cmd (module Add);
-      cmd (module Add_hash);
-      cmd (module Add_multiple_hash);
+      cmd (module Add_multiple);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Mem);
@@ -344,7 +318,6 @@ module Make (Store : Command_intf.STORE) = struct
       cmd (module Find_tree);
       cmd (module Add_tree);
       cmd (module Clear);
-      cmd (module List_ignore);
       cmd (module Hash);
     ]
 end

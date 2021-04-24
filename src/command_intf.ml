@@ -138,16 +138,16 @@ module type S = sig
                 Tree.t * Tree.Private.Store.key * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
-      module Add_hash :
+      module Add_multiple :
         CMD
           with type Req.t =
-                Tree.t * Tree.Private.Store.key * Tree.Private.Store.hash
-           and type Res.t = Tree.t
-
-      module Add_multiple_hash :
-        CMD
-          with type Req.t =
-                Tree.t * (Tree.Private.Store.key * Tree.Private.Store.hash) list
+                Tree.t
+                * (Tree.Private.Store.key
+                  * [ `Contents of
+                      [ `Hash of Tree.Private.Store.hash
+                      | `Value of Tree.Private.Store.contents ]
+                    | `Tree of Tree.t ])
+                  list
            and type Res.t = Tree.t
 
       module Add_tree :
@@ -192,8 +192,6 @@ module type S = sig
                 (Tree.Private.Store.Key.step * [ `Contents | `Tree ]) list
 
       module Clear : CMD with type Req.t = Tree.t and type Res.t = unit
-
-      module List_ignore : CMD with type Req.t = Tree.t and type Res.t = unit
 
       module Hash :
         CMD with type Req.t = Tree.t and type Res.t = Tree.Private.Store.Hash.t
