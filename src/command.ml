@@ -255,7 +255,7 @@ module Make (St : STORE) = struct
         Return.v conn Res.t hash
     end
 
-    module Contents_mem = struct
+    module Contents_exists = struct
       module Req = struct
         type t = St.Hash.t [@@deriving irmin]
       end
@@ -264,7 +264,7 @@ module Make (St : STORE) = struct
         type t = bool [@@deriving irmin]
       end
 
-      let name = "contents.mem"
+      let name = "contents.exists"
 
       let run conn ctx hash =
         let* exists =
@@ -293,7 +293,7 @@ module Make (St : STORE) = struct
       cmd (module Commit_of_hash);
       cmd (module Contents_of_hash);
       cmd (module Contents_save);
-      cmd (module Contents_mem);
+      cmd (module Contents_exists);
       cmd (module Flush);
     ]
     @ Store.commands @ Tree.commands

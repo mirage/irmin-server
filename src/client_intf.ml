@@ -46,6 +46,7 @@ module type S = sig
   (** Ping the server *)
 
   val flush : t -> unit Error.result Lwt.t
+  (** Flush writes to disk *)
 
   val export : t -> slice Error.result Lwt.t
 
@@ -86,7 +87,7 @@ module type S = sig
   module Contents : sig
     val of_hash : t -> hash -> contents option Error.result Lwt.t
 
-    val mem : t -> contents -> bool Error.result Lwt.t
+    val exists : t -> contents -> bool Error.result Lwt.t
 
     val save : t -> contents -> hash Error.result Lwt.t
 
@@ -123,12 +124,18 @@ module type S = sig
     (** Create a new, empty tree *)
 
     val clear : tree -> unit Error.result Lwt.t
-
-    val reset_all : t -> unit Error.result Lwt.t
+    (** Clear caches on the server for a given tree *)
 
     val hash : tree -> hash Error.result Lwt.t
+    (** Get hash of tree *)
+
+    val build : t -> ?tree:Private.Tree.t -> batch -> tree Error.result Lwt.t
+    (** [build store ~tree batch] performs a batch update of [tree], or
+        an empty tree if not specified *)
 
     val add : tree -> key -> contents -> tree Error.result Lwt.t
+    (** Add contents to a tree, this may be batched so the update on the server
+        could be delayed *)
 
     val add' : tree -> key -> contents -> tree Error.result Lwt.t
     (** Non-batch version of [add] *)
@@ -138,25 +145,23 @@ module type S = sig
     val add_tree' : tree -> key -> tree -> tree Error.result Lwt.t
     (** Non-batch version of [add_tree] *)
 
-    val add_multiple :
-      tree ->
-      (key
-      * [ `Contents of [ `Hash of hash | `Value of contents ]
-        | `Tree of Private.Tree.t ])
-      list ->
-      tree Error.result Lwt.t
+    val add_batch : tree -> batch -> tree Error.result Lwt.t
+    (** Batch update tree *)
 
     val find : tree -> key -> contents option Error.result Lwt.t
+    (** Find the value associated with the given key *)
 
     val find_tree : tree -> key -> tree option Error.result Lwt.t
+    (** Find the tree associated with the given key *)
 
     val remove : tree -> key -> tree Error.result Lwt.t
-    (** Remove value from a tree, returning a new tree
-        NOTE: the tree that was passed in may no longer be valid
-        after this call *)
+    (** Remove value from a tree, returning a new tree *)
 
     val cleanup : tree -> unit Error.result Lwt.t
     (** Invalidate a tree, this frees the tree on the server side *)
+
+    val cleanup_all : t -> unit Error.result Lwt.t
+    (** Cleanup all trees *)
 
     val mem : tree -> key -> bool Error.result Lwt.t
     (** Check if a key is associated with a value *)

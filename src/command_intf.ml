@@ -82,7 +82,7 @@ module type S = sig
     module Contents_of_hash :
       CMD with type Req.t = Store.Hash.t and type Res.t = Store.contents option
 
-    module Contents_mem :
+    module Contents_exists :
       CMD with type Req.t = Store.Hash.t and type Res.t = bool
 
     module Contents_save :
@@ -138,7 +138,7 @@ module type S = sig
                 Tree.t * Tree.Private.Store.key * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
-      module Add_multiple :
+      module Add_batch :
         CMD
           with type Req.t =
                 Tree.t
@@ -196,7 +196,7 @@ module type S = sig
       module Hash :
         CMD with type Req.t = Tree.t and type Res.t = Tree.Private.Store.Hash.t
 
-      module Reset_all : CMD with type Req.t = unit and type Res.t = unit
+      module Cleanup_all : CMD with type Req.t = unit and type Res.t = unit
     end
   end
 end

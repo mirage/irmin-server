@@ -190,27 +190,18 @@ module Make (C : Command.S with type Store.key = string list) = struct
         Lwt.return_ok (Some (Cache.Hash.find Cache.contents hash))
       else request t (module Commands.Contents_of_hash) hash
 
-    let mem t contents =
-      let hash = hash contents in
-      if Cache.Hash.mem Cache.contents hash then Lwt.return_ok true
-      else
-        let* res = request t (module Commands.Contents_mem) hash in
-        match res with
-        | Ok true ->
-            Cache.Hash.add Cache.contents hash contents;
-            Lwt.return_ok true
-        | x -> Lwt.return x
-
-    let mem' t contents =
+    let exists' t contents =
       let hash = hash contents in
       if Cache.Hash.mem Cache.contents hash then Lwt.return_ok (hash, true)
       else
-        let* res = request t (module Commands.Contents_mem) hash in
+        let* res = request t (module Commands.Contents_exists) hash in
         match res with
         | Ok true ->
             Cache.Hash.add Cache.contents hash contents;
             Lwt.return_ok (hash, true)
         | x -> Lwt.return (Result.map (fun y -> (hash, y)) x)
+
+    let exists t contents = exists' t contents >|= Result.map snd
 
     let save t contents =
       let hash = hash contents in
@@ -231,11 +222,11 @@ module Make (C : Command.S with type Store.key = string list) = struct
       in
       match b with
       | [] -> Lwt.return_ok (t, tree, [])
-      | b -> add_multiple (t, tree, []) b
+      | b -> add_batch (t, tree, b) []
 
-    and add_multiple (((t : store), tree, batch) : tree) l =
+    and add_batch (((t : store), tree, batch) : tree) l =
       let l = List.rev l in
-      wrap t (request t (module Commands.Tree.Add_multiple) (tree, batch @ l))
+      wrap t (request t (module Commands.Tree.Add_batch) (tree, batch @ l))
 
     and wrap ?(batch = []) store tree =
       let* tree = tree in
@@ -307,7 +298,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let add ((t, tree, batch) : tree) key value =
       let* hash, exists =
-        Contents.mem' t value >|= Error.unwrap "Contents.mem"
+        Contents.exists' t value >|= Error.unwrap "Contents.mem"
       in
       let batch =
         if exists then Batch.add_hash batch key hash
@@ -379,7 +370,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
       let+ x = Private.Tree.Local.to_concrete x in
       (t, Private.Tree.Local x, [])
 
-    let reset_all t = request t (module Commands.Tree.Reset_all) ()
+    let cleanup_all t = request t (module Commands.Tree.Cleanup_all) ()
 
     type t = tree
   end

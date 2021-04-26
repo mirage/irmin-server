@@ -40,7 +40,7 @@ module Make (Store : Command_intf.STORE) = struct
       Return.v conn Res.t (ID id)
   end
 
-  module Add_multiple = struct
+  module Add_batch = struct
     module Req = struct
       type t =
         Tree.t
@@ -55,7 +55,7 @@ module Make (Store : Command_intf.STORE) = struct
       type t = Tree.t [@@deriving irmin]
     end
 
-    let name = "tree.add_multiple"
+    let name = "tree.add_batch"
 
     let run conn ctx (tree, l) =
       let* _, tree = resolve_tree ctx tree in
@@ -287,7 +287,7 @@ module Make (Store : Command_intf.STORE) = struct
       Return.v conn Res.t hash
   end
 
-  module Reset_all = struct
+  module Cleanup_all = struct
     module Req = struct
       type t = unit [@@deriving irmin]
     end
@@ -296,7 +296,7 @@ module Make (Store : Command_intf.STORE) = struct
       type t = unit [@@deriving irmin]
     end
 
-    let name = "tree.reset_all"
+    let name = "tree.cleanup_all"
 
     let run conn ctx () =
       reset_trees ctx;
@@ -307,9 +307,10 @@ module Make (Store : Command_intf.STORE) = struct
     [
       cmd (module Empty);
       cmd (module Add);
-      cmd (module Add_multiple);
+      cmd (module Add_batch);
       cmd (module Remove);
       cmd (module Cleanup);
+      cmd (module Cleanup_all);
       cmd (module Mem);
       cmd (module Mem_tree);
       cmd (module List);
