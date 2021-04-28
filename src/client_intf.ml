@@ -1,5 +1,5 @@
 module type S = sig
-  type conf = Conduit_lwt_unix.client
+  type conf = { client : Conduit_lwt_unix.client; batch_size : int }
 
   type t
 
@@ -31,35 +31,40 @@ module type S = sig
          and type Private.Store.branch = branch
   end
 
-  val connect : ?tls:bool -> uri:string -> unit -> t Lwt.t
+  type batch =
+    (key
+    * [ `Contents of [ `Hash of hash | `Value of contents ]
+      | `Tree of Private.Tree.t ])
+    list
+
+  val connect : ?batch_size:int -> ?tls:bool -> uri:string -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
+
+  val close : t -> unit Lwt.t
 
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
 
   val flush : t -> unit Error.result Lwt.t
+  (** Flush writes to disk *)
 
   val export : t -> slice Error.result Lwt.t
 
   val import : t -> slice -> unit Error.result Lwt.t
 
   module Commit : sig
-    val create :
+    val v :
       t ->
       info:Irmin.Info.f ->
       parents:hash list ->
       tree ->
       commit Error.result Lwt.t
-    (** Create a new commit *)
-
-    val v : info:Irmin.Info.t -> node:hash -> parents:hash list -> commit
+    (** Create a new commit
+        NOTE: this will invalidate all intermediate trees *)
 
     val of_hash : t -> hash -> commit option Error.result Lwt.t
 
-    val node : commit -> hash
-    (** The underlying node. *)
-
-    val hash : t -> commit -> hash Error.result Lwt.t
+    val hash : commit -> hash
     (** Get commit hash *)
 
     val parents : commit -> hash list
@@ -74,13 +79,17 @@ module type S = sig
     val hash_t : hash Irmin.Type.t
     (** [hash_t] is the value type for {!hash}. *)
 
-    val tree : t -> commit -> tree Error.result Lwt.t
+    val tree : t -> commit -> tree
 
     type t = commit
   end
 
   module Contents : sig
     val of_hash : t -> hash -> contents option Error.result Lwt.t
+
+    val exists : t -> contents -> bool Error.result Lwt.t
+
+    val save : t -> contents -> hash Error.result Lwt.t
 
     include Irmin.Contents.S with type t = contents
   end
@@ -105,43 +114,54 @@ module type S = sig
   end
 
   module Tree : sig
-    val split : tree -> t * Private.Tree.t
+    val split : tree -> t * Private.Tree.t * batch
+
+    val v : t -> ?batch:batch -> Private.Tree.t -> tree
 
     val of_hash : t -> hash -> tree
 
-    val empty : t -> tree Error.result Lwt.t
+    val empty : t -> tree
     (** Create a new, empty tree *)
 
     val clear : tree -> unit Error.result Lwt.t
-
-    val reset_all : t -> unit Error.result Lwt.t
+    (** Clear caches on the server for a given tree *)
 
     val hash : tree -> hash Error.result Lwt.t
+    (** Get hash of tree *)
+
+    val build : t -> ?tree:Private.Tree.t -> batch -> tree Error.result Lwt.t
+    (** [build store ~tree batch] performs a batch update of [tree], or
+        an empty tree if not specified *)
 
     val add : tree -> key -> contents -> tree Error.result Lwt.t
-    (** Add values to a tree, returning a new tree
-        NOTE: the tree that was passed in may no longer be valid
-        after this call *)
+    (** Add contents to a tree, this may be batched so the update on the server
+        could be delayed *)
+
+    val add' : tree -> key -> contents -> tree Error.result Lwt.t
+    (** Non-batch version of [add] *)
 
     val add_tree : tree -> key -> tree -> tree Error.result Lwt.t
 
+    val add_tree' : tree -> key -> tree -> tree Error.result Lwt.t
+    (** Non-batch version of [add_tree] *)
+
+    val add_batch : tree -> batch -> tree Error.result Lwt.t
+    (** Batch update tree *)
+
     val find : tree -> key -> contents option Error.result Lwt.t
+    (** Find the value associated with the given key *)
 
     val find_tree : tree -> key -> tree option Error.result Lwt.t
-
-    val list_ignore : tree -> unit Error.result Lwt.t
+    (** Find the tree associated with the given key *)
 
     val remove : tree -> key -> tree Error.result Lwt.t
-    (** Remove value from a tree, returning a new tree
-        NOTE: the tree that was passed in may no longer be valid
-        after this call *)
-
-    val clone : tree -> tree Error.result Lwt.t
-    (** Copies an existing tree, this can be used to create a new copy of a tree before passing it to a
-        function that may invalidate it *)
+    (** Remove value from a tree, returning a new tree *)
 
     val cleanup : tree -> unit Error.result Lwt.t
     (** Invalidate a tree, this frees the tree on the server side *)
+
+    val cleanup_all : t -> unit Error.result Lwt.t
+    (** Cleanup all trees *)
 
     val mem : tree -> key -> bool Error.result Lwt.t
     (** Check if a key is associated with a value *)
@@ -154,7 +174,7 @@ module type S = sig
     (** List entries at the specified root *)
 
     module Local :
-      Tree_intf.LOCAL
+      Tree.LOCAL
         with type key = key
          and type contents = contents
          and type hash = hash

@@ -104,7 +104,7 @@ module Make (Store : Command_intf.STORE) = struct
     let run conn ctx (key, info, tree) =
       let* id, tree = resolve_tree ctx tree in
       let* () = Store.set_tree_exn ctx.store key ~info:(fun () -> info) tree in
-      Hashtbl.remove ctx.trees id;
+      Option.iter (fun id -> Hashtbl.remove ctx.trees id) id;
       Return.v conn Res.t (Tree.Hash (Store.Tree.hash tree))
   end
 
@@ -132,7 +132,7 @@ module Make (Store : Command_intf.STORE) = struct
         match set with
         | Some set ->
             let+ id, set = resolve_tree ctx set in
-            (Some id, Some set)
+            (id, Some set)
         | None -> Lwt.return (None, None)
       in
       let* () =

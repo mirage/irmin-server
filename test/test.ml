@@ -38,7 +38,7 @@ let get_missing client =
 
 let tree client =
   let open Rpc.Client in
-  let* tree = Tree.empty client >|= Error.unwrap "tree" in
+  let tree = Tree.empty client in
   let* local = Tree.to_local tree >|= Error.unwrap "local" in
   Alcotest.(check (ty Tree.Local.t)) "empty tree" Tree.Local.empty local;
   let* tree = Tree.add tree [ "x" ] "foo" >|= Error.unwrap "x" in
@@ -71,10 +71,10 @@ let branch (client : Rpc.Client.t) =
   in
   let* head = Branch.get client >|= Error.unwrap "get" in
   let head = Option.get head in
-  let* tree = Commit.tree client head >|= Error.unwrap "tree" in
-  let hash = Commit.node head in
+  let tree = Commit.tree client head in
+  let hash = Commit.hash head in
   let* commit =
-    Commit.create client ~info:(Irmin_unix.info "test") ~parents:[ hash ] tree
+    Commit.v client ~info:(Irmin_unix.info "test") ~parents:[ hash ] tree
     >|= Error.unwrap "Commit.create"
   in
   let* () = Branch.set client commit >|= Error.unwrap "set" in

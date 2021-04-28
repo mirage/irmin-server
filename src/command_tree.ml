@@ -16,7 +16,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let run conn ctx () =
       let empty = Store.Tree.empty in
-      let id = Random.bits () in
+      let id = incr_id () in
       Hashtbl.replace ctx.trees id empty;
       Return.v conn Res.t (ID id)
   end
@@ -33,8 +33,46 @@ module Make (Store : Command_intf.STORE) = struct
     let name = "tree.add"
 
     let run conn ctx (tree, key, value) =
-      let* id, tree = resolve_tree ctx tree in
+      let* _, tree = resolve_tree ctx tree in
       let* tree = Store.Tree.add tree key value in
+      let id = incr_id () in
+      Hashtbl.replace ctx.trees id tree;
+      Return.v conn Res.t (ID id)
+  end
+
+  module Add_batch = struct
+    module Req = struct
+      type t =
+        Tree.t
+        * (Store.key
+          * [ `Contents of [ `Hash of Store.Hash.t | `Value of Store.contents ]
+            | `Tree of Tree.t ])
+          list
+      [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    let name = "tree.add_batch"
+
+    let run conn ctx (tree, l) =
+      let* _, tree = resolve_tree ctx tree in
+      let* tree =
+        Lwt_list.fold_left_s
+          (fun tree (key, value) ->
+            match value with
+            | `Contents (`Hash value) ->
+                let* value = Store.Contents.of_hash ctx.repo value in
+                Store.Tree.add tree key (Option.get value)
+            | `Contents (`Value value) -> Store.Tree.add tree key value
+            | `Tree t ->
+                let* _, tree' = resolve_tree ctx t in
+                Store.Tree.add_tree tree key tree')
+          tree l
+      in
+      let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
       Return.v conn Res.t (ID id)
   end
@@ -51,9 +89,10 @@ module Make (Store : Command_intf.STORE) = struct
     let name = "tree.add_tree"
 
     let run conn ctx (tree, key, tr) =
-      let* id, tree = resolve_tree ctx tree in
+      let* _, tree = resolve_tree ctx tree in
       let* _, tree' = resolve_tree ctx tr in
       let* tree = Store.Tree.add_tree tree key tree' in
+      let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
       Return.v conn Res.t (ID id)
   end
@@ -92,7 +131,7 @@ module Make (Store : Command_intf.STORE) = struct
       let tree =
         Option.map
           (fun tree ->
-            let id = Random.bits () in
+            let id = incr_id () in
             Hashtbl.replace ctx.trees id tree;
             Tree.ID id)
           tree
@@ -112,8 +151,9 @@ module Make (Store : Command_intf.STORE) = struct
     let name = "tree.remove"
 
     let run conn ctx (tree, key) =
-      let* id, tree = resolve_tree ctx tree in
+      let* _, tree = resolve_tree ctx tree in
       let* tree = Store.Tree.remove tree key in
+      let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
       Return.v conn Res.t (ID id)
   end
@@ -134,24 +174,6 @@ module Make (Store : Command_intf.STORE) = struct
         match tree with Tree.ID id -> Hashtbl.remove ctx.trees id | _ -> ()
       in
       Return.ok conn
-  end
-
-  module Clone = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    let name = "tree.clone"
-
-    let run conn ctx tree =
-      let* _, tree = resolve_tree ctx tree in
-      let id = Random.bits () in
-      Hashtbl.replace ctx.trees id tree;
-      Return.v conn Res.t (Tree.ID id)
   end
 
   module To_local = struct
@@ -248,23 +270,6 @@ module Make (Store : Command_intf.STORE) = struct
       Return.v conn Res.t ()
   end
 
-  module List_ignore = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
-
-    let name = "tree.list_ignore"
-
-    let run conn ctx tree =
-      let* _, tree = resolve_tree ctx tree in
-      let* _ = Store.Tree.list tree [] in
-      Return.v conn Res.t ()
-  end
-
   module Hash = struct
     module Req = struct
       type t = Tree.t [@@deriving irmin]
@@ -282,7 +287,7 @@ module Make (Store : Command_intf.STORE) = struct
       Return.v conn Res.t hash
   end
 
-  module Reset_all = struct
+  module Cleanup_all = struct
     module Req = struct
       type t = unit [@@deriving irmin]
     end
@@ -291,10 +296,10 @@ module Make (Store : Command_intf.STORE) = struct
       type t = unit [@@deriving irmin]
     end
 
-    let name = "tree.reset_all"
+    let name = "tree.cleanup_all"
 
     let run conn ctx () =
-      Hashtbl.reset ctx.trees;
+      reset_trees ctx;
       Return.v conn Res.t ()
   end
 
@@ -302,18 +307,18 @@ module Make (Store : Command_intf.STORE) = struct
     [
       cmd (module Empty);
       cmd (module Add);
+      cmd (module Add_batch);
       cmd (module Remove);
       cmd (module Cleanup);
+      cmd (module Cleanup_all);
       cmd (module Mem);
       cmd (module Mem_tree);
       cmd (module List);
-      cmd (module Clone);
       cmd (module To_local);
       cmd (module Find);
       cmd (module Find_tree);
       cmd (module Add_tree);
       cmd (module Clear);
-      cmd (module List_ignore);
       cmd (module Hash);
     ]
 end

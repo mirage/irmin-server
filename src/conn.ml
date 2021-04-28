@@ -4,11 +4,14 @@ type t = {
   flow : Conduit_lwt_unix.flow;
   ic : Conduit_lwt_unix.ic;
   oc : Conduit_lwt_unix.oc;
+  buffer : bytes;
 }
 
-let v flow ic oc = { flow; ic; oc } [@@inline]
+let v ?(buffer_size = 4096) flow ic oc =
+  { flow; ic; oc; buffer = Bytes.create buffer_size }
+  [@@inline]
 
-let read_message t ty = Message.read t.ic ty [@@inline]
+let read_message t ty = Message.read ~buffer:t.buffer t.ic ty [@@inline]
 
 let write_message t ty x = Message.write t.oc ty x [@@inline]
 
@@ -21,12 +24,3 @@ let err t msg =
   let msg = "ERROR " ^ msg in
   let* () = Response.Write.header t.oc header in
   Message.write t.oc Irmin.Type.string msg
-
-(*let consume t n =
-  let rec aux t n =
-    if n = 0 then Lwt.return_unit
-    else
-      let* _ = Message.read_raw t.ic in
-      aux t (n - 1)
-  in
-  aux t n*)

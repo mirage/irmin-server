@@ -10,7 +10,8 @@ module Make (St : Command_intf.STORE with type key = string list) = struct
     trees : (int, St.tree) Hashtbl.t;
   }
 
-  module Commit = Irmin.Private.Commit.Make (St.Hash)
+  module Tree = Tree.Make (St)
+  module Commit = Commit.Make (St) (Tree)
 
   module type CMD = sig
     module Req : sig
@@ -32,15 +33,23 @@ module Make (St : Command_intf.STORE with type key = string list) = struct
 
   let cmd (module C : CMD) = (C.name, (module C : CMD))
 
-  module Tree = Tree.Make (St)
+  let next_id = ref 0
+
+  let incr_id () =
+    let x = !next_id in
+    incr next_id;
+    x
+
+  let reset_trees ctx =
+    next_id := 0;
+    Hashtbl.reset ctx.trees
 
   let resolve_tree ctx tree =
     let* id, tree =
       match tree with
-      | Tree.ID x -> Lwt.return @@ (x, Hashtbl.find_opt ctx.trees x)
-      | Hash x ->
-          St.Tree.of_hash ctx.repo (`Node x) >|= fun x -> (Random.bits (), x)
-      | Local x -> Lwt.return (Random.bits (), Some (Tree.Local.of_concrete x))
+      | Tree.ID x -> Lwt.return @@ (Some x, Hashtbl.find_opt ctx.trees x)
+      | Hash x -> St.Tree.of_hash ctx.repo (`Node x) >|= fun x -> (None, x)
+      | Local x -> Lwt.return (None, Some (Tree.Local.of_concrete x))
     in
     match tree with
     | Some t -> Lwt.return (id, t)

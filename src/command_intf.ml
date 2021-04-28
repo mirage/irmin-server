@@ -1,4 +1,4 @@
-module type STORE = Tree_intf.STORE
+module type STORE = Tree.STORE
 
 module type S = sig
   module Store : STORE
@@ -6,7 +6,7 @@ module type S = sig
   module Tree : Tree.S with module Private.Store = Store
 
   module Commit : sig
-    include Irmin.Private.Commit.S with type hash = Store.hash
+    include Commit.S with type hash = Store.Hash.t and type tree = Tree.t
   end
 
   type context = {
@@ -70,7 +70,7 @@ module type S = sig
       CMD with type Req.t = Store.branch and type Res.t = unit
 
     (* Commit *)
-    module Commit_create :
+    module Commit_v :
       CMD
         with type Req.t = Irmin.Info.t * Store.hash list * Tree.t
          and type Res.t = Commit.t
@@ -78,14 +78,15 @@ module type S = sig
     module Commit_of_hash :
       CMD with type Req.t = Store.Hash.t and type Res.t = Commit.t option
 
-    module Commit_hash :
-      CMD with type Req.t = Commit.t and type Res.t = Store.Hash.t
-
-    module Commit_tree : CMD with type Req.t = Commit.t and type Res.t = Tree.t
-
     (* Contents *)
     module Contents_of_hash :
       CMD with type Req.t = Store.Hash.t and type Res.t = Store.contents option
+
+    module Contents_exists :
+      CMD with type Req.t = Store.Hash.t and type Res.t = bool
+
+    module Contents_save :
+      CMD with type Req.t = Store.contents and type Res.t = Store.Hash.t
 
     (* Store *)
     module Store : sig
@@ -137,6 +138,18 @@ module type S = sig
                 Tree.t * Tree.Private.Store.key * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
+      module Add_batch :
+        CMD
+          with type Req.t =
+                Tree.t
+                * (Tree.Private.Store.key
+                  * [ `Contents of
+                      [ `Hash of Tree.Private.Store.hash
+                      | `Value of Tree.Private.Store.contents ]
+                    | `Tree of Tree.t ])
+                  list
+           and type Res.t = Tree.t
+
       module Add_tree :
         CMD
           with type Req.t = Tree.t * Tree.Private.Store.key * Tree.t
@@ -159,8 +172,6 @@ module type S = sig
 
       module Cleanup : CMD with type Req.t = Tree.t and type Res.t = unit
 
-      module Clone : CMD with type Req.t = Tree.t and type Res.t = Tree.t
-
       module To_local :
         CMD with type Req.t = Tree.t and type Res.t = Tree.Local.concrete
 
@@ -182,12 +193,10 @@ module type S = sig
 
       module Clear : CMD with type Req.t = Tree.t and type Res.t = unit
 
-      module List_ignore : CMD with type Req.t = Tree.t and type Res.t = unit
-
       module Hash :
         CMD with type Req.t = Tree.t and type Res.t = Tree.Private.Store.Hash.t
 
-      module Reset_all : CMD with type Req.t = unit and type Res.t = unit
+      module Cleanup_all : CMD with type Req.t = unit and type Res.t = unit
     end
   end
 end

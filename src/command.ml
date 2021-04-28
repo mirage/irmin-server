@@ -130,7 +130,8 @@ module Make (St : STORE) = struct
             let info = Store.Commit.info head in
             let parents = Store.Commit.parents head in
             let hash = Store.Commit.hash head in
-            let head = Commit.v ~info ~parents ~node:hash in
+            let tree = Tree.Hash (Store.Commit.tree head |> Store.Tree.hash) in
+            let head = Commit.v ~info ~parents ~hash ~tree in
             Return.v conn (Irmin.Type.option Commit.t) (Some head)
     end
 
@@ -148,13 +149,13 @@ module Make (St : STORE) = struct
       let run conn ctx (branch, commit) =
         let branch = Option.value ~default:ctx.branch branch in
         let* commit =
-          St.Commit.of_hash ctx.repo (Commit.node commit) >|= Option.get
+          St.Commit.of_hash ctx.repo (Commit.hash commit) >|= Option.get
         in
         let* () = St.Branch.set ctx.repo branch commit in
         Return.ok conn
     end
 
-    module Commit_create = struct
+    module Commit_v = struct
       module Req = struct
         type t = Irmin.Info.t * St.Hash.t list * Tree.t [@@deriving irmin]
       end
@@ -163,15 +164,17 @@ module Make (St : STORE) = struct
         type t = Commit.t [@@deriving irmin]
       end
 
-      let name = "commit.create"
+      let name = "commit.v"
 
       let run conn ctx (info, parents, tree) =
         let* _, tree = resolve_tree ctx tree in
         let* commit = St.Commit.v ctx.repo ~info ~parents tree in
         let hash = St.Commit.hash commit in
-        let head = Commit.v ~info ~parents ~node:hash in
-        (*St.flush ctx.repo;*)
-        St.Tree.clear tree;
+        let tree_ = St.Commit.tree commit in
+        let tree = Tree.Hash (St.Commit.tree commit |> St.Tree.hash) in
+        let head = Commit.v ~info ~parents ~hash ~tree in
+        St.Tree.clear tree_;
+        reset_trees ctx;
         Return.v conn Commit.t head
     end
 
@@ -210,45 +213,11 @@ module Make (St : STORE) = struct
               let info = Store.Commit.info commit in
               let parents = Store.Commit.parents commit in
               let hash = Store.Commit.hash commit in
-              Commit.v ~info ~parents ~node:hash)
+              let tree = Tree.Hash (St.Commit.tree commit |> St.Tree.hash) in
+              Commit.v ~info ~parents ~hash ~tree)
             commit
         in
         Return.v conn Res.t commit
-    end
-
-    module Commit_hash = struct
-      module Req = struct
-        type t = Commit.t [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = St.Hash.t [@@deriving irmin]
-      end
-
-      let name = "commit.hash"
-
-      let run conn ctx commit =
-        let* commit = St.Commit.of_hash ctx.repo (Commit.node commit) in
-        let hash = St.Commit.hash (Option.get commit) in
-        Return.v conn Res.t hash
-    end
-
-    module Commit_tree = struct
-      module Req = struct
-        type t = Commit.t [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = Tree.t [@@deriving irmin]
-      end
-
-      let name = "commit.tree"
-
-      let run conn ctx commit =
-        let* commit = St.Commit.of_hash ctx.repo (Commit.node commit) in
-        let tree = St.Commit.tree (Option.get commit) in
-        let hash = St.Tree.hash tree in
-        Return.v conn Res.t (Tree.Hash hash)
     end
 
     module Contents_of_hash = struct
@@ -267,6 +236,44 @@ module Make (St : STORE) = struct
         Return.v conn Res.t contents
     end
 
+    module Contents_save = struct
+      module Req = struct
+        type t = St.contents [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = St.Hash.t [@@deriving irmin]
+      end
+
+      let name = "contents.save"
+
+      let run conn ctx contents =
+        let* hash =
+          St.Private.Repo.batch ctx.repo (fun t _ _ ->
+              St.save_contents t contents)
+        in
+        Return.v conn Res.t hash
+    end
+
+    module Contents_exists = struct
+      module Req = struct
+        type t = St.Hash.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = bool [@@deriving irmin]
+      end
+
+      let name = "contents.exists"
+
+      let run conn ctx hash =
+        let* exists =
+          St.Private.Repo.batch ctx.repo (fun t _ _ ->
+              St.Private.Contents.mem t hash)
+        in
+        Return.v conn Res.t exists
+    end
+
     module Store = Command_store.Make (St)
     module Tree = Command_tree.Make (St)
   end
@@ -280,13 +287,13 @@ module Make (St : STORE) = struct
       cmd (module Import);
       cmd (module Export);
       cmd (module Branch_head);
-      cmd (module Commit_create);
       cmd (module Branch_set_head);
       cmd (module Branch_remove);
+      cmd (module Commit_v);
       cmd (module Commit_of_hash);
-      cmd (module Commit_hash);
-      cmd (module Commit_tree);
       cmd (module Contents_of_hash);
+      cmd (module Contents_save);
+      cmd (module Contents_exists);
       cmd (module Flush);
     ]
     @ Store.commands @ Tree.commands
