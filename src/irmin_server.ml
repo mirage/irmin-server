@@ -4,6 +4,7 @@ module Server = Server
 module Command = Command
 module Cli = Cli
 module Return = Return
+module Stats = Stats
 include Irmin_server_intf
 
 module Make

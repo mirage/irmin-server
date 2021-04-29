@@ -9,8 +9,6 @@ module Make (Store : STORE) = struct
   module Local = struct
     type t = Store.tree
 
-    let t = Store.tree_t
-
     type key = Store.key
 
     type contents = Store.contents

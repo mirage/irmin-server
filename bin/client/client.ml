@@ -16,26 +16,32 @@ let init ~uri ~tls ~level (module Rpc : S) : client =
   let (x : Rpc.Client.t Lwt.t) = Rpc.Client.connect ~tls ~uri () in
   S ((module Rpc.Client : Client.S with type t = Rpc.Client.t), x)
 
-let run x time =
+let run f time iterations =
+  let rec eval iterations =
+    if iterations = 0 then Lwt.return_unit
+    else
+      let* () = f () in
+      eval (iterations - 1)
+  in
   let x =
     if time then (
-      let+ n, x = with_timer (fun () -> x) in
-      Logs.app (fun l -> l "Time: %fs" n);
+      let+ n, x = with_timer (fun () -> eval iterations) in
+      Logs.app (fun l -> l "Time: %fs" (n /. float_of_int iterations));
       x)
-    else x
+    else f ()
   in
   Lwt_main.run x
 
 let ping (S ((module Client), client)) =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let+ result = Client.ping client in
       let () = Error.unwrap "ping" result in
-      Logs.app (fun l -> l "OK") )
+      Logs.app (fun l -> l "OK"))
 
 let find (S ((module Client), client)) key =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let* result = Client.Store.find client key >|= Error.unwrap "find" in
       match result with
@@ -46,27 +52,27 @@ let find (S ((module Client), client)) key =
           Lwt_io.flush Lwt_io.stdout
       | None ->
           Logs.err (fun l -> l "Not found: %a" (Irmin.Type.pp Client.Key.t) key);
-          Lwt.return_unit )
+          Lwt.return_unit)
 
 let mem (S ((module Client), client)) key =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let* result = Client.Store.mem client key >|= Error.unwrap "mem" in
-      Lwt_io.printl (if result then "true" else "false") )
+      Lwt_io.printl (if result then "true" else "false"))
 
 let mem_tree (S ((module Client), client)) key =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let* result =
         Client.Store.mem_tree client key >|= Error.unwrap "mem_tree"
       in
-      Lwt_io.printl (if result then "true" else "false") )
+      Lwt_io.printl (if result then "true" else "false"))
 
 let set (S ((module Client), client)) key author message contents =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let contents =
         Irmin.Type.of_string Client.Contents.t contents
@@ -76,41 +82,41 @@ let set (S ((module Client), client)) key author message contents =
       let+ () =
         Client.Store.set client key ~info contents >|= Error.unwrap "set"
       in
-      Logs.app (fun l -> l "OK") )
+      Logs.app (fun l -> l "OK"))
 
 let remove (S ((module Client), client)) key author message =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let info = Irmin_unix.info ~author "%s" message in
       let+ () =
         Client.Store.remove client key ~info >|= Error.unwrap "remove"
       in
-      Logs.app (fun l -> l "OK") )
+      Logs.app (fun l -> l "OK"))
 
 let export (S ((module Client), client)) filename =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let* slice = Client.export client >|= Error.unwrap "export" in
       let s = Irmin.Type.(unstage (to_bin_string Client.slice_t) slice) in
-      Lwt_io.chars_to_file filename (Lwt_stream.of_string s) )
+      Lwt_io.chars_to_file filename (Lwt_stream.of_string s))
 
 let import (S ((module Client), client)) filename =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let* slice = Lwt_io.chars_of_file filename |> Lwt_stream.to_string in
       let slice =
         Irmin.Type.(unstage (of_bin_string Client.slice_t) slice)
         |> Error.unwrap "slice"
       in
       let+ () = Client.import client slice >|= Error.unwrap "import" in
-      Logs.app (fun l -> l "OK") )
+      Logs.app (fun l -> l "OK"))
 
 let stats (S ((module Client), client)) =
-  run
-    ( client >>= fun client ->
+  run (fun () ->
+      client >>= fun client ->
       let* stats = Client.stats client >|= Error.unwrap "stats" in
-      Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats) )
+      Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats))
 
 let level =
   let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
@@ -145,6 +151,16 @@ let tls =
 let time =
   let doc = Arg.info ~doc:"Enable timing" [ "time" ] in
   Arg.(value @@ flag doc)
+
+let iterations =
+  let doc =
+    Arg.info ~doc:"Iterations when timing is enabled" [ "i"; "iterations" ]
+  in
+  Arg.(value @@ opt int 1 doc)
+
+let freq =
+  let doc = Arg.info ~doc:"Update frequency" [ "f"; "freq" ] in
+  Arg.(value @@ opt float 5. doc)
 
 let config =
   let create uri tls level contents hash =
@@ -181,29 +197,30 @@ let () =
   Term.exit
   @@ Term.eval_choice help
        [
-         ( Term.(const ping $ config $ time),
+         ( Term.(const ping $ config $ time $ iterations),
            Term.info ~doc:"Ping the server" "ping" );
-         ( Term.(const find $ config $ key 0 $ time),
+         ( Term.(const find $ config $ key 0 $ time $ iterations),
            Term.info ~doc:"Get the key associated with a value" "get" );
-         ( Term.(const find $ config $ key 0 $ time),
+         ( Term.(const find $ config $ key 0 $ time $ iterations),
            Term.info ~doc:"Alias for 'get' command" "find" );
          Term.
-           ( const set $ config $ key 0 $ author $ message $ value 1 $ time,
+           ( const set $ config $ key 0 $ author $ message $ value 1 $ time
+             $ iterations,
              Term.info ~doc:"Set key/value" "set" );
          Term.
-           ( const remove $ config $ key 0 $ author $ message $ time,
+           ( const remove $ config $ key 0 $ author $ message $ time $ iterations,
              Term.info ~doc:"Remove value associated with the given key"
                "remove" );
-         ( Term.(const import $ config $ filename 0 $ time),
+         ( Term.(const import $ config $ filename 0 $ time $ iterations),
            Term.info ~doc:"Import from dump file" "import" );
-         ( Term.(const export $ config $ filename 0 $ time),
+         ( Term.(const export $ config $ filename 0 $ time $ iterations),
            Term.info ~doc:"Export to dump file" "export" );
-         ( Term.(const mem $ config $ key 0 $ time),
+         ( Term.(const mem $ config $ key 0 $ time $ iterations),
            Term.info ~doc:"Check if key is set" "mem" );
-         ( Term.(const mem_tree $ config $ key 0 $ time),
+         ( Term.(const mem_tree $ config $ key 0 $ time $ iterations),
            Term.info ~doc:"Check if key is set to a tree value" "mem_tree" );
-         ( Term.(const stats $ config $ time),
+         ( Term.(const stats $ config $ time $ iterations),
            Term.info ~doc:"Server stats" "stats" );
-         ( Term.(const Dashboard.main $ config),
+         ( Term.(const Dashboard.main $ config $ freq),
            Term.info ~doc:"Run dashboard" "dashboard" );
        ]

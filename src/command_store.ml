@@ -14,7 +14,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.find"
 
-    let run conn ctx key =
+    let run conn ctx _ key =
       let* x = Store.find ctx.store key in
       Return.v conn Res.t x
   end
@@ -30,7 +30,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.set"
 
-    let run conn ctx (key, info, contents) =
+    let run conn ctx _ (key, info, contents) =
       let* () = Store.set_exn ctx.store key ~info:(fun () -> info) contents in
       Return.ok conn
   end
@@ -50,7 +50,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.test_and_set"
 
-    let run conn ctx (key, info, (test, set)) =
+    let run conn ctx _ (key, info, (test, set)) =
       let* () =
         Store.test_and_set_exn ctx.store key ~info:(fun () -> info) ~test ~set
       in
@@ -68,7 +68,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.remove"
 
-    let run conn ctx (key, info) =
+    let run conn ctx _ (key, info) =
       let* () = Store.remove_exn ctx.store key ~info:(fun () -> info) in
       Return.ok conn
   end
@@ -84,7 +84,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.find_tree"
 
-    let run conn ctx key =
+    let run conn ctx _ key =
       let* x = Store.find_tree ctx.store key in
       let x = Option.map (fun x -> Tree.Hash (Store.Tree.hash x)) x in
       Return.v conn Res.t x
@@ -101,7 +101,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.set_tree"
 
-    let run conn ctx (key, info, tree) =
+    let run conn ctx _ (key, info, tree) =
       let* id, tree = resolve_tree ctx tree in
       let* () = Store.set_tree_exn ctx.store key ~info:(fun () -> info) tree in
       Option.iter (fun id -> Hashtbl.remove ctx.trees id) id;
@@ -120,7 +120,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.test_and_set_tree"
 
-    let run conn ctx ((key, info, (test, set)) : Req.t) =
+    let run conn ctx _ ((key, info, (test, set)) : Req.t) =
       let* test =
         match test with
         | Some test ->
@@ -156,7 +156,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.mem"
 
-    let run conn ctx key =
+    let run conn ctx _ key =
       let* res = Store.mem ctx.store key in
       Return.v conn Res.t res
   end
@@ -172,7 +172,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "store.mem_tree"
 
-    let run conn ctx key =
+    let run conn ctx _ key =
       let* res = Store.mem_tree ctx.store key in
       Return.v conn Res.t res
   end

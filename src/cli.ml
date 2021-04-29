@@ -30,4 +30,6 @@ let hash = Irmin_unix.Resolver.Hash.term
 
 let default_hash = (module Irmin.Hash.BLAKE2B : Irmin.Hash.S)
 
+let store = Irmin_unix.Resolver.store
+
 let default_contents = "string"

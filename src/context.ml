@@ -2,7 +2,11 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make (St : Command_intf.STORE with type key = string list) = struct
-  type info = { start_time : float }
+  module Server_info = struct
+    type t = { start_time : float }
+
+    let uptime { start_time; _ } = Unix.time () -. start_time
+  end
 
   type context = {
     conn : Conn.t;
@@ -10,10 +14,7 @@ module Make (St : Command_intf.STORE with type key = string list) = struct
     mutable branch : St.branch;
     mutable store : St.t;
     trees : (int, St.tree) Hashtbl.t;
-    info : info;
   }
-
-  type stats = { uptime : float; head : St.Hash.t option } [@@deriving irmin]
 
   module Tree = Tree.Make (St)
   module Commit = Commit.Make (St) (Tree)
@@ -33,7 +34,8 @@ module Make (St : Command_intf.STORE with type key = string list) = struct
 
     val name : string
 
-    val run : Conn.t -> context -> Req.t -> Res.t Return.t Lwt.t
+    val run :
+      Conn.t -> context -> Server_info.t -> Req.t -> Res.t Return.t Lwt.t
   end
 
   let cmd (module C : CMD) = (C.name, (module C : CMD))

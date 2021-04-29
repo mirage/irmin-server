@@ -17,7 +17,7 @@ module type S = sig
 
   type slice
 
-  type stats = { uptime : float; head : hash option }
+  type stats = Stats.t
 
   val stats_t : stats Irmin.Type.t
 
@@ -254,5 +254,4 @@ module type Client = sig
        and type branch = C.Store.branch
        and type key = C.Store.key
        and type commit = C.Commit.t
-       and type stats = C.Stats.t
 end

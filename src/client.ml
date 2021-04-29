@@ -24,7 +24,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   type slice = St.slice
 
-  type stats = Stats.t = { uptime : float; head : hash option }
+  type stats = Stats.t
 
   let stats_t = Stats.t
 
@@ -91,6 +91,17 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let header = Request.Header.v ~command:Cmd.name in
     Request.Write.header t.conn.Conn.oc header
 
+  let recv (t : t) name ty =
+    let* res = Response.Read.header t.conn.ic in
+    Response.Read.get_error t.conn.buffer t.conn.ic res >>= function
+    | Some err ->
+        Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
+        Lwt.return_error (`Msg err)
+    | None ->
+        let+ x = Conn.read_message t.conn ty in
+        Logs.debug (fun l -> l "Completed request: command=%s" name);
+        x
+
   let request (t : t) (type x y)
       (module Cmd : C.CMD with type Res.t = x and type Req.t = y) (a : y) =
     let name = Cmd.name in
@@ -99,15 +110,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
         let* () = send_command_header t (module Cmd) in
         let* () = Conn.write_message t.conn Cmd.Req.t a in
         let* () = Lwt_io.flush t.conn.oc in
-        let* res = Response.Read.header t.conn.ic in
-        Response.Read.get_error t.conn.buffer t.conn.ic res >>= function
-        | Some err ->
-            Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
-            Lwt.return_error (`Msg err)
-        | None ->
-            let+ x = Conn.read_message t.conn Cmd.Res.t in
-            Logs.debug (fun l -> l "Completed request: command=%s" name);
-            x)
+        recv t name Cmd.Res.t)
 
   module Cache = struct
     module Hash = Irmin.Private.Lru.Make (struct

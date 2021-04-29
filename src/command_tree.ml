@@ -14,7 +14,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.empty"
 
-    let run conn ctx () =
+    let run conn ctx _ () =
       let empty = Store.Tree.empty in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id empty;
@@ -32,7 +32,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.add"
 
-    let run conn ctx (tree, key, value) =
+    let run conn ctx _ (tree, key, value) =
       let* _, tree = resolve_tree ctx tree in
       let* tree = Store.Tree.add tree key value in
       let id = incr_id () in
@@ -57,7 +57,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.add_batch"
 
-    let run conn ctx (tree, l) =
+    let run conn ctx _ (tree, l) =
       let* _, tree = resolve_tree ctx tree in
       let* tree =
         Lwt_list.fold_left_s
@@ -88,7 +88,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.add_tree"
 
-    let run conn ctx (tree, key, tr) =
+    let run conn ctx _ (tree, key, tr) =
       let* _, tree = resolve_tree ctx tree in
       let* _, tree' = resolve_tree ctx tr in
       let* tree = Store.Tree.add_tree tree key tree' in
@@ -108,7 +108,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.find"
 
-    let run conn ctx (tree, key) =
+    let run conn ctx _ (tree, key) =
       let* _, tree = resolve_tree ctx tree in
       let* contents = Store.Tree.find tree key in
       Return.v conn Res.t contents
@@ -125,7 +125,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.find_tree"
 
-    let run conn ctx (tree, key) =
+    let run conn ctx _ (tree, key) =
       let* _, tree = resolve_tree ctx tree in
       let* tree = Store.Tree.find_tree tree key in
       let tree =
@@ -150,7 +150,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.remove"
 
-    let run conn ctx (tree, key) =
+    let run conn ctx _ (tree, key) =
       let* _, tree = resolve_tree ctx tree in
       let* tree = Store.Tree.remove tree key in
       let id = incr_id () in
@@ -169,7 +169,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.cleanup"
 
-    let run conn ctx tree =
+    let run conn ctx _ tree =
       let () =
         match tree with Tree.ID id -> Hashtbl.remove ctx.trees id | _ -> ()
       in
@@ -187,7 +187,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.to_local"
 
-    let run conn ctx tree =
+    let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
       let* tree = Tree.Local.to_concrete tree in
       Return.v conn Res.t tree
@@ -204,7 +204,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.mem"
 
-    let run conn ctx (tree, key) =
+    let run conn ctx _ (tree, key) =
       let* _, tree = resolve_tree ctx tree in
       let* res = Store.Tree.mem tree key in
       Return.v conn Res.t res
@@ -221,7 +221,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.mem_tree"
 
-    let run conn ctx (tree, key) =
+    let run conn ctx _ (tree, key) =
       let* _, tree = resolve_tree ctx tree in
       let* res = Store.Tree.mem_tree tree key in
       Return.v conn Res.t res
@@ -240,7 +240,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.list"
 
-    let run conn ctx (tree, key) =
+    let run conn ctx _ (tree, key) =
       let* _, tree = resolve_tree ctx tree in
       let* l = Store.Tree.list tree key in
       let* x =
@@ -264,7 +264,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.clear"
 
-    let run conn ctx tree =
+    let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
       Store.Tree.clear tree;
       Return.v conn Res.t ()
@@ -281,7 +281,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.hash"
 
-    let run conn ctx tree =
+    let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
       let hash = Store.Tree.hash tree in
       Return.v conn Res.t hash
@@ -298,7 +298,7 @@ module Make (Store : Command_intf.STORE) = struct
 
     let name = "tree.cleanup_all"
 
-    let run conn ctx () =
+    let run conn ctx _ () =
       reset_trees ctx;
       Return.v conn Res.t ()
   end

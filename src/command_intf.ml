@@ -9,7 +9,9 @@ module type S = sig
     include Commit.S with type hash = Store.Hash.t and type tree = Tree.t
   end
 
-  type info = { start_time : float }
+  module Server_info : sig
+    type t = { start_time : float }
+  end
 
   type context = {
     conn : Conn.t;
@@ -17,15 +19,14 @@ module type S = sig
     mutable branch : Store.branch;
     mutable store : Store.t;
     trees : (int, Store.tree) Hashtbl.t;
-    info : info;
   }
 
   module Stats : sig
-    type t = { uptime : float; head : Store.Hash.t option }
+    type t = Stats.t
 
     val t : t Irmin.Type.t
 
-    val v : start_time:float -> head:Store.Hash.t option -> t Lwt.t
+    val v : Store.repo -> Server_info.t -> t Lwt.t
 
     val to_json : t -> string
   end
@@ -45,7 +46,8 @@ module type S = sig
 
     val name : string
 
-    val run : Conn.t -> context -> Req.t -> Res.t Return.t Lwt.t
+    val run :
+      Conn.t -> context -> Server_info.t -> Req.t -> Res.t Return.t Lwt.t
   end
 
   type t = (module CMD)

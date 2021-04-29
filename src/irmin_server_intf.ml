@@ -28,6 +28,7 @@ module type Irmin_server = sig
   module Client = Client
   module Cli = Cli
   module Return = Return
+  module Stats = Stats
 
   module type S = S
 

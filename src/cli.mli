@@ -9,3 +9,5 @@ val hash : Irmin_unix.Resolver.hash option Cmdliner.Term.t
 val default_contents : string
 
 val default_hash : Irmin_unix.Resolver.hash
+
+val store : Irmin_unix.Resolver.store Cmdliner.Term.t
