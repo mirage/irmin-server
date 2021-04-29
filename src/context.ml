@@ -2,13 +2,18 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make (St : Command_intf.STORE with type key = string list) = struct
+  type info = { start_time : float }
+
   type context = {
     conn : Conn.t;
     repo : St.Repo.t;
     mutable branch : St.branch;
     mutable store : St.t;
     trees : (int, St.tree) Hashtbl.t;
+    info : info;
   }
+
+  type stats = { uptime : float; head : St.Hash.t option } [@@deriving irmin]
 
   module Tree = Tree.Make (St)
   module Commit = Commit.Make (St) (Tree)

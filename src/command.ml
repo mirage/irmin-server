@@ -8,7 +8,38 @@ module Make (St : STORE) = struct
 
   type t = (module CMD)
 
+  module Stats = struct
+    type t = stats = { uptime : float; head : St.Hash.t option }
+
+    let t = stats_t
+
+    let v ~start_time ~head =
+      let uptime = Unix.time () -. start_time in
+      Lwt.return { uptime; head }
+
+    let to_json = Irmin.Type.to_json_string t
+  end
+
   module Commands = struct
+    module Stats = struct
+      let name = "stats"
+
+      module Req = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = Stats.t [@@deriving irmin]
+      end
+
+      let run conn ctx () =
+        let* head =
+          Store.Head.find ctx.store >|= Option.map Store.Commit.hash
+        in
+        let* stats = Stats.v ~start_time:ctx.info.start_time ~head in
+        Return.v conn Res.t stats
+    end
+
     module Ping = struct
       let name = "ping"
 
@@ -125,14 +156,14 @@ module Make (St : STORE) = struct
         let branch = Option.value ~default:ctx.branch branch in
         let* head = Store.Branch.find ctx.repo branch in
         match head with
-        | None -> Return.v conn (Irmin.Type.option Commit.t) None
+        | None -> Return.v conn Res.t None
         | Some head ->
             let info = Store.Commit.info head in
             let parents = Store.Commit.parents head in
             let hash = Store.Commit.hash head in
             let tree = Tree.Hash (Store.Commit.tree head |> Store.Tree.hash) in
             let head = Commit.v ~info ~parents ~hash ~tree in
-            Return.v conn (Irmin.Type.option Commit.t) (Some head)
+            Return.v conn Res.t (Some head)
     end
 
     module Branch_set_head = struct
@@ -281,6 +312,7 @@ module Make (St : STORE) = struct
   let commands : (string * (module CMD)) list =
     let open Commands in
     [
+      cmd (module Stats);
       cmd (module Ping);
       cmd (module Set_current_branch);
       cmd (module Get_current_branch);

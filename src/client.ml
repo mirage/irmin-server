@@ -24,6 +24,10 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   type slice = St.slice
 
+  type stats = Stats.t = { uptime : float; head : hash option }
+
+  let stats_t = Stats.t
+
   let slice_t = St.slice_t
 
   type conf = { client : Conduit_lwt_unix.client; batch_size : int }
@@ -120,6 +124,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
     let contents : contents Hash.t = Hash.create 64
   end
+
+  let stats t = request t (module Commands.Stats) ()
 
   let ping t = request t (module Commands.Ping) ()
 

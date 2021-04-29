@@ -17,6 +17,10 @@ module type S = sig
 
   type slice
 
+  type stats = { uptime : float; head : hash option }
+
+  val stats_t : stats Irmin.Type.t
+
   val slice_t : slice Irmin.Type.t
 
   module Key : Irmin.Path.S with type t = key
@@ -41,6 +45,8 @@ module type S = sig
   (** Connect to the server specified by [uri] *)
 
   val close : t -> unit Lwt.t
+
+  val stats : t -> stats Error.result Lwt.t
 
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
@@ -248,4 +254,5 @@ module type Client = sig
        and type branch = C.Store.branch
        and type key = C.Store.key
        and type commit = C.Commit.t
+       and type stats = C.Stats.t
 end

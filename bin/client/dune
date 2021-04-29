@@ -1,5 +1,5 @@
 (executable
  (public_name irmin-client)
- (package irmin-server)
+ (package irmin-client)
  (name client)
- (libraries irmin-server))
+ (libraries irmin-server nottui-lwt))

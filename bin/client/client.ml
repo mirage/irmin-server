@@ -2,14 +2,13 @@ open Cmdliner
 open Lwt.Syntax
 open Lwt.Infix
 open Irmin_server
+open Import
 
 let with_timer f =
   let t0 = Sys.time () in
   let+ a = f () in
   let t1 = Sys.time () -. t0 in
   (t1, a)
-
-type client = S : ((module Client.S with type t = 'a) * 'a Lwt.t) -> client
 
 let init ~uri ~tls ~level (module Rpc : S) : client =
   let () = Logs.set_level (Some level) in
@@ -107,6 +106,12 @@ let import (S ((module Client), client)) filename =
       let+ () = Client.import client slice >|= Error.unwrap "import" in
       Logs.app (fun l -> l "OK") )
 
+let stats (S ((module Client), client)) =
+  run
+    ( client >>= fun client ->
+      let* stats = Client.stats client >|= Error.unwrap "stats" in
+      Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats) )
+
 let level =
   let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
   Arg.(value @@ opt string "error" doc)
@@ -197,4 +202,8 @@ let () =
            Term.info ~doc:"Check if key is set" "mem" );
          ( Term.(const mem_tree $ config $ key 0 $ time),
            Term.info ~doc:"Check if key is set to a tree value" "mem_tree" );
+         ( Term.(const stats $ config $ time),
+           Term.info ~doc:"Server stats" "stats" );
+         ( Term.(const Dashboard.main $ config),
+           Term.info ~doc:"Run dashboard" "dashboard" );
        ]

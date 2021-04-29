@@ -8,6 +8,7 @@ module Make (X : Command.S) = struct
   module Store = X.Store
 
   type t = {
+    start_time : float;
     ctx : Conduit_lwt_unix.ctx;
     uri : Uri.t;
     server : Conduit_lwt_unix.server;
@@ -58,7 +59,8 @@ module Make (X : Command.S) = struct
     let config = Irmin_pack_layered.config ~conf ~with_lower:true () in
     let+ repo = Store.Repo.v config in
     let clients = Hashtbl.create 8 in
-    { ctx; uri; server; config; repo; clients }
+    let start_time = Unix.time () in
+    { ctx; uri; server; config; repo; clients; start_time }
 
   let commands = Hashtbl.create (List.length Command.commands)
 
@@ -109,7 +111,7 @@ module Make (X : Command.S) = struct
               Lwt_unix.sleep 0.01)
       >>= fun () -> loop repo clients conn client
 
-  let callback { repo; clients; _ } flow ic oc =
+  let callback { repo; clients; start_time; _ } flow ic oc =
     (* Handshake check *)
     let* check =
       Lwt.catch (fun () -> Handshake.V1.check ic oc) (fun _ -> Lwt.return_false)
@@ -126,7 +128,8 @@ module Make (X : Command.S) = struct
       let branch = Store.Branch.master in
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
-      let client = Command.{ conn; repo; branch; store; trees } in
+      let info = Command.{ start_time } in
+      let client = Command.{ conn; repo; branch; store; trees; info } in
       Hashtbl.replace clients client ();
       loop repo clients conn client
 
