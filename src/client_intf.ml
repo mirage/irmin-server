@@ -46,6 +46,8 @@ module type S = sig
 
   val close : t -> unit Lwt.t
 
+  val dup : t -> t Lwt.t
+
   val stats : t -> stats Error.result Lwt.t
 
   val ping : t -> unit Error.result Lwt.t

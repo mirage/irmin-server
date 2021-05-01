@@ -12,15 +12,25 @@ let main (S ((module Client), client)) freq =
   let adds = Lwd.var 0 in
   let finds = Lwd.var 0 in
   let cache_misses = Lwd.var 0 in
+  let last_update = Lwd.var None in
   let ui =
     let open Lwd_infix in
     let$* uptime = Lwd.get uptime in
     let$* branches = Lwd.get branches in
     let$* adds = Lwd.get adds in
+    let$* last_update = Lwd.get last_update in
     let$* cache_misses = Lwd.get cache_misses in
     let$ finds = Lwd.get finds in
     let branches =
       List.map (fun s -> W.sub_entry s (fun () -> print_endline s)) branches
+    in
+    let last_update =
+      match last_update with
+      | Some last_update ->
+          Irmin.Type.to_json_string ~minify:false
+            (Irmin.Diff.t Client.Commit.t)
+            last_update
+      | None -> "n/a"
     in
     Ui.keyboard_area
       (function `Escape, _ -> exit 0 | _, _ -> `Unhandled)
@@ -31,6 +41,8 @@ let main (S ((module Client), client)) freq =
             W.printf "adds: %d" adds;
             W.printf "finds: %d" finds;
             W.printf "cache_misses: %d" cache_misses;
+            W.printf "last update: %s" last_update;
+            W.printf "";
             W.printf "branches:";
           ]
          @ branches))
@@ -47,6 +59,17 @@ let main (S ((module Client), client)) freq =
         tick client ())
   in
 
+  let watch client () =
+    Lwt.async (fun () ->
+        let f x =
+          Lwd.set last_update (Some x);
+          Lwt.return_ok `Continue
+        in
+        Client.Store.watch f client >|= Error.unwrap "watch")
+  in
+
+  let* wc = Client.dup client in
+  watch wc ();
   tick client ();
   Nottui_lwt.run ui
 

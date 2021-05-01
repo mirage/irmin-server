@@ -81,6 +81,8 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let client = conf ?batch_size ?tls ~uri () in
     connect' client
 
+  let dup client = connect' client.conf
+
   let close t = Conduit_lwt_server.close (t.conn.ic, t.conn.oc)
 
   let handle_disconnect t f =
