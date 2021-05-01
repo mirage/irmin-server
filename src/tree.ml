@@ -23,6 +23,8 @@ module Make (Store : STORE) = struct
 
     include Store.Tree
 
+    let t = Store.tree_t
+
     let destruct x =
       match Store.Tree.destruct x with
       | `Contents (x, _) -> Lwt.return (`Contents (Store.Tree.Contents.hash x))

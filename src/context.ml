@@ -1,7 +1,10 @@
 open Lwt.Syntax
 open Lwt.Infix
 
-module Make (St : Command_intf.STORE with type key = string list) = struct
+module Make
+    (St : Command_intf.STORE with type key = string list)
+    (Tree : Tree.S with module Private.Store = St and type Local.t = St.tree) =
+struct
   module Server_info = struct
     type t = { start_time : float }
 
@@ -14,10 +17,8 @@ module Make (St : Command_intf.STORE with type key = string list) = struct
     mutable branch : St.branch;
     mutable store : St.t;
     trees : (int, St.tree) Hashtbl.t;
+    mutable watch : St.watch option;
   }
-
-  module Tree = Tree.Make (St)
-  module Commit = Commit.Make (St) (Tree)
 
   module type CMD = sig
     module Req : sig

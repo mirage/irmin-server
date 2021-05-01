@@ -1,6 +1,4 @@
 module type S = sig
-  type conf = { client : Conduit_lwt_unix.client; batch_size : int }
-
   type t
 
   type hash
@@ -43,6 +41,8 @@ module type S = sig
 
   val connect : ?batch_size:int -> ?tls:bool -> uri:string -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
+
+  val uri : t -> Uri.t
 
   val close : t -> unit Lwt.t
 
@@ -179,6 +179,8 @@ module type S = sig
       tree -> key -> (Key.step * [ `Contents | `Tree ]) list Error.result Lwt.t
     (** List entries at the specified root *)
 
+    val merge : old:tree -> tree -> tree -> tree Error.result Lwt.t
+
     module Local :
       Tree.LOCAL
         with type key = key
@@ -241,6 +243,18 @@ module type S = sig
 
     val mem_tree : t -> key -> bool Error.result Lwt.t
     (** Check if the given key has an associated tree *)
+
+    val merge : t -> info:Irmin.Info.f -> branch -> unit Error.result Lwt.t
+
+    val merge_commit :
+      t -> info:Irmin.Info.f -> Commit.t -> unit Error.result Lwt.t
+
+    val last_modified : t -> key -> Commit.t list Error.result Lwt.t
+
+    val watch :
+      (Commit.t Irmin.Diff.t -> [ `Continue | `Stop ] Error.result Lwt.t) ->
+      t ->
+      unit Error.result Lwt.t
   end
 end
 

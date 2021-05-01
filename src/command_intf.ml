@@ -5,9 +5,7 @@ module type S = sig
 
   module Tree : Tree.S with module Private.Store = Store
 
-  module Commit : sig
-    include Commit.S with type hash = Store.Hash.t and type tree = Tree.t
-  end
+  module Commit : Commit.S with type hash = Store.Hash.t and type tree = Tree.t
 
   module Server_info : sig
     type t = { start_time : float }
@@ -19,6 +17,7 @@ module type S = sig
     mutable branch : Store.branch;
     mutable store : Store.t;
     trees : (int, Store.tree) Hashtbl.t;
+    mutable watch : Store.watch option;
   }
 
   module Stats : sig
@@ -143,6 +142,21 @@ module type S = sig
       module Mem : CMD with type Req.t = Store.key and type Res.t = bool
 
       module Mem_tree : CMD with type Req.t = Store.key and type Res.t = bool
+
+      module Merge :
+        CMD
+          with type Req.t = Irmin.Info.t * Store.Branch.t
+           and type Res.t = unit
+
+      module Merge_commit :
+        CMD with type Req.t = Irmin.Info.t * Commit.t and type Res.t = unit
+
+      module Last_modified :
+        CMD with type Req.t = Store.key and type Res.t = Commit.t list
+
+      module Watch : CMD with type Req.t = unit and type Res.t = unit
+
+      module Unwatch : CMD with type Req.t = unit and type Res.t = unit
     end
 
     (* Tree *)
@@ -214,6 +228,9 @@ module type S = sig
         CMD with type Req.t = Tree.t and type Res.t = Tree.Private.Store.Hash.t
 
       module Cleanup_all : CMD with type Req.t = unit and type Res.t = unit
+
+      module Merge :
+        CMD with type Req.t = Tree.t * Tree.t * Tree.t and type Res.t = Tree.t
     end
   end
 end

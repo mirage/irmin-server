@@ -26,6 +26,7 @@ depends: [
   "ppx_deriving_yojson"
   "bentov"
   "benchmark"
+  "nottui-lwt"
 ]
 build: [
   ["dune" "subst"] {pinned}

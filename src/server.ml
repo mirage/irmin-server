@@ -71,6 +71,11 @@ module Make (X : Command.S) = struct
 
   let[@tailrec] rec loop repo clients conn client info : unit Lwt.t =
     if Lwt_io.is_closed conn.Conn.ic then
+      let* () =
+        match client.Command.watch with
+        | Some w -> Store.unwatch w
+        | None -> Lwt.return_unit
+      in
       let () = Hashtbl.remove clients client in
       Lwt.return_unit
     else
@@ -127,7 +132,7 @@ module Make (X : Command.S) = struct
       let branch = Store.Branch.master in
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
-      let client = Command.{ conn; repo; branch; store; trees } in
+      let client = Command.{ conn; repo; branch; store; trees; watch = None } in
       Hashtbl.replace clients client ();
       loop repo clients conn client info
 

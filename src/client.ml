@@ -30,9 +30,15 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   let slice_t = St.slice_t
 
-  type conf = { client : Conduit_lwt_unix.client; batch_size : int }
+  type conf = {
+    uri : Uri.t;
+    client : Conduit_lwt_unix.client;
+    batch_size : int;
+  }
 
   type t = { conf : conf; mutable conn : Conn.t }
+
+  let uri t = t.conf.uri
 
   type batch =
     (key
@@ -62,7 +68,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
           else `TLS (`Hostname addr, `IP ip, `Port port)
       | x -> invalid_arg ("Unknown client scheme: " ^ x)
     in
-    { client; batch_size }
+    { client; batch_size; uri }
 
   let connect' conf =
     let ctx = Conduit_lwt_unix.default_ctx in
@@ -111,6 +117,16 @@ module Make (C : Command.S with type Store.key = string list) = struct
         let* () = Conn.write_message t.conn Cmd.Req.t a in
         let* () = Lwt_io.flush t.conn.oc in
         recv t name Cmd.Res.t)
+
+  let recv_commit_diff (t : t) =
+    Lwt.catch
+      (fun () ->
+        Conn.read_message t.conn (Irmin.Diff.t Commit.t) >>= function
+        | Ok x -> Lwt.return_some x
+        | Error e ->
+            Logs.err (fun l -> l "Watch error: %s" (Error.to_string e));
+            Lwt.return_none)
+      (fun _ -> Lwt.return_none)
 
   module Cache = struct
     module Hash = Irmin.Private.Lru.Make (struct
@@ -189,6 +205,38 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let mem t key = request t (module Commands.Store.Mem) key
 
     let mem_tree t key = request t (module Commands.Store.Mem_tree) key
+
+    let merge t ~info branch =
+      request t (module Commands.Store.Merge) (info (), branch)
+
+    let merge_commit t ~info commit =
+      request t (module Commands.Store.Merge_commit) (info (), commit)
+
+    let last_modified t key =
+      request t (module Commands.Store.Last_modified) key
+
+    let unwatch t = request t (module Commands.Store.Unwatch) ()
+
+    let watch f t =
+      request t (module Commands.Store.Watch) () >>= function
+      | Error e -> Lwt.return_error e
+      | Ok () -> (
+          let rec loop () =
+            recv_commit_diff t >>= function
+            | Some diff -> (
+                f diff >>= function
+                | Ok `Continue -> loop ()
+                | Ok `Stop -> Lwt.return_ok ()
+                | Error e -> Lwt.return_error e)
+            | None ->
+                let* () = Lwt_unix.sleep 0.25 in
+                loop ()
+          in
+          loop () >>= function
+          | Ok () -> unwatch t
+          | Error e ->
+              let* _ = unwatch t in
+              Lwt.return_error e)
   end
 
   module Contents = struct
@@ -360,6 +408,12 @@ module Make (C : Command.S with type Store.key = string list) = struct
       let* tree = build t ~tree batch in
       map_tree tree (fun tree ->
           request t (module Commands.Tree.List) (tree, key))
+
+    let merge ~old:(_, old, old') (t, a, a') (_, b, b') =
+      let* _, old, _ = build t ~tree:old old' >|= Error.unwrap "build:old" in
+      let* _, a, _ = build t ~tree:a a' >|= Error.unwrap "build:a" in
+      let* _, b, _ = build t ~tree:b b' >|= Error.unwrap "build:b" in
+      wrap t (request t (module Commands.Tree.Merge) (old, a, b))
 
     module Local = Private.Tree.Local
 

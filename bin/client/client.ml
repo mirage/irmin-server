@@ -118,6 +118,25 @@ let stats (S ((module Client), client)) =
       let* stats = Client.stats client >|= Error.unwrap "stats" in
       Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats))
 
+let watch (S ((module Client), client)) =
+  Lwt_main.run
+    ( client >>= fun client ->
+      let pp = Irmin.Type.pp Client.Commit.t in
+      Client.Store.watch
+        (fun x ->
+          match x with
+          | `Updated (a, b) ->
+              Logs.app (fun l -> l "Updated (%a, %a)" pp a pp b);
+              Lwt.return_ok `Continue
+          | `Added a ->
+              Logs.app (fun l -> l "Added %a" pp a);
+              Lwt.return_ok `Continue
+          | `Removed a ->
+              Logs.app (fun l -> l "Removed %a" pp a);
+              Lwt.return_ok `Continue)
+        client
+      >|= Error.unwrap "watch" )
+
 let level =
   let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
   Arg.(value @@ opt string "error" doc)
@@ -221,6 +240,8 @@ let () =
            Term.info ~doc:"Check if key is set to a tree value" "mem_tree" );
          ( Term.(const stats $ config $ time $ iterations),
            Term.info ~doc:"Server stats" "stats" );
+         ( Term.(const watch $ config),
+           Term.info ~doc:"Watch for updates" "watch" );
          ( Term.(const Dashboard.main $ config $ freq),
            Term.info ~doc:"Run dashboard" "dashboard" );
        ]

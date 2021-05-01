@@ -1,7 +1,21 @@
 open Lwt.Syntax
+open Lwt.Infix
 
-module Make (Store : Command_intf.STORE) = struct
-  include Context.Make (Store)
+module Make
+    (Store : Command_intf.STORE)
+    (Tree : Tree.S
+              with module Private.Store = Store
+               and type Local.t = Store.tree)
+    (Commit : Commit.S with type hash = Store.hash and type tree = Tree.t) =
+struct
+  include Context.Make (Store) (Tree)
+
+  let convert_commit head =
+    let info = Store.Commit.info head in
+    let parents = Store.Commit.parents head in
+    let hash = Store.Commit.hash head in
+    let tree = Tree.Hash (Store.Commit.tree head |> Store.Tree.hash) in
+    Commit.v ~info ~parents ~hash ~tree
 
   module Find = struct
     module Req = struct
@@ -177,6 +191,124 @@ module Make (Store : Command_intf.STORE) = struct
       Return.v conn Res.t res
   end
 
+  module Merge = struct
+    module Req = struct
+      type t = Irmin.Info.t * Store.Branch.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    let name = "store.merge"
+
+    let run conn ctx _ (info, other) =
+      let* merge =
+        Store.merge_with_branch ctx.store other ~info:(fun () -> info)
+      in
+      match merge with
+      | Ok () -> Return.v conn Res.t ()
+      | Error e ->
+          Return.err conn (Irmin.Type.to_string Irmin.Merge.conflict_t e)
+  end
+
+  module Merge_commit = struct
+    module Req = struct
+      type t = Irmin.Info.t * Commit.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    let name = "store.merge_commit"
+
+    let run conn ctx _ ((info, other) : Req.t) =
+      let* commit =
+        Store.Commit.of_hash ctx.repo (Commit.hash other) >|= Option.get
+      in
+      let* merge =
+        Store.merge_with_commit ctx.store commit ~info:(fun () -> info)
+      in
+      match merge with
+      | Ok () -> Return.v conn Res.t ()
+      | Error e ->
+          Return.err conn (Irmin.Type.to_string Irmin.Merge.conflict_t e)
+  end
+
+  module Last_modified = struct
+    module Req = struct
+      type t = Store.key [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Commit.t list [@@deriving irmin]
+    end
+
+    let name = "store.last_modified"
+
+    let run conn ctx _ key =
+      let* res =
+        Store.last_modified ctx.store key >|= List.map convert_commit
+      in
+      Return.v conn Res.t res
+  end
+
+  module Watch = struct
+    module Req = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    let name = "store.watch"
+
+    let run conn ctx _ () =
+      let* () =
+        match ctx.watch with
+        | Some watch ->
+            ctx.watch <- None;
+            Store.unwatch watch
+        | None -> Lwt.return_unit
+      in
+      let* watch =
+        Store.watch ctx.store (fun diff ->
+            let diff =
+              match diff with
+              | `Updated (a, b) -> `Updated (convert_commit a, convert_commit b)
+              | `Added a -> `Added (convert_commit a)
+              | `Removed a -> `Removed (convert_commit a)
+            in
+            Conn.write_message conn (Irmin.Diff.t Commit.t) diff)
+      in
+      ctx.watch <- Some watch;
+      Return.v conn Res.t ()
+  end
+
+  module Unwatch = struct
+    module Req = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = unit [@@deriving irmin]
+    end
+
+    let name = "store.unwatch"
+
+    let run conn ctx _ () =
+      let* () =
+        match ctx.watch with
+        | Some watch ->
+            ctx.watch <- None;
+            Store.unwatch watch
+        | None -> Lwt.return_unit
+      in
+      Return.v conn Res.t ()
+  end
+
   let commands =
     [
       cmd (module Find);
@@ -188,5 +320,10 @@ module Make (Store : Command_intf.STORE) = struct
       cmd (module Mem_tree);
       cmd (module Test_and_set);
       cmd (module Test_and_set_tree);
+      cmd (module Merge);
+      cmd (module Merge_commit);
+      cmd (module Last_modified);
+      cmd (module Watch);
+      cmd (module Unwatch);
     ]
 end

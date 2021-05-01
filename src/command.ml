@@ -4,9 +4,12 @@ include Command_intf
 
 module Make (St : STORE) = struct
   module Store = St
-  include Context.Make (St)
+  module Tree = Tree.Make (St)
+  include Context.Make (St) (Tree)
 
   type t = (module CMD)
+
+  module Commit = Commit.Make (St) (Tree)
 
   let convert_commit head =
     let info = Store.Commit.info head in
@@ -114,7 +117,7 @@ module Make (St : STORE) = struct
       let name = "export"
 
       let run conn ctx _ () =
-        let* slice = Store.Repo.export ~full:true ctx.repo in
+        let* slice = Store.Repo.export ~full:true ~max:`Head ctx.repo in
         Return.v conn Store.slice_t slice
     end
 
@@ -306,8 +309,8 @@ module Make (St : STORE) = struct
         Return.v conn Res.t exists
     end
 
-    module Store = Command_store.Make (St)
-    module Tree = Command_tree.Make (St)
+    module Store = Command_store.Make (St) (Tree) (Commit)
+    module Tree = Command_tree.Make (St) (Tree) (Commit)
   end
 
   let commands : (string * (module CMD)) list =

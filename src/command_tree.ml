@@ -1,7 +1,13 @@
 open Lwt.Syntax
 
-module Make (Store : Command_intf.STORE) = struct
-  include Context.Make (Store)
+module Make
+    (Store : Command_intf.STORE)
+    (Tree : Tree.S
+              with module Private.Store = Store
+               and type Local.t = Store.tree)
+    (Commit : Commit.S with type hash = Store.hash and type tree = Tree.t) =
+struct
+  include Context.Make (Store) (Tree)
 
   module Empty = struct
     module Req = struct
@@ -95,6 +101,33 @@ module Make (Store : Command_intf.STORE) = struct
       let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
       Return.v conn Res.t (ID id)
+  end
+
+  module Merge = struct
+    module Req = struct
+      type t = Tree.t * Tree.t * Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    let name = "tree.merge"
+
+    let run conn ctx _ (old, tree, tr) =
+      let* _, old = resolve_tree ctx old in
+      let* _, tree = resolve_tree ctx tree in
+      let* _, tree' = resolve_tree ctx tr in
+      let* tree =
+        Irmin.Merge.f Store.Tree.merge ~old:(Irmin.Merge.promise old) tree tree'
+      in
+      match tree with
+      | Ok tree ->
+          let id = incr_id () in
+          Hashtbl.replace ctx.trees id tree;
+          Return.v conn Res.t (ID id)
+      | Error e ->
+          Return.err conn (Irmin.Type.to_string Irmin.Merge.conflict_t e)
   end
 
   module Find = struct
@@ -320,5 +353,6 @@ module Make (Store : Command_intf.STORE) = struct
       cmd (module Add_tree);
       cmd (module Clear);
       cmd (module Hash);
+      cmd (module Merge);
     ]
 end
