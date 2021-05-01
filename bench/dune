@@ -50,7 +50,7 @@
   mtime
   mtime.clock.os
   bentov
-  tezos-context-hash))
+  tezos-context-hash-irmin))
 
 (executable
  (name overhead)

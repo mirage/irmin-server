@@ -547,7 +547,7 @@ module type CONF = sig
 end
 
 module Make_store_layered (Conf : CONF) = struct
-  open Tezos_context_hash.Encoding
+  open Tezos_context_hash_irmin.Encoding
   module Rpc =
     Irmin_server.Make_layered (Conf) (Node) (Commit) (Metadata) (Contents)
       (Branch)
@@ -571,7 +571,7 @@ module Make_store_layered (Conf : CONF) = struct
 end
 
 module Make_store_pack (Conf : CONF) = struct
-  open Tezos_context_hash.Encoding
+  open Tezos_context_hash_irmin.Encoding
 
   module Rpc =
     Irmin_server.Make_ext
@@ -718,7 +718,7 @@ let get_suite suite_filter =
     suite
 
 let run_server (module Conf : CONF) config =
-  let open Tezos_context_hash.Encoding in
+  let open Tezos_context_hash_irmin.Encoding in
   let module Rpc =
     Irmin_server.Make_ext
       (struct
