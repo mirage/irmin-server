@@ -1,8 +1,8 @@
 open Cmdliner
 open Lwt.Syntax
 open Lwt.Infix
-open Irmin_server
 open Import
+open Irmin_server_types
 
 let with_timer f =
   let t0 = Sys.time () in
@@ -10,11 +10,11 @@ let with_timer f =
   let t1 = Sys.time () -. t0 in
   (t1, a)
 
-let init ~uri ~tls ~level (module Rpc : S) : client =
+let init ~uri ~tls ~level (module Client : Irmin_client.S) : client =
   let () = Logs.set_level (Some level) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
-  let (x : Rpc.Client.t Lwt.t) = Rpc.Client.connect ~tls ~uri () in
-  S ((module Rpc.Client : Client.S with type t = Rpc.Client.t), x)
+  let (x : Client.t Lwt.t) = Client.connect ~tls ~uri () in
+  S ((module Client : Irmin_client.S with type t = Client.t), x)
 
 let run f time iterations =
   let rec eval iterations =
@@ -191,18 +191,20 @@ let config =
         (Option.value ~default:Cli.default_contents contents)
     in
     let (module Contents : Irmin.Contents.S) = contents in
-    let module Rpc =
-      Irmin_server.Make
+    let module Maker =
+      Irmin_pack.Maker
         (struct
           let version = `V1
         end)
-        (Irmin_server.Conf.Default)
-        (Irmin.Metadata.None)
-        (Contents)
+        (Conf.Default)
+    in
+    let module Store =
+      Maker.Make (Irmin.Metadata.None) (Contents) (Irmin.Path.String_list)
         (Irmin.Branch.String)
         (Hash)
     in
-    init ~uri ~tls ~level (module Rpc)
+    let module Client = Irmin_client.Make (Store) in
+    init ~uri ~tls ~level (module Client)
   in
   Term.(const create $ Cli.uri $ tls $ Cli.log_level $ Cli.contents $ Cli.hash)
 

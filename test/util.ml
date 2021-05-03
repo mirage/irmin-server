@@ -1,12 +1,20 @@
 open Lwt.Infix
-open Irmin_server
 
-module Rpc =
-  KV
-    (struct
-      let version = `V1
-    end)
-    (Irmin.Contents.String)
+module Rpc = struct
+  module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
+
+  module Client = Irmin_client.Make (struct
+    include Store
+
+    let flush _ = ()
+  end)
+
+  module Server = Irmin_server.Make (struct
+    include Store
+
+    let flush _ = ()
+  end)
+end
 
 let test name f client _switch () =
   Logs.debug (fun l -> l "Running: %s" name);

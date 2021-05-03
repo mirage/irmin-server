@@ -1,3 +1,5 @@
+open Irmin_server_types
+
 module type S = sig
   type t
 
@@ -13,7 +15,11 @@ module type S = sig
 
   type tree
 
+  type step
+
   type slice
+
+  type metadata
 
   type stats = Stats.t
 
@@ -21,11 +27,23 @@ module type S = sig
 
   val slice_t : slice Irmin.Type.t
 
-  module Key : Irmin.Path.S with type t = key
+  module Key : Irmin.Path.S with type t = key and type step = step
 
   module Hash : Irmin.Hash.S with type t = hash
 
+  module Metadata : Irmin.Metadata.S with type t = metadata
+
   module Private : sig
+    module Store :
+      Irmin.S
+        with type hash = hash
+         and type contents = contents
+         and type branch = branch
+         and type key = key
+         and type step = step
+         and type slice = slice
+         and type metadata = metadata
+
     module Tree :
       Tree.S
         with type Private.Store.hash = hash
@@ -270,4 +288,6 @@ module type Client = sig
        and type branch = C.Store.branch
        and type key = C.Store.key
        and type commit = C.Commit.t
+       and type step = C.Store.step
+       and type metadata = C.Store.metadata
 end

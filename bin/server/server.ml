@@ -1,5 +1,5 @@
 open Lwt.Syntax
-open Irmin_server
+open Irmin_server_types
 
 let main ~root ~uri ~tls ~level ~contents ~hash =
   let (module Contents : Irmin.Contents.S) =
@@ -9,18 +9,19 @@ let main ~root ~uri ~tls ~level ~contents ~hash =
   let (module Hash : Irmin.Hash.S) =
     Option.value ~default:Cli.default_hash hash
   in
-  let module Rpc =
-    Make
+  let module Maker =
+    Irmin_pack.Maker
       (struct
         let version = `V1
       end)
       (Conf.Default)
-      (Irmin.Metadata.None)
-      (Contents)
+  in
+  let module Store =
+    Maker.Make (Irmin.Metadata.None) (Contents) (Irmin.Path.String_list)
       (Irmin.Branch.String)
       (Hash)
   in
-  let open Rpc in
+  let module Server = Irmin_server.Make (Store) in
   let () = Logs.set_level (Some level) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
   let config = Irmin_pack.config root in

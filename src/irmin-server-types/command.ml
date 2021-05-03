@@ -5,11 +5,10 @@ include Command_intf
 module Make (St : STORE) = struct
   module Store = St
   module Tree = Tree.Make (St)
+  module Commit = Commit.Make (St) (Tree)
   include Context.Make (St) (Tree)
 
   type t = (module CMD)
-
-  module Commit = Commit.Make (St) (Tree)
 
   let convert_commit head =
     let info = Store.Commit.info head in

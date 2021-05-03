@@ -1,7 +1,7 @@
 (library
  (name bench_common)
  (modules bench_common)
- (libraries irmin-server irmin-pack unix progress progress.unix uuidm))
+ (libraries irmin-server irmin-client unix progress progress.unix uuidm))
 
 ;; Require the above executables to compile during tests
 
@@ -22,8 +22,15 @@
  (modules trace_common trace_definitions trace_collection)
  (preprocess
   (pps ppx_repr ppx_deriving.enum))
- (libraries irmin irmin-pack unix lwt repr ppx_repr bentov mtime
-   mtime.clock.os))
+ (libraries
+  irmin-server irmin-client
+  unix
+  lwt
+  repr
+  ppx_repr
+  bentov
+  mtime
+  mtime.clock.os))
 
 (executable
  (name main)
@@ -31,11 +38,8 @@
  (preprocess
   (pps ppx_deriving_yojson ppx_repr))
  (libraries
-  irmin-server
-  irmin-pack
-  irmin-pack.layered
+  irmin-server irmin-client
   irmin-test.bench
-  irmin-layers
   irmin_traces
   lwt
   unix
@@ -58,12 +62,8 @@
  (preprocess
   (pps ppx_deriving_yojson ppx_repr))
  (libraries
-  benchmark
-  irmin-server
-  irmin-pack
-  irmin-pack.layered
+  irmin-server irmin-client
   irmin-test.bench
-  irmin-layers
   irmin_traces
   lwt
   unix
@@ -73,6 +73,7 @@
   repr
   ppx_repr
   bench_common
+  benchmark
   mtime
   mtime.clock.os
   tezos-context-hash))

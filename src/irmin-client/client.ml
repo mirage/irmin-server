@@ -1,3 +1,4 @@
+open Irmin_server_types
 open Lwt.Syntax
 open Lwt.Infix
 include Client_intf
@@ -7,8 +8,10 @@ module Make (C : Command.S with type Store.key = string list) = struct
   open C
   module Hash = Store.Hash
   module Key = Store.Key
+  module Metadata = Store.Metadata
 
   module Private = struct
+    module Store = C.Store
     module Tree = C.Tree
   end
 
@@ -20,11 +23,15 @@ module Make (C : Command.S with type Store.key = string list) = struct
 
   type key = Store.key
 
+  type step = Store.step
+
   type commit = C.Commit.t
 
   type slice = St.slice
 
   type stats = Stats.t
+
+  type metadata = St.metadata
 
   let stats_t = Stats.t
 

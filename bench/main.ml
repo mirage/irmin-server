@@ -41,20 +41,20 @@ type config = {
 
 module type Store = sig
   include
-    Irmin_server.S
-      with type Store.contents = bytes
-       and type Store.key = string list
-       and type Store.step = string
-       and type Store.metadata = unit
-       and type Store.branch = string
+    Irmin_client.S
+      with type contents = bytes
+       and type key = string list
+       and type step = string
+       and type metadata = unit
+       and type branch = string
 
-  type on_commit := int -> Store.Hash.t -> unit Lwt.t
+  type on_commit := int -> Hash.t -> unit Lwt.t
 
   type on_end := unit -> unit Lwt.t
 
   type pp := Format.formatter -> unit
 
-  val create_repo : config -> (Client.t * on_commit * on_end * pp) Lwt.t
+  val create_repo : config -> (t * on_commit * on_end * pp) Lwt.t
 end
 
 let pp_inode_config ppf (entries, stable_hash) =
@@ -188,16 +188,15 @@ module Bootstrap_trace = struct
     Seq.unfold aux (ops_seq, 0, [])
 end
 
-module Trace_replay (Store : Store) = struct
-  module Client = Store.Client
-  module Stat_collector = Trace_collection.Make_stat (Store.Store)
+module Trace_replay (Client : Store) = struct
+  module Stat_collector = Trace_collection.Make_stat (Client.Private.Store)
 
-  type context = { tree : Store.Client.tree }
+  type context = { tree : Client.tree }
 
   type t = {
     contexts : (int64, context) Hashtbl.t;
-    hash_corresps : (Bootstrap_trace.Def.hash, Store.Client.Hash.t) Hashtbl.t;
-    mutable latest_commit : Store.Client.Hash.t option;
+    hash_corresps : (Bootstrap_trace.Def.hash, Client.Hash.t) Hashtbl.t;
+    mutable latest_commit : Client.Hash.t option;
   }
 
   let error_find op k b n_op n_c in_ctx_id =
@@ -311,7 +310,8 @@ module Trace_replay (Store : Store) = struct
     let { tree } = Hashtbl.find t.contexts (unscope in_ctx_id) in
     maybe_forget_ctx t in_ctx_id;
     let* () =
-      Stat_collector.commit_begin stats (* TODO: tree *) Store.Store.Tree.empty
+      Stat_collector.commit_begin stats
+        (* TODO: tree *) Client.Private.Store.Tree.empty
     in
     (*let* _ =
         (* in tezos commits call Tree.list first for the unshallow operation *)
@@ -322,7 +322,7 @@ module Trace_replay (Store : Store) = struct
       Client.Commit.v repo ~info ~parents:parents_store tree
       >|= Error.unwrap "Commit.v"
     in
-    let+ () = Stat_collector.commit_end stats Store.Store.Tree.empty in
+    let+ () = Stat_collector.commit_end stats Client.Private.Store.Tree.empty in
     (*Store.Tree.clear tree;*)
     let h_store = Client.Commit.hash commit in
     if check_hash then check_hash_trace (unscope h_trace) h_store;
@@ -411,7 +411,7 @@ module Trace_replay (Store : Store) = struct
       Bootstrap_trace.open_commit_sequence config.ncommits_trace
         config.path_conversion config.commit_data_file
     in
-    let* repo, on_commit, on_end, repo_pp = Store.create_repo config in
+    let* repo, on_commit, on_end, repo_pp = Client.create_repo config in
     prepare_artefacts_dir config.artefacts_dir;
     let stat_path = Filename.concat config.artefacts_dir "stat_trace.repr" in
     let c =
@@ -463,17 +463,13 @@ module Benchmark = struct
       result.size
 end
 
-module Hash = Irmin.Hash.SHA1
-
-module Bench_suite (Store : Store) = struct
-  module Client = Store.Client
-
+module Bench_suite (Client : Store) = struct
   let init_commit repo =
     let empty = Client.Tree.empty repo in
     Client.Commit.v repo ~info ~parents:[] empty >|= Error.unwrap "Commit.v"
 
-  module Trees = Generate_trees (Store)
-  module Trace_replay = Trace_replay (Store)
+  module Trees = Generate_trees (Client)
+  module Trace_replay = Trace_replay (Client)
 
   let checkout_and_commit repo prev_commit f =
     Client.Commit.of_hash repo prev_commit >>= function
@@ -499,7 +495,7 @@ module Bench_suite (Store : Store) = struct
 
   let run_large config =
     reset_stats ();
-    let* repo, on_commit, on_end, repo_pp = Store.create_repo config in
+    let* repo, on_commit, on_end, repo_pp = Client.create_repo config in
     let* result, () =
       Trees.add_large_trees config.width config.nlarge_trees
       |> add_commits ~message:"Playing large mode" repo config.ncommits
@@ -519,7 +515,7 @@ module Bench_suite (Store : Store) = struct
 
   let run_chains config =
     reset_stats ();
-    let* repo, on_commit, on_end, repo_pp = Store.create_repo config in
+    let* repo, on_commit, on_end, repo_pp = Client.create_repo config in
     let* result, () =
       Trees.add_chain_trees config.depth config.nchain_trees
       |> add_commits ~message:"Playing chain mode" repo config.ncommits
@@ -540,19 +536,17 @@ module Bench_suite (Store : Store) = struct
   let run_read_trace = Trace_replay.run
 end
 
-module type CONF = sig
-  val entries : int
+module Make_store_layered (C : Irmin_server_types.Conf.S) = struct
+  module X = struct
+    open Tezos_context_hash_irmin.Encoding
 
-  val stable_hash : int
-end
+    module Store = struct
+      module Maker = Irmin_pack_layered.Maker_ext (C) (Node) (Commit)
+      include Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
+    end
+  end
 
-module Make_store_layered (Conf : CONF) = struct
-  open Tezos_context_hash_irmin.Encoding
-  module Rpc =
-    Irmin_server.Make_layered (Conf) (Node) (Commit) (Metadata) (Contents)
-      (Branch)
-      (Hash)
-  include Rpc
+  module Client = Irmin_client.Make (X.Store)
 
   let create_repo config =
     let* client =
@@ -567,26 +561,28 @@ module Make_store_layered (Conf : CONF) = struct
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
 
-  include Store
+  include Client
 end
 
-module Make_store_pack (Conf : CONF) = struct
-  open Tezos_context_hash_irmin.Encoding
+module Make_store_pack (C : Irmin_server_types.Conf.S) = struct
+  module X = struct
+    open Tezos_context_hash_irmin.Encoding
 
-  module Rpc =
-    Irmin_server.Make_ext
-      (struct
-        let version = `V1
-      end)
-      (Conf)
-      (Node)
-      (Commit)
-      (Metadata)
-      (Contents)
-      (Branch)
-      (Hash)
+    module Store = struct
+      module Maker =
+        Irmin_pack.Maker_ext
+          (struct
+            let version = `V1
+          end)
+          (C)
+          (Node)
+          (Commit)
 
-  include Rpc
+      include Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
+    end
+  end
+
+  module Client = Irmin_client.Make (X.Store)
 
   let create_repo config =
     let* client =
@@ -600,6 +596,8 @@ module Make_store_pack (Conf : CONF) = struct
     let on_end () = Client.flush client >|= Error.unwrap "flush" in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
+
+  include Client
 end
 
 module type B = sig
@@ -717,29 +715,27 @@ let get_suite suite_filter =
           false)
     suite
 
-let run_server (module Conf : CONF) config =
+let run_server (module Conf : Irmin_server_types.Conf.S) config =
   let open Tezos_context_hash_irmin.Encoding in
-  let module Rpc =
-    Irmin_server.Make_ext
+  let module Maker =
+    Irmin_pack.Maker_ext
       (struct
         let version = `V1
       end)
       (Conf)
       (Node)
       (Commit)
-      (Metadata)
-      (Contents)
-      (Branch)
-      (Hash)
   in
+  let module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash) in
+  let module Server = Irmin_server.Make (Store) in
   Logs.app (fun l -> l "Running server: %s in %s" config.uri config.store_dir);
   let stop, wake = Lwt.wait () in
   Lwt.async (fun () ->
       let cfg =
         Irmin_pack.config ~readonly:false ~fresh:true config.store_dir
       in
-      let* server = Rpc.Server.v ~uri:config.uri cfg in
-      Rpc.Server.serve ~stop server);
+      let* server = Server.v ~uri:config.uri cfg in
+      Server.serve ~stop server);
   wake
 
 let main () ncommits ncommits_trace suite_filter inode_config store_type

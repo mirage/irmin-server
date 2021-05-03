@@ -9,18 +9,7 @@ bug-reports: "https://github.com/zshipko/irmin-server/issues"
 depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
-  "optint" {>= "0.1.0"}
-  "irmin"
-  "irmin-unix" {>= "dev"}
-  "irmin-server"
-  "irmin-test"
-  "uri"
-  "checkseum" {>= "0.3.0"}
-  "cmdliner" {>= "1.0.4"}
-  "digestif" {>= "0.9.0"}
-  "logs" {>= "0.7.0"}
-  "lwt" {>= "5.4.0"}
-  "ppx_irmin" {>= "dev"}
+  "irmin-server-types"
   "nottui-lwt"
 ]
 build: [
@@ -29,49 +18,3 @@ build: [
   ["dune" "runtest" "-p" name] {with-test}
 ]
 dev-repo: "git+ssh://github.com/zshipko/irmin-server"
-pin-depends: [
-  [
-    "ppx_irmin.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin-git.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin-fs.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin-graphql.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin-http.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin-layers.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin-pack.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin-unix.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "irmin-test.dev"
-    "git+https://github.com/mirage/irmin#2f58b86b3997dc7c8e1a0847ed5b42ea7201178f"
-  ]
-  [
-    "index.dev"
-    "git+https://github.com/mirage/index#bb36d615fbdac36c7bf794bd3ea5565644cbf274"
-  ]
-]

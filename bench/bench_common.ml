@@ -135,9 +135,9 @@ module FSHelper = struct
 end
 
 module Generate_trees
-    (Store : Irmin_server.S
-               with type Store.contents = bytes
-                and type Store.key = string list) =
+    (Client : Irmin_client.S
+                with type contents = bytes
+                 and type key = string list) =
 struct
   let key depth =
     let rec aux i acc =
@@ -150,7 +150,7 @@ struct
 
   let chain_tree tree depth path =
     let k = path @ key depth in
-    Store.Client.Tree.add tree k (random_blob ())
+    Client.Tree.add tree k (random_blob ())
 
   let add_chain_trees depth nb tree =
     let path = key 2 in
@@ -170,7 +170,7 @@ struct
       else
         let k = path @ [ random_key () ] in
         let* tree =
-          Store.Client.Tree.add tree k (random_blob ())
+          Client.Tree.add tree k (random_blob ())
           >|= Irmin_server.Error.unwrap "large_tree:add"
         in
         aux (i + 1) tree

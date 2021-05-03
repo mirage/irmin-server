@@ -1,7 +1,7 @@
 open Import
-open Irmin_server
 open Lwt.Infix
 open Lwt.Syntax
+open Irmin_server_types
 module W = Nottui_widgets
 module Ui = Nottui.Ui
 
