@@ -10,10 +10,7 @@ let with_timer f =
   let t1 = Sys.time () -. t0 in
   (t1, a)
 
-let init ~uri ~branch ~tls ~level (module Client : Irmin_client.S) :
-    client Lwt.t =
-  let () = Logs.set_level (Some level) in
-  let () = Logs.set_reporter (Logs_fmt.reporter ()) in
+let init ~uri ~branch ~tls (module Client : Irmin_client.S) : client Lwt.t =
   let* x = Client.connect ~tls ~uri () in
   let+ () =
     match branch with
@@ -146,10 +143,6 @@ let watch client =
         client
       >|= Error.unwrap "watch" )
 
-let level =
-  let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
-  Arg.(value @@ opt string "error" doc)
-
 let pr_str = Format.pp_print_string
 
 let key index =
@@ -195,37 +188,17 @@ let freq =
   Arg.(value @@ opt float 5. doc)
 
 let config =
-  let create uri (branch : string option) tls level contents hash =
-    let (module Hash : Irmin.Hash.S) =
-      Option.value ~default:Cli.default_hash hash
+  let create uri (branch : string option) tls (store, hash, contents) () =
+    let store, _config =
+      Irmin_unix.Resolver.load_config ~store ~hash ~contents ()
     in
-    let contents =
-      Irmin_unix.Resolver.Contents.find
-        (Option.value ~default:Cli.default_contents contents)
-    in
-    let (module Contents : Irmin.Contents.S) = contents in
-    let module Maker =
-      Irmin_pack.Maker
-        (struct
-          let version = `V1
-        end)
-        (struct
-          let entries = 32
-
-          let stable_hash = 256
-        end)
-    in
-    let module Store =
-      Maker.Make (Irmin.Metadata.None) (Contents) (Irmin.Path.String_list)
-        (Irmin.Branch.String)
-        (Hash)
+    let (module Store : Irmin.S), _ =
+      Irmin_unix.Resolver.Store.destruct store
     in
     let module Client = Irmin_client.Make (Store) in
-    init ~uri ~branch ~tls ~level (module Client)
+    init ~uri ~branch ~tls (module Client)
   in
-  Term.(
-    const create $ Cli.uri $ branch $ tls $ Cli.log_level $ Cli.contents
-    $ Cli.hash)
+  Term.(const create $ Cli.uri $ branch $ tls $ Cli.store $ Cli.setup_log)
 
 let help =
   let help () =

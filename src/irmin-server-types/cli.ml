@@ -6,30 +6,17 @@ let uri : string Cmdliner.Term.t =
   in
   Arg.(value & opt string "tcp://127.0.0.1:8888" & doc)
 
-let log_level =
-  let level =
-    let parse str =
-      match Logs.level_of_string str with
-      | Ok x -> `Ok x
-      | Error (`Msg s) -> `Error s
-    in
-    let print ppf path =
-      Format.pp_print_string ppf (Logs.level_to_string path)
-    in
-    (parse, print)
-  in
-  let doc =
-    Arg.info ~docv:"LEVEL" ~doc:"Log level (app, info, error, debug)"
-      [ "log-level" ]
-  in
-  Arg.(required & opt level (Some Logs.App) & doc)
-
 let contents = Irmin_unix.Resolver.Contents.term
 
 let hash = Irmin_unix.Resolver.Hash.term
 
-let default_hash = (module Irmin.Hash.BLAKE2B : Irmin.Hash.S)
+let store = Irmin_unix.Resolver.Store.term
 
-let store = Irmin_unix.Resolver.store
+let setup_log style_renderer level =
+  Fmt_tty.setup_std_outputs ?style_renderer ();
+  Logs.set_level level;
+  Logs.set_reporter (Logs_fmt.reporter ());
+  ()
 
-let default_contents = "string"
+let setup_log =
+  Term.(const setup_log $ Fmt_cli.style_renderer () $ Logs_cli.level ())
