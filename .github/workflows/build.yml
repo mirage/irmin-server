@@ -68,5 +68,5 @@ jobs:
       - run: opam pin add irmin-server-bench.dev . --no-action
       - run: opam depext irmin-server irmin-server-types irmin-client irmin-server-bench --yes --with-doc
       - run: opam install irmin-server-types irmin-server irmin-client irmin-server-bench --deps-only --with-doc --with-test
-      - run: opam install ppx_deriving_yojson bentov
+      - run: opam install ppx_deriving_yojson bentov memtrace benchmark
       - run: opam exec -- dune build
