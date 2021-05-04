@@ -18,6 +18,7 @@ module V1 = struct
       (function
         | Assert_failure _ | Lwt_unix.Timeout ->
             Error.raise_error "unable to connect to server"
+        | End_of_file -> Error.raise_error "invalid handshake"
         | x -> raise x)
 
   let check store ic oc =

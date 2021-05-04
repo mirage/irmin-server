@@ -10,7 +10,9 @@ let contents = Irmin_unix.Resolver.Contents.term
 
 let hash = Irmin_unix.Resolver.Hash.term
 
-let store = Irmin_unix.Resolver.Store.term
+let store =
+  Irmin_unix.Resolver.Store.(add "pack" ~default:true (Variable_hash pack));
+  Irmin_unix.Resolver.Store.term
 
 let setup_log style_renderer level =
   Fmt_tty.setup_std_outputs ?style_renderer ();
