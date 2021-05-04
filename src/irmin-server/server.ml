@@ -27,7 +27,6 @@ module Make (X : Command.S) = struct
   end)
 
   let v ?tls_config ~uri conf =
-    let uri = Uri.of_string uri in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let* ctx, server =
       match String.lowercase_ascii scheme with

@@ -548,7 +548,7 @@ module Make_store_layered (C : Irmin_pack.Conf.S) = struct
   let create_repo config =
     let* client =
       Lwt.catch
-        (fun () -> Client.connect ~uri:config.uri ())
+        (fun () -> Client.connect ~uri:(Uri.of_string config.uri) ())
         (fun exc ->
           Logs.err (fun l -> l "Unable to connect: %s" config.uri);
           raise exc)
@@ -578,7 +578,7 @@ module Make_store_pack (C : Irmin_pack.Conf.S) = struct
   let create_repo config =
     let* client =
       Lwt.catch
-        (fun () -> Client.connect ~uri:config.uri ())
+        (fun () -> Client.connect ~uri:(Uri.of_string config.uri) ())
         (fun exc ->
           Logs.err (fun l -> l "Unable to connect: %s" config.uri);
           raise exc)
@@ -724,7 +724,7 @@ let run_server (module Conf : Irmin_pack.Conf.S) config =
       let cfg =
         Irmin_pack.config ~readonly:false ~fresh:true config.store_dir
       in
-      let* server = Server.v ~uri:config.uri cfg in
+      let* server = Server.v ~uri:(Uri.of_string config.uri) cfg in
       Server.serve ~stop server);
   wake
 

@@ -57,7 +57,7 @@ module type S = sig
       | `Tree of Private.Tree.t ])
     list
 
-  val connect : ?batch_size:int -> ?tls:bool -> uri:string -> unit -> t Lwt.t
+  val connect : ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
 
   val uri : t -> Uri.t

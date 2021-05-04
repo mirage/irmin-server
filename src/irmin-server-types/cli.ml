@@ -1,18 +1,23 @@
 open Cmdliner
 
-let uri : string Cmdliner.Term.t =
+let default_uri = Uri.of_string "tcp://127.0.0.1:9181"
+
+let uri : Uri.t option Cmdliner.Term.t =
   let doc =
     Arg.info ~docv:"URL" ~doc:"URI to connect to or listen on" [ "uri"; "u" ]
   in
-  Arg.(value & opt string "tcp://127.0.0.1:8888" & doc)
+  Term.(
+    const (Option.map Uri.of_string)
+    $ Arg.(value & opt (some string) None & doc))
 
-let contents = Irmin_unix.Resolver.Contents.term
+let () =
+  Irmin_unix.Resolver.Contents.(
+    add "string" ~default:true (module Irmin.Contents.String));
+  Irmin_unix.Resolver.Hash.(
+    add "blake2b" ~default:true (module Irmin.Hash.BLAKE2B));
+  Irmin_unix.Resolver.Store.(add "pack" ~default:true (Variable_hash pack))
 
-let hash = Irmin_unix.Resolver.Hash.term
-
-let store =
-  Irmin_unix.Resolver.Store.(add "pack" ~default:true (Variable_hash pack));
-  Irmin_unix.Resolver.Store.term
+let store = Irmin_unix.Resolver.Store.term
 
 let setup_log style_renderer level =
   Fmt_tty.setup_std_outputs ?style_renderer ();
