@@ -2,7 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make
-    (St : Command_intf.STORE with type key = string list)
+    (St : Irmin.S)
     (Tree : Tree.S with module Private.Store = St and type Local.t = St.tree) =
 struct
   module Server_info = struct

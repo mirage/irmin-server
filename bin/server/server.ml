@@ -14,7 +14,11 @@ let main ~root ~uri ~tls ~level ~contents ~hash =
       (struct
         let version = `V1
       end)
-      (Conf.Default)
+      (struct
+        let entries = 32
+
+        let stable_hash = 256
+      end)
   in
   let module Store =
     Maker.Make (Irmin.Metadata.None) (Contents) (Irmin.Path.String_list)
@@ -29,7 +33,7 @@ let main ~root ~uri ~tls ~level ~contents ~hash =
     match tls with Some (c, k) -> Some (`Cert_file c, `Key_file k) | _ -> None
   in
   let* server = Server.v ?tls_config ~uri config in
-  Logs.app (fun l -> l "Listening on %s" uri);
+  Logs.app (fun l -> l "Listening on %s, store: %s" uri root);
   Server.serve server
 
 let main root uri tls level contents hash =

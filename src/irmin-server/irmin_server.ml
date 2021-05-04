@@ -4,7 +4,7 @@ module Error = Error
 
 module type S = Server.S
 
-module Make (Store : Command.STORE) = struct
+module Make (Store : Irmin.S) = struct
   module X = struct
     include Command
     include Command.Make (Store)

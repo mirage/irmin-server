@@ -2,4 +2,4 @@
  (name irmin_server)
  (public_name irmin-server)
  (libraries
-   irmin-server-types irmin-client))
+   irmin-server-types))

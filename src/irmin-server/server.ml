@@ -118,7 +118,9 @@ module Make (X : Command.S) = struct
   let callback { repo; clients; info; _ } flow ic oc =
     (* Handshake check *)
     let* check =
-      Lwt.catch (fun () -> Handshake.V1.check ic oc) (fun _ -> Lwt.return_false)
+      Lwt.catch
+        (fun () -> Handshake.V1.check (module Store) ic oc)
+        (fun _ -> Lwt.return_false)
     in
     if not check then
       (* Hanshake failed *)

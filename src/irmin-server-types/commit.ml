@@ -1,6 +1,6 @@
 include Commit_intf
 
-module Make (St : Tree.STORE) (T : Tree.S) = struct
+module Make (St : Irmin.S) (T : Tree.S) = struct
   type tree = T.t
 
   let tree_t = T.t

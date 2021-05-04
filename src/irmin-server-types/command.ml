@@ -2,7 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 include Command_intf
 
-module Make (St : STORE) = struct
+module Make (St : Irmin.S) = struct
   module Store = St
   module Tree = Tree.Make (St)
   module Commit = Commit.Make (St) (Tree)
@@ -221,22 +221,6 @@ module Make (St : STORE) = struct
         Return.v conn Commit.t head
     end
 
-    module Flush = struct
-      module Req = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      let name = "flush"
-
-      let run conn ctx _ () =
-        St.flush ctx.repo;
-        Return.v conn Res.t ()
-    end
-
     module Commit_of_hash = struct
       module Req = struct
         type t = St.Hash.t [@@deriving irmin]
@@ -329,7 +313,6 @@ module Make (St : STORE) = struct
       cmd (module Contents_of_hash);
       cmd (module Contents_save);
       cmd (module Contents_exists);
-      cmd (module Flush);
     ]
     @ Store.commands @ Tree.commands
 

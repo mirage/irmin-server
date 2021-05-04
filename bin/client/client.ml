@@ -10,10 +10,19 @@ let with_timer f =
   let t1 = Sys.time () -. t0 in
   (t1, a)
 
-let init ~uri ~tls ~level (module Client : Irmin_client.S) : client =
+let init ~uri ~branch ~tls ~level (module Client : Irmin_client.S) :
+    client Lwt.t =
   let () = Logs.set_level (Some level) in
   let () = Logs.set_reporter (Logs_fmt.reporter ()) in
-  let (x : Client.t Lwt.t) = Client.connect ~tls ~uri () in
+  let* x = Client.connect ~tls ~uri () in
+  let+ () =
+    match branch with
+    | Some b ->
+        Client.Branch.set_current x
+          (Irmin.Type.of_string Client.Branch.t b |> Result.get_ok)
+        >|= Error.unwrap "Branch.set_current"
+    | None -> Lwt.return_unit
+  in
   S ((module Client : Irmin_client.S with type t = Client.t), x)
 
 let run f time iterations =
@@ -32,16 +41,16 @@ let run f time iterations =
   in
   Lwt_main.run x
 
-let ping (S ((module Client), client)) =
+let ping client =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let+ result = Client.ping client in
       let () = Error.unwrap "ping" result in
       Logs.app (fun l -> l "OK"))
 
-let find (S ((module Client), client)) key =
+let find client key =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let* result = Client.Store.find client key >|= Error.unwrap "find" in
       match result with
@@ -54,25 +63,25 @@ let find (S ((module Client), client)) key =
           Logs.err (fun l -> l "Not found: %a" (Irmin.Type.pp Client.Key.t) key);
           Lwt.return_unit)
 
-let mem (S ((module Client), client)) key =
+let mem client key =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let* result = Client.Store.mem client key >|= Error.unwrap "mem" in
       Lwt_io.printl (if result then "true" else "false"))
 
-let mem_tree (S ((module Client), client)) key =
+let mem_tree client key =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let* result =
         Client.Store.mem_tree client key >|= Error.unwrap "mem_tree"
       in
       Lwt_io.printl (if result then "true" else "false"))
 
-let set (S ((module Client), client)) key author message contents =
+let set client key author message contents =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let contents =
         Irmin.Type.of_string Client.Contents.t contents
@@ -84,9 +93,9 @@ let set (S ((module Client), client)) key author message contents =
       in
       Logs.app (fun l -> l "OK"))
 
-let remove (S ((module Client), client)) key author message =
+let remove client key author message =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
       let info = Irmin_unix.info ~author "%s" message in
       let+ () =
@@ -94,16 +103,16 @@ let remove (S ((module Client), client)) key author message =
       in
       Logs.app (fun l -> l "OK"))
 
-let export (S ((module Client), client)) filename =
+let export client filename =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let* slice = Client.export client >|= Error.unwrap "export" in
       let s = Irmin.Type.(unstage (to_bin_string Client.slice_t) slice) in
       Lwt_io.chars_to_file filename (Lwt_stream.of_string s))
 
-let import (S ((module Client), client)) filename =
+let import client filename =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let* slice = Lwt_io.chars_of_file filename |> Lwt_stream.to_string in
       let slice =
         Irmin.Type.(unstage (of_bin_string Client.slice_t) slice)
@@ -112,15 +121,15 @@ let import (S ((module Client), client)) filename =
       let+ () = Client.import client slice >|= Error.unwrap "import" in
       Logs.app (fun l -> l "OK"))
 
-let stats (S ((module Client), client)) =
+let stats client =
   run (fun () ->
-      client >>= fun client ->
+      client >>= fun (S ((module Client), client)) ->
       let* stats = Client.stats client >|= Error.unwrap "stats" in
       Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats))
 
-let watch (S ((module Client), client)) =
+let watch client =
   Lwt_main.run
-    ( client >>= fun client ->
+    ( client >>= fun (S ((module Client), client)) ->
       let pp = Irmin.Type.pp Client.Commit.t in
       Client.Store.watch
         (fun x ->
@@ -159,6 +168,10 @@ let message =
   let doc = Arg.info ~docv:"MESSAGE" ~doc:"Commit message" [ "message" ] in
   Arg.(value & opt string "" & doc)
 
+let branch =
+  let doc = Arg.info ~docv:"BRANCH" ~doc:"Branch name" [ "branch" ] in
+  Arg.(value & opt (some string) None & doc)
+
 let value index =
   let doc = Arg.info ~docv:"DATA" ~doc:"Value" [] in
   Arg.(required & pos index (some string) None & doc)
@@ -182,7 +195,7 @@ let freq =
   Arg.(value @@ opt float 5. doc)
 
 let config =
-  let create uri tls level contents hash =
+  let create uri (branch : string option) tls level contents hash =
     let (module Hash : Irmin.Hash.S) =
       Option.value ~default:Cli.default_hash hash
     in
@@ -196,7 +209,11 @@ let config =
         (struct
           let version = `V1
         end)
-        (Conf.Default)
+        (struct
+          let entries = 32
+
+          let stable_hash = 256
+        end)
     in
     let module Store =
       Maker.Make (Irmin.Metadata.None) (Contents) (Irmin.Path.String_list)
@@ -204,9 +221,11 @@ let config =
         (Hash)
     in
     let module Client = Irmin_client.Make (Store) in
-    init ~uri ~tls ~level (module Client)
+    init ~uri ~branch ~tls ~level (module Client)
   in
-  Term.(const create $ Cli.uri $ tls $ Cli.log_level $ Cli.contents $ Cli.hash)
+  Term.(
+    const create $ Cli.uri $ branch $ tls $ Cli.log_level $ Cli.contents
+    $ Cli.hash)
 
 let help =
   let help () =

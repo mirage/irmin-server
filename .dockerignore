@@ -2,3 +2,7 @@ _build
 _opam
 Dockerfile
 .git
+_artefacts
+_results
+*.repr
+opam

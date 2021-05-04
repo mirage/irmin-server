@@ -536,14 +536,11 @@ module Bench_suite (Client : Store) = struct
   let run_read_trace = Trace_replay.run
 end
 
-module Make_store_layered (C : Irmin_server_types.Conf.S) = struct
+module Make_store_layered (C : Irmin_pack.Conf.S) = struct
   module X = struct
     open Tezos_context_hash_irmin.Encoding
-
-    module Store = struct
-      module Maker = Irmin_pack_layered.Maker_ext (C) (Node) (Commit)
-      include Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
-    end
+    module Maker = Irmin_pack_layered.Maker_ext (C) (Node) (Commit)
+    module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
   end
 
   module Client = Irmin_client.Make (X.Store)
@@ -556,30 +553,24 @@ module Make_store_layered (C : Irmin_server_types.Conf.S) = struct
           Logs.err (fun l -> l "Unable to connect: %s" config.uri);
           raise exc)
     in
-    let on_commit _ _ = Client.flush client >|= Error.unwrap "flush" in
-    let on_end () = Client.flush client >|= Error.unwrap "flush" in
+    let on_commit _ _ = Lwt.return_unit in
+    let on_end () = Lwt.return_unit in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
 
   include Client
 end
 
-module Make_store_pack (C : Irmin_server_types.Conf.S) = struct
+module Make_store_pack (C : Irmin_pack.Conf.S) = struct
   module X = struct
     open Tezos_context_hash_irmin.Encoding
 
-    module Store = struct
-      module Maker =
-        Irmin_pack.Maker_ext
-          (struct
-            let version = `V1
-          end)
-          (C)
-          (Node)
-          (Commit)
-
-      include Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
+    module V1 = struct
+      let version = `V1
     end
+
+    module Maker = Irmin_pack.Maker_ext (V1) (C) (Node) (Commit)
+    module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
   end
 
   module Client = Irmin_client.Make (X.Store)
@@ -592,8 +583,8 @@ module Make_store_pack (C : Irmin_server_types.Conf.S) = struct
           Logs.err (fun l -> l "Unable to connect: %s" config.uri);
           raise exc)
     in
-    let on_commit _ _ = Client.flush client >|= Error.unwrap "flush" in
-    let on_end () = Client.flush client >|= Error.unwrap "flush" in
+    let on_commit _ _ = Lwt.return_unit in
+    let on_end () = Lwt.return_unit in
     let pp _ = () in
     Lwt.return (client, on_commit, on_end, pp)
 
@@ -715,19 +706,18 @@ let get_suite suite_filter =
           false)
     suite
 
-let run_server (module Conf : Irmin_server_types.Conf.S) config =
-  let open Tezos_context_hash_irmin.Encoding in
-  let module Maker =
-    Irmin_pack.Maker_ext
-      (struct
-        let version = `V1
-      end)
-      (Conf)
-      (Node)
-      (Commit)
-  in
-  let module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash) in
-  let module Server = Irmin_server.Make (Store) in
+let run_server (module Conf : Irmin_pack.Conf.S) config =
+  let module X = struct
+    open Tezos_context_hash_irmin.Encoding
+
+    module V1 = struct
+      let version = `V1
+    end
+
+    module Maker = Irmin_pack.Maker_ext (V1) (Conf) (Node) (Commit)
+    module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
+  end in
+  let module Server = Irmin_server.Make (X.Store) in
   Logs.app (fun l -> l "Running server: %s in %s" config.uri config.store_dir);
   let stop, wake = Lwt.wait () in
   Lwt.async (fun () ->

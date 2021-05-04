@@ -6,7 +6,7 @@ module type Irmin_client = sig
 
   module Client = Client
 
-  module Make (Store : Irmin_server_types.Command.STORE) :
+  module Make (Store : Irmin.S) :
     S
       with type hash = Store.hash
        and type contents = Store.contents

@@ -3,7 +3,7 @@ open Lwt.Syntax
 open Lwt.Infix
 include Client_intf
 
-module Make (C : Command.S with type Store.key = string list) = struct
+module Make (C : Command.S) = struct
   module St = C.Store
   open C
   module Hash = Store.Hash
@@ -81,7 +81,7 @@ module Make (C : Command.S with type Store.key = string list) = struct
     let ctx = Conduit_lwt_unix.default_ctx in
     let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx conf.client in
     let conn = Conn.v flow ic oc in
-    let+ () = Handshake.V1.send ic oc in
+    let+ () = Handshake.V1.send (module Private.Store) ic oc in
     { conf; conn }
 
   let connect ?batch_size ?tls ~uri () =
@@ -156,8 +156,6 @@ module Make (C : Command.S with type Store.key = string list) = struct
   let stats t = request t (module Commands.Stats) ()
 
   let ping t = request t (module Commands.Ping) ()
-
-  let flush t = request t (module Commands.Flush) ()
 
   let export t = request t (module Commands.Export) ()
 
@@ -291,8 +289,10 @@ module Make (C : Command.S with type Store.key = string list) = struct
       | b -> add_batch (t, tree, b) []
 
     and add_batch (((t : store), tree, batch) : tree) l =
-      let l = List.rev l in
-      wrap t (request t (module Commands.Tree.Add_batch) (tree, batch @ l))
+      wrap t
+        (request t
+           (module Commands.Tree.Add_batch)
+           (tree, List.rev_append batch (List.rev l)))
 
     and wrap ?(batch = []) store tree =
       let* tree = tree in

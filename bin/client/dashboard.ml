@@ -5,10 +5,11 @@ open Irmin_server_types
 module W = Nottui_widgets
 module Ui = Nottui.Ui
 
-let main (S ((module Client), client)) freq =
-  client >>= fun client ->
+let handle_keyboard = function `Escape, _ -> exit 0 | _, _ -> `Unhandled
+
+let main client freq =
+  client >>= fun (S ((module Client), client)) ->
   let uptime = Lwd.var 0.0 in
-  let branches = Lwd.var [] in
   let adds = Lwd.var 0 in
   let finds = Lwd.var 0 in
   let cache_misses = Lwd.var 0 in
@@ -16,14 +17,10 @@ let main (S ((module Client), client)) freq =
   let ui =
     let open Lwd_infix in
     let$* uptime = Lwd.get uptime in
-    let$* branches = Lwd.get branches in
     let$* adds = Lwd.get adds in
     let$* last_update = Lwd.get last_update in
     let$* cache_misses = Lwd.get cache_misses in
     let$ finds = Lwd.get finds in
-    let branches =
-      List.map (fun s -> W.sub_entry s (fun () -> print_endline s)) branches
-    in
     let last_update =
       match last_update with
       | Some last_update ->
@@ -32,26 +29,21 @@ let main (S ((module Client), client)) freq =
             last_update
       | None -> "n/a"
     in
-    Ui.keyboard_area
-      (function `Escape, _ -> exit 0 | _, _ -> `Unhandled)
+    Ui.keyboard_area handle_keyboard
       (Ui.vcat
-         ([
-            W.printf "Connected to: %s" (Client.uri client |> Uri.to_string);
-            W.printf "uptime: %.0fs" uptime;
-            W.printf "adds: %d" adds;
-            W.printf "finds: %d" finds;
-            W.printf "cache_misses: %d" cache_misses;
-            W.printf "last update: %s" last_update;
-            W.printf "";
-            W.printf "branches:";
-          ]
-         @ branches))
+         [
+           W.printf "Connected to: %s" (Client.uri client |> Uri.to_string);
+           W.printf "uptime: %.0fs" uptime;
+           W.printf "adds: %d" adds;
+           W.printf "finds: %d" finds;
+           W.printf "cache_misses: %d" cache_misses;
+           W.printf "last update: %s" last_update;
+         ])
   in
   let rec tick client () =
     Lwt.async (fun () ->
         let* stats = Client.stats client >|= Error.unwrap "stats" in
         Lwd.set uptime stats.uptime;
-        Lwd.set branches stats.branches;
         Lwd.set adds stats.adds;
         Lwd.set finds stats.finds;
         Lwd.set cache_misses stats.cache_misses;

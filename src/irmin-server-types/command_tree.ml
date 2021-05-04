@@ -1,7 +1,7 @@
 open Lwt.Syntax
 
 module Make
-    (Store : Command_intf.STORE)
+    (Store : Irmin.S)
     (Tree : Tree.S
               with module Private.Store = Store
                and type Local.t = Store.tree)

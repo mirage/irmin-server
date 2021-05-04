@@ -76,4 +76,4 @@
   benchmark
   mtime
   mtime.clock.os
-  tezos-context-hash))
+  tezos-context-hash-irmin))

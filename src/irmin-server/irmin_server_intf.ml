@@ -6,6 +6,5 @@ module type Irmin_server = sig
 
   module Error = Error
 
-  module Make (Store : Irmin_server_types.Command.STORE) :
-    S with module Store = Store
+  module Make (Store : Irmin.S) : S with module Store = Store
 end

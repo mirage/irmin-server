@@ -1,7 +1,5 @@
-module type STORE = Tree.STORE
-
 module type S = sig
-  module Store : STORE
+  module Store : Irmin.S
 
   module Tree : Tree.S with module Private.Store = Store
 
@@ -61,8 +59,6 @@ module type S = sig
     module Stats : CMD with type Req.t = unit and type Res.t = Stats.t
 
     module Ping : CMD with type Req.t = unit and type Res.t = unit
-
-    module Flush : CMD with type Req.t = unit and type Res.t = unit
 
     (* Branch *)
     module Set_current_branch :
@@ -238,8 +234,5 @@ end
 module type Command = sig
   module type S = S
 
-  module type STORE = STORE
-
-  module Make (Store : STORE with type key = string list) :
-    S with module Store = Store
+  module Make (Store : Irmin.S) : S with module Store = Store
 end
