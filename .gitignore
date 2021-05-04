@@ -9,4 +9,4 @@ _results
 *.repr
 *.log
 *.dump
-
+_opam

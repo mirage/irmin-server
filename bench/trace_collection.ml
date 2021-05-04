@@ -22,8 +22,11 @@
     A module [Make_replayable] has yet to be implemented. *)
 
 let ( >>= ) = Lwt.Infix.( >>= )
+
 let ( >|= ) = Lwt.Infix.( >|= )
+
 let ( let* ) = ( >>= )
+
 let ( let+ ) = ( >|= )
 
 (** Make state trace collector. *)
@@ -140,9 +143,7 @@ module Make_stat (Store : Irmin.KV) = struct
         }
 
     let now () =
-      Mtime_clock.now ()
-      |> Mtime.to_uint64_ns
-      |> Int64.to_float
+      Mtime_clock.now () |> Mtime.to_uint64_ns |> Int64.to_float
       |> ( *. ) Mtime.ns_to_s
 
     let create store_path prev_nb_merge =
@@ -183,8 +184,11 @@ module Make_stat (Store : Irmin.KV) = struct
     }
 
   let flush { writer; _ } = Def.flush writer
+
   let close { writer; _ } = Def.close writer
+
   let remove { writer; _ } = Def.remove writer
+
   let short_op_begin t = t.t0 <- Mtime_clock.counter ()
 
   let short_op_end { t0; writer; _ } short_op =

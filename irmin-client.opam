@@ -1,5 +1,5 @@
 opam-version: "2.0"
-synopsis: "A high-performance server for Irmin"
+synopsis: "A client for irmin-server"
 maintainer: "Zach Shipko <zachshipko@gmail.com>"
 authors: "Zach Shipko <zachshipko@gmail.com>"
 license: "ISC"
@@ -7,16 +7,10 @@ homepage: "https://github.com/mirage/irmin-server"
 doc: "https://zshipko.github.io/irmin-server"
 bug-reports: "https://github.com/zshipko/irmin-server/issues"
 depends: [
-  "ocaml" {>= "4.11.0"}
+  "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
   "irmin-server-types"
-  "irmin-test.bench"
-  "alcotest-lwt" {with-test & >= "1.0.0"}
-  "memtrace" {>= "0.1.2"}
-  "ppx_irmin" {>= "dev"}
-  "ppx_deriving_yojson"
-  "bentov"
-  "benchmark"
+  "nottui-lwt"
 ]
 build: [
   ["dune" "subst"] {pinned}

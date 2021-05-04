@@ -1,9 +1,3 @@
-module type STORE = sig
-  include Irmin.S with type key = string list
-
-  val flush : repo -> unit
-end
-
 module type LOCAL = sig
   type t
 
@@ -78,7 +72,7 @@ end
 
 module type S = sig
   module Private : sig
-    module Store : STORE
+    module Store : Irmin.S
   end
 
   open Private
@@ -97,10 +91,8 @@ end
 module type Tree = sig
   module type S = S
 
-  module type STORE = STORE
-
   module type LOCAL = LOCAL
 
-  module Make (S : STORE) :
+  module Make (S : Irmin.S) :
     S with module Private.Store = S and type Local.t = S.tree
 end

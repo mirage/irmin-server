@@ -1,6 +1,6 @@
-module type S = sig
-  type conf = { client : Conduit_lwt_unix.client; batch_size : int }
+open Irmin_server_types
 
+module type S = sig
   type t
 
   type hash
@@ -15,15 +15,35 @@ module type S = sig
 
   type tree
 
+  type step
+
   type slice
+
+  type metadata
+
+  type stats = Stats.t
+
+  val stats_t : stats Irmin.Type.t
 
   val slice_t : slice Irmin.Type.t
 
-  module Key : Irmin.Path.S with type t = key
+  module Key : Irmin.Path.S with type t = key and type step = step
 
   module Hash : Irmin.Hash.S with type t = hash
 
+  module Metadata : Irmin.Metadata.S with type t = metadata
+
   module Private : sig
+    module Store :
+      Irmin.S
+        with type hash = hash
+         and type contents = contents
+         and type branch = branch
+         and type key = key
+         and type step = step
+         and type slice = slice
+         and type metadata = metadata
+
     module Tree :
       Tree.S
         with type Private.Store.hash = hash
@@ -40,13 +60,16 @@ module type S = sig
   val connect : ?batch_size:int -> ?tls:bool -> uri:string -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
 
+  val uri : t -> Uri.t
+
   val close : t -> unit Lwt.t
+
+  val dup : t -> t Lwt.t
+
+  val stats : t -> stats Error.result Lwt.t
 
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
-
-  val flush : t -> unit Error.result Lwt.t
-  (** Flush writes to disk *)
 
   val export : t -> slice Error.result Lwt.t
 
@@ -173,6 +196,8 @@ module type S = sig
       tree -> key -> (Key.step * [ `Contents | `Tree ]) list Error.result Lwt.t
     (** List entries at the specified root *)
 
+    val merge : old:tree -> tree -> tree -> tree Error.result Lwt.t
+
     module Local :
       Tree.LOCAL
         with type key = key
@@ -235,6 +260,18 @@ module type S = sig
 
     val mem_tree : t -> key -> bool Error.result Lwt.t
     (** Check if the given key has an associated tree *)
+
+    val merge : t -> info:Irmin.Info.f -> branch -> unit Error.result Lwt.t
+
+    val merge_commit :
+      t -> info:Irmin.Info.f -> Commit.t -> unit Error.result Lwt.t
+
+    val last_modified : t -> key -> Commit.t list Error.result Lwt.t
+
+    val watch :
+      (Commit.t Irmin.Diff.t -> [ `Continue | `Stop ] Error.result Lwt.t) ->
+      t ->
+      unit Error.result Lwt.t
   end
 end
 
@@ -248,4 +285,6 @@ module type Client = sig
        and type branch = C.Store.branch
        and type key = C.Store.key
        and type commit = C.Commit.t
+       and type step = C.Store.step
+       and type metadata = C.Store.metadata
 end

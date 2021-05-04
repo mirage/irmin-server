@@ -1,7 +1,7 @@
 open Lwt.Syntax
 open Lwt.Infix
+open Irmin_server_types
 include Server_intf
-module C = Command
 
 module Make (X : Command.S) = struct
   module Command = X
@@ -14,6 +14,7 @@ module Make (X : Command.S) = struct
     config : Irmin.config;
     repo : Store.Repo.t;
     clients : (X.context, unit) Hashtbl.t;
+    info : Command.Server_info.t;
   }
 
   module Client_set = Set.Make (struct
@@ -58,7 +59,9 @@ module Make (X : Command.S) = struct
     let config = Irmin_pack_layered.config ~conf ~with_lower:true () in
     let+ repo = Store.Repo.v config in
     let clients = Hashtbl.create 8 in
-    { ctx; uri; server; config; repo; clients }
+    let start_time = Unix.time () in
+    let info = Command.Server_info.{ start_time } in
+    { ctx; uri; server; config; repo; clients; info }
 
   let commands = Hashtbl.create (List.length Command.commands)
 
@@ -66,8 +69,13 @@ module Make (X : Command.S) = struct
 
   let invalid_arguments a = Error.unwrap "Invalid arguments" a [@@inline]
 
-  let[@tailrec] rec loop repo clients conn client : unit Lwt.t =
+  let[@tailrec] rec loop repo clients conn client info : unit Lwt.t =
     if Lwt_io.is_closed conn.Conn.ic then
+      let* () =
+        match client.Command.watch with
+        | Some w -> Store.unwatch w
+        | None -> Lwt.return_unit
+      in
       let () = Hashtbl.remove clients client in
       Lwt.return_unit
     else
@@ -76,7 +84,6 @@ module Make (X : Command.S) = struct
           Logs.debug (fun l -> l "Receiving next command");
           (* Get request header (command and number of arguments) *)
           let* Request.Header.{ command } = Request.Read.header conn.Conn.ic in
-
           (* Get command *)
           match Hashtbl.find_opt commands command with
           | None ->
@@ -87,7 +94,7 @@ module Make (X : Command.S) = struct
                 Conn.read_message conn Cmd.Req.t >|= invalid_arguments
               in
               Logs.debug (fun l -> l "Command: %s" Cmd.name);
-              let* res = Cmd.run conn client req in
+              let* res = Cmd.run conn client info req in
               Return.finish Cmd.Res.t res)
         (function
           | Error.Error s ->
@@ -101,18 +108,19 @@ module Make (X : Command.S) = struct
               Lwt.return_unit
           | exn ->
               (* Unhandled exception *)
-              (*let* () = Lwt_io.close conn.ic in*)
               let s = Printexc.to_string exn in
               Logs.err (fun l ->
                   l "Exception: %s\n%s" s (Printexc.get_backtrace ()));
               let* () = Conn.err conn s in
               Lwt_unix.sleep 0.01)
-      >>= fun () -> loop repo clients conn client
+      >>= fun () -> loop repo clients conn client info
 
-  let callback { repo; clients; _ } flow ic oc =
+  let callback { repo; clients; info; _ } flow ic oc =
     (* Handshake check *)
     let* check =
-      Lwt.catch (fun () -> Handshake.V1.check ic oc) (fun _ -> Lwt.return_false)
+      Lwt.catch
+        (fun () -> Handshake.V1.check (module Store) ic oc)
+        (fun _ -> Lwt.return_false)
     in
     if not check then
       (* Hanshake failed *)
@@ -126,9 +134,9 @@ module Make (X : Command.S) = struct
       let branch = Store.Branch.master in
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
-      let client = Command.{ conn; repo; branch; store; trees } in
+      let client = Command.{ conn; repo; branch; store; trees; watch = None } in
       Hashtbl.replace clients client ();
-      loop repo clients conn client
+      loop repo clients conn client info
 
   let on_exn x = raise x
 
@@ -139,12 +147,12 @@ module Make (X : Command.S) = struct
       | _ -> ()
     in
     let _ =
-      Lwt_unix.on_signal 2 (fun _ ->
+      Lwt_unix.on_signal Sys.sigint (fun _ ->
           unlink ();
           exit 0)
     in
     let _ =
-      Lwt_unix.on_signal 15 (fun _ ->
+      Lwt_unix.on_signal Sys.sigterm (fun _ ->
           unlink ();
           exit 0)
     in

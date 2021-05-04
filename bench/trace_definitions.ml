@@ -65,10 +65,15 @@ module Replayable_trace = struct
     let version = 0
 
     type header = unit [@@deriving repr]
+
     type 'a scope = Forget of 'a | Keep of 'a [@@deriving repr]
+
     type key = string list [@@deriving repr]
+
     type hash = string [@@deriving repr]
+
     type message = string [@@deriving repr]
+
     type context_id = int64 [@@deriving repr]
 
     type add = {

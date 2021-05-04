@@ -1,12 +1,10 @@
 open Lwt.Infix
-open Irmin_server
 
-module Rpc =
-  KV
-    (struct
-      let version = `V1
-    end)
-    (Irmin.Contents.String)
+module Rpc = struct
+  module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
+  module Client = Irmin_client.Make (Store)
+  module Server = Irmin_server.Make (Store)
+end
 
 let test name f client _switch () =
   Logs.debug (fun l -> l "Running: %s" name);
@@ -17,7 +15,7 @@ let run_server () =
   let uri = "unix://" ^ Filename.concat path "test.socket" in
   let stop, wake = Lwt.wait () in
   Lwt.async (fun () ->
-      let conf = Irmin_pack.config "test-db" in
+      let conf = Irmin_mem.config () in
       Rpc.Server.v ~uri conf >>= Rpc.Server.serve ~stop);
   (wake, uri)
 

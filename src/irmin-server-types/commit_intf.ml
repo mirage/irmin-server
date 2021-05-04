@@ -29,6 +29,6 @@ end
 module type Commit = sig
   module type S = S
 
-  module Make (S : Tree.STORE) (T : Tree.S) :
+  module Make (S : Irmin.S) (T : Tree.S) :
     S with type hash = S.Hash.t and type tree = T.t
 end

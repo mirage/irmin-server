@@ -1,15 +1,13 @@
 open Lwt.Syntax
 include Tree_intf
 
-module Make (Store : STORE) = struct
+module Make (Store : Irmin.S) = struct
   module Private = struct
     module Store = Store
   end
 
   module Local = struct
     type t = Store.tree
-
-    let t = Store.tree_t
 
     type key = Store.key
 
@@ -24,6 +22,8 @@ module Make (Store : STORE) = struct
     type metadata = Store.metadata
 
     include Store.Tree
+
+    let t = Store.tree_t
 
     let destruct x =
       match Store.Tree.destruct x with
