@@ -9,8 +9,6 @@ let handle_keyboard = function `Escape, _ -> exit 0 | _, _ -> `Unhandled
 
 let bold = Notty.A.(st bold)
 
-let magenta = Notty.A.(fg magenta)
-
 module Widget = struct
   type 'a t = { value : 'a Lwd.var; show : 'a -> Ui.t }
 
@@ -18,11 +16,11 @@ module Widget = struct
     let value = Lwd.var value in
     { show; value }
 
-  let show_title title fmt x = (W.printf ~attr:bold "%s: " title, W.printf fmt x)
+  let title title fmt x = (W.printf ~attr:bold "%s: " title, W.printf fmt x)
 
-  let display title fmt value =
+  let display title' fmt value =
     let show x =
-      let title, value = show_title title fmt x in
+      let title, value = title title' fmt x in
       Ui.hcat [ title; value ]
     in
     v show value
@@ -51,40 +49,52 @@ let pack =
         ])
     (0, 0, 0)
 
-let last_update (type a) (module Client : Irmin_client.S with type commit = a) =
+let commit_diff (type a) (module Client : Irmin_client.S with type commit = a) x
+    =
+  let pr t a =
+    let info = Client.Commit.info a in
+    let date = Irmin.Info.date info in
+    let localtime = Unix.localtime (Int64.to_float date) in
+    W.printf "%s (%04d-%02d-%02d %02d:%02d:%02d)\ncommit: %s\ninfo: %s\n" t
+      (localtime.tm_year + 1900) (localtime.tm_mon + 1) localtime.tm_mday
+      localtime.tm_hour localtime.tm_min localtime.tm_sec
+      (Irmin.Type.to_string Client.Hash.t (Client.Commit.hash a))
+      (Irmin.Type.to_string Irmin.Info.t info)
+  in
+  match x with
+  | `Added a -> pr "Added" a
+  | `Removed a -> pr "Removed" a
+  | `Updated (_a, b) -> pr "Updated" b
+
+let last_updates (type a) (module Client : Irmin_client.S with type commit = a)
+    =
   Widget.v
-    (fun last_update ->
-      let last_update =
-        match last_update with
-        | Some last_update ->
-            Irmin.Type.to_json_string ~minify:false
-              (Irmin.Diff.t Client.Commit.t)
-              last_update
-        | None -> "n/a"
-      in
-      let title, value = Widget.show_title "Last update" "%s" last_update in
-      Ui.hcat [ title; value ])
-    None
+    (fun last_updates ->
+      let last_updates = List.map (commit_diff (module Client)) last_updates in
+      Ui.vcat last_updates)
+    []
 
 let main client freq =
   client >>= fun (S ((module Client), client)) ->
-  let last_update = last_update (module Client) in
+  let last_updates = last_updates (module Client) in
   let ui =
     let open Lwd_infix in
     let$* uptime = Widget.show uptime in
     let$* pack = Widget.show pack in
-    let$ last_update = Widget.show last_update in
+    let$ last_updates = Widget.show last_updates in
     Ui.keyboard_area handle_keyboard
       (Ui.vcat
          [
-           W.printf ~attr:magenta "Connected to: %s"
-             (Client.uri client |> Uri.to_string);
-           Ui.space 0 1;
-           uptime;
+           Ui.hcat
+             [
+               W.printf "Connected to %s" (Client.uri client |> Uri.to_string);
+               Ui.space 5 1;
+               uptime;
+             ];
            Ui.space 0 1;
            pack;
            Ui.space 0 1;
-           last_update;
+           last_updates;
          ])
   in
   let rec tick client () =
@@ -99,7 +109,7 @@ let main client freq =
   let watch client () =
     Lwt.async (fun () ->
         let f x =
-          Widget.set_value last_update (Some x);
+          Widget.set_value last_updates (x :: Lwd.peek last_updates.value);
           Lwt.return_ok `Continue
         in
         Client.Store.watch f client >|= Error.unwrap "watch")
@@ -108,6 +118,6 @@ let main client freq =
   let* wc = Client.dup client in
   watch wc ();
   tick client ();
-  Nottui_lwt.run ui
+  Nottui_lwt.run (W.scroll_area ui)
 
 let main c f = main c f |> Lwt_main.run
