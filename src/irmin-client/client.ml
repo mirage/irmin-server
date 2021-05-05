@@ -10,6 +10,12 @@ module Make (C : Command.S) = struct
   module Key = Store.Key
   module Metadata = Store.Metadata
 
+  module Info = struct
+    include Irmin_unix.Info (Store.Info)
+
+    let init = Store.Info.v
+  end
+
   module Private = struct
     module Store = C.Store
     module Tree = C.Tree

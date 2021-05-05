@@ -317,7 +317,7 @@ module Trace_replay (Client : Store) = struct
         (* in tezos commits call Tree.list first for the unshallow operation *)
         Client.Tree.list tree []
       in*)
-    let info () = Irmin.Info.v ~date ~author:"Tezos" message in
+    let info () = Client.Info.init ~author:"Tezos" ~message date in
     let* commit =
       Client.Commit.v repo ~info ~parents:parents_store tree
       >|= Error.unwrap "Commit.v"
@@ -464,6 +464,8 @@ module Benchmark = struct
 end
 
 module Bench_suite (Client : Store) = struct
+  let info = info (module Client)
+
   let init_commit repo =
     let empty = Client.Tree.empty repo in
     Client.Commit.v repo ~info ~parents:[] empty >|= Error.unwrap "Commit.v"

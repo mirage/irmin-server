@@ -53,13 +53,13 @@ let commit_diff (type a) (module Client : Irmin_client.S with type commit = a) x
     =
   let pr t a =
     let info = Client.Commit.info a in
-    let date = Irmin.Info.date info in
+    let date = Client.Info.date info in
     let localtime = Unix.localtime (Int64.to_float date) in
     W.printf "%s (%04d-%02d-%02d %02d:%02d:%02d)\ncommit: %s\ninfo: %s\n" t
       (localtime.tm_year + 1900) (localtime.tm_mon + 1) localtime.tm_mday
       localtime.tm_hour localtime.tm_min localtime.tm_sec
       (Irmin.Type.to_string Client.Hash.t (Client.Commit.hash a))
-      (Irmin.Type.to_string Irmin.Info.t info)
+      (Irmin.Type.to_string Client.Info.t info)
   in
   match x with
   | `Added a -> pr "Added" a

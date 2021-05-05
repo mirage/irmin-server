@@ -84,7 +84,7 @@ let set client key author message contents =
         Irmin.Type.of_string Client.Contents.t contents
         |> Error.unwrap "contents"
       in
-      let info = Irmin_unix.info ~author "%s" message in
+      let info = Client.Info.v ~author "%s" message in
       let+ () =
         Client.Store.set client key ~info contents >|= Error.unwrap "set"
       in
@@ -94,7 +94,7 @@ let remove client key author message =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
-      let info = Irmin_unix.info ~author "%s" message in
+      let info = Client.Info.v ~author "%s" message in
       let+ () =
         Client.Store.remove client key ~info >|= Error.unwrap "remove"
       in

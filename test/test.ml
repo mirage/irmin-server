@@ -25,7 +25,7 @@ let ping client =
 
 let set client =
   let open Rpc.Client in
-  let info = Irmin_unix.info "test: set" in
+  let info = Info.v "test: set" in
   let* r = Store.set ~info client [ "a"; "b"; "c" ] "123" in
   let () = Alcotest.(check (result unit error)) "set" (Ok ()) r in
   let+ r2 = Store.find client [ "a"; "b"; "c" ] in
@@ -48,9 +48,7 @@ let tree client =
     Tree.Local.(add empty [ "x" ] "foo" >>= fun x -> add x [ "y" ] "bar")
   in
   Alcotest.(check (ty Tree.Local.t)) "x, y" local' local;
-  let+ res =
-    Store.set_tree ~info:(Irmin_unix.info "set_tree") client [ "tree" ] tree
-  in
+  let+ res = Store.set_tree ~info:(Info.v "set_tree") client [ "tree" ] tree in
   Alcotest.(check bool "set_tree") true (Result.is_ok res)
 
 let branch (client : Rpc.Client.t) =
@@ -66,22 +64,20 @@ let branch (client : Rpc.Client.t) =
   let* current = Branch.get_current client in
   Alcotest.(check (result string error))
     "current branch is master again" (Ok Branch.master) current;
-  let* _ =
-    Rpc.Client.Store.set ~info:(Irmin_unix.info "test") client [ "test" ] "ok"
-  in
+  let* _ = Rpc.Client.Store.set ~info:(Info.v "test") client [ "test" ] "ok" in
   let* head = Branch.get client >|= Error.unwrap "get" in
   let head = Option.get head in
   let tree = Commit.tree client head in
   let hash = Commit.hash head in
   let* commit =
-    Commit.v client ~info:(Irmin_unix.info "test") ~parents:[ hash ] tree
+    Commit.v client ~info:(Info.v "test") ~parents:[ hash ] tree
     >|= Error.unwrap "Commit.create"
   in
   let* () = Branch.set client commit >|= Error.unwrap "set" in
   let+ head = Branch.get client >|= Error.unwrap "get" in
   Alcotest.(check string)
     "commit info" "test"
-    (Commit.info (Option.get head) |> Irmin.Info.message)
+    (Commit.info (Option.get head) |> Info.message)
 
 let all =
   [

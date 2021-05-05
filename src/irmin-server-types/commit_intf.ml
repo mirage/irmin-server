@@ -7,15 +7,12 @@ module type S = sig
 
   val hash_t : hash Irmin.Type.t
 
-  type t = {
-    info : Irmin.Info.t;
-    parents : hash list;
-    hash : hash;
-    tree : tree;
-  }
+  module Info : Irmin.Info.S
+
+  type t = { info : Info.t; parents : hash list; hash : hash; tree : tree }
   [@@deriving irmin]
 
-  val info : t -> Irmin.Info.t
+  val info : t -> Info.t
 
   val hash : t -> hash
 
@@ -23,12 +20,12 @@ module type S = sig
 
   val tree : t -> tree
 
-  val v : info:Irmin.Info.t -> parents:hash list -> hash:hash -> tree:tree -> t
+  val v : info:Info.t -> parents:hash list -> hash:hash -> tree:tree -> t
 end
 
 module type Commit = sig
   module type S = S
 
   module Make (S : Irmin.S) (T : Tree.S) :
-    S with type hash = S.Hash.t and type tree = T.t
+    S with type hash = S.Hash.t and type tree = T.t and module Info = S.Info
 end

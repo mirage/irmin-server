@@ -93,10 +93,10 @@ module Conf = struct
   let stable_hash = 256
 end
 
-let info () =
+let info (type a) (module Client : Irmin_client.S with type Info.t = a) () =
   let date = Int64.of_float (Unix.gettimeofday ()) in
   let author = Printf.sprintf "TESTS" in
-  Irmin.Info.v ~date ~author "commit "
+  Client.Info.init date ~author ~message:"commit "
 
 module FSHelper = struct
   let file f =
