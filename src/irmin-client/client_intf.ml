@@ -52,11 +52,7 @@ module type S = sig
          and type slice = slice
          and type metadata = metadata
 
-    module Tree :
-      Tree.S
-        with type Private.Store.hash = hash
-         and type Private.Store.contents = contents
-         and type Private.Store.branch = branch
+    module Tree : Tree.S with module Private.Store = Store
   end
 
   type batch =
@@ -202,12 +198,12 @@ module type S = sig
 
     val merge : old:tree -> tree -> tree -> tree Error.result Lwt.t
 
-    module Local :
-      Tree.LOCAL
-        with type key = key
-         and type contents = contents
-         and type hash = hash
-         and type step = Key.step
+    module Local = Private.Tree.Local
+    (*with type key = key
+      and type contents = contents
+      and type hash = hash
+      and type step = Key.step
+      and type t = Private.Store.tree*)
 
     val to_local : tree -> Local.t Error.result Lwt.t
     (** Exchange [tree], which may be a hash or ID, for a tree
@@ -289,4 +285,7 @@ module type Client = sig
        and type commit = C.Commit.t
        and type step = C.Store.step
        and type metadata = C.Store.metadata
+       and type slice = C.Store.slice
+       and module Private.Store = C.Store
+       and type Private.Store.tree = C.Store.tree
 end

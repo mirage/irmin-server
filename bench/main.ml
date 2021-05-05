@@ -17,7 +17,7 @@
 open Bench_common
 open Irmin.Export_for_backends
 open Irmin_traces
-open Irmin_server
+open Irmin_server_types
 
 type config = {
   ncommits : int;
@@ -27,7 +27,6 @@ type config = {
   width : int;
   nlarge_trees : int;
   store_dir : string;
-  uri : string;
   path_conversion : [ `None | `V1 | `V0_and_v1 | `V0 ];
   inode_config : int * int;
   store_type : [ `Pack | `Pack_layered ];
@@ -36,16 +35,17 @@ type config = {
   artefacts_dir : string;
   keep_store : bool;
   keep_stat_trace : bool;
+  no_summary : bool;
   empty_blobs : bool;
+  uri : string;
 }
 
 module type Store = sig
   include
     Irmin_client.S
       with type contents = bytes
-       and type key = string list
        and type step = string
-       and type metadata = unit
+       and type key = string list
        and type branch = string
 
   type on_commit := int -> Hash.t -> unit Lwt.t
@@ -105,9 +105,8 @@ module Bootstrap_trace = struct
       | a :: b :: c :: d :: e :: f :: tl
         when is_2char_hex a && is_2char_hex b && is_2char_hex c
              && is_2char_hex d && is_2char_hex e && is_30char_hex f ->
-          let prefix = List.rev rev_prefix in
           let mid = a ^ b ^ c ^ d ^ e ^ f in
-          prefix @ [ mid ] @ tl
+          aux (mid :: rev_prefix) tl
       | hd :: tl -> aux (hd :: rev_prefix) tl
       | [] -> List.rev rev_prefix
     in
@@ -296,6 +295,8 @@ module Trace_replay (Client : Store) = struct
     if b <> b' then error_find "mem_tree" keys b i n (unscope in_ctx_id)
 
   let check_hash_trace h_trace h_store =
+    (*if true then ()
+      else*)
     let h_store = Irmin.Type.(to_string Client.Hash.t) h_store in
     if h_trace <> h_store then
       Fmt.failwith "hash replay %s, hash trace %s" h_store h_trace
@@ -309,10 +310,8 @@ module Trace_replay (Client : Store) = struct
     List.iter (maybe_forget_hash t) parents_trace;
     let { tree } = Hashtbl.find t.contexts (unscope in_ctx_id) in
     maybe_forget_ctx t in_ctx_id;
-    let* () =
-      Stat_collector.commit_begin stats
-        (* TODO: tree *) Client.Private.Store.Tree.empty
-    in
+    let local_tree = Client.Tree.Local.empty in
+    let* () = Stat_collector.commit_begin stats local_tree in
     (*let* _ =
         (* in tezos commits call Tree.list first for the unshallow operation *)
         Client.Tree.list tree []
@@ -322,7 +321,7 @@ module Trace_replay (Client : Store) = struct
       Client.Commit.v repo ~info ~parents:parents_store tree
       >|= Error.unwrap "Commit.v"
     in
-    let+ () = Stat_collector.commit_end stats Client.Private.Store.Tree.empty in
+    let+ () = Stat_collector.commit_end stats local_tree in
     (*Store.Tree.clear tree;*)
     let h_store = Client.Commit.hash commit in
     if check_hash then check_hash_trace (unscope h_trace) h_store;
@@ -382,8 +381,7 @@ module Trace_replay (Client : Store) = struct
     in
 
     (* Manually add genesis context *)
-    let empty = Client.Tree.empty repo in
-    Hashtbl.add t.contexts 0L { tree = empty };
+    Hashtbl.add t.contexts 0L { tree = Client.Tree.empty repo };
 
     let rec aux commit_seq i =
       match commit_seq () with
@@ -407,6 +405,9 @@ module Trace_replay (Client : Store) = struct
       && config.inode_config = (32, 256)
       && config.empty_blobs = false
     in
+    Logs.app (fun l ->
+        l "Will %scheck commit hashes against reference."
+          (if check_hash then "" else "NOT "));
     let commit_seq =
       Bootstrap_trace.open_commit_sequence config.ncommits_trace
         config.path_conversion config.commit_data_file
@@ -429,58 +430,73 @@ module Trace_replay (Client : Store) = struct
         }
     in
     let stats = Stat_collector.create_file stat_path c config.store_dir in
-    let+ () =
+    let+ summary_opt =
       Lwt.finalize
         (fun () ->
-          let* _ =
+          let* block_count =
             add_commits repo config.ncommits_trace commit_seq on_commit on_end
               stats check_hash config.empty_blobs
           in
+          Logs.app (fun l -> l "Closing repo...");
           let+ () = Client.close repo in
-          Stat_collector.close stats)
+          Stat_collector.close stats;
+          if not config.no_summary then (
+            Logs.app (fun l -> l "Computing summary...");
+            Some (Trace_stat_summary.summarise ~block_count stat_path))
+          else None)
         (fun () ->
-          if config.keep_stat_trace then Lwt.return_unit
+          if config.keep_stat_trace then (
+            Logs.app (fun l -> l "Stat trace kept at %s" stat_path);
+            Unix.chmod stat_path 0o444;
+            Lwt.return_unit)
           else Lwt.return (Stat_collector.remove stats))
     in
-    fun ppf -> Format.fprintf ppf "\n%t\n" repo_pp
+    match summary_opt with
+    | Some summary ->
+        let p = Filename.concat config.artefacts_dir "boostrap_summary.json" in
+        Trace_stat_summary.save_to_json summary p;
+        fun ppf ->
+          Format.fprintf ppf "\n%t\n%a" repo_pp
+            (Trace_stat_summary_pp.pp 5)
+            ([ "" ], [ summary ])
+    | None -> fun ppf -> Format.fprintf ppf "\n%t\n" repo_pp
 end
 
 module Benchmark = struct
-  type result = { time : float; size : string }
+  type result = { time : float; size : float }
 
   let run config f =
     let* time, res = with_timer f in
-    let+ size =
-      Lwt_process.pread
-        (Lwt_process.shell
-           ("du -s -h " ^ config.store_dir ^ "  | awk '{ print $1 }'"))
-    in
-    let size = String.trim size in
+    let+ size = FSHelper.get_size config.store_dir in
     ({ time; size }, res)
 
   let pp_results ppf result =
-    Format.fprintf ppf "Total time: %f@\nSize on disk: %s" result.time
+    Format.fprintf ppf "Total time: %f@\nSize on disk: %.02f M" result.time
       result.size
 end
 
-module Bench_suite (Client : Store) = struct
-  let info = info (module Client)
+module Bench_suite (Store : Store) = struct
+  module Info = Info (struct
+    include Store.Info
+
+    let v = init
+  end)
 
   let init_commit repo =
-    let empty = Client.Tree.empty repo in
-    Client.Commit.v repo ~info ~parents:[] empty >|= Error.unwrap "Commit.v"
+    Store.Commit.v repo ~info:Info.f ~parents:[] (Store.Tree.empty repo)
+    >|= Error.unwrap "init_commit:Commit.v"
 
-  module Trees = Generate_trees (Client)
-  module Trace_replay = Trace_replay (Client)
+  module Trees = Generate_trees (Store)
+  module Trace_replay = Trace_replay (Store)
 
   let checkout_and_commit repo prev_commit f =
-    Client.Commit.of_hash repo prev_commit >>= function
+    Store.Commit.of_hash repo prev_commit >>= function
+    | Ok None | Error _ -> Lwt.fail_with "commit not found"
     | Ok (Some commit) ->
-        let tree = Client.Commit.tree repo commit in
+        let tree = Store.Commit.tree repo commit in
         let* tree = f tree in
-        Client.Commit.v repo ~info ~parents:[ prev_commit ] tree
-        >|= Error.unwrap "Commit.v"
-    | _ -> Lwt.fail_with "commit not found"
+        Store.Commit.v repo ~info:Info.f ~parents:[ prev_commit ] tree
+        >|= Error.unwrap "checkout_and_commit:Commit.v"
 
   let add_commits ~message repo ncommits on_commit on_end f () =
     with_progress_bar ~message ~n:ncommits ~unit:"commits" @@ fun prog ->
@@ -488,8 +504,8 @@ module Bench_suite (Client : Store) = struct
     let rec aux c i =
       if i >= ncommits then on_end ()
       else
-        let* c' = checkout_and_commit repo (Client.Commit.hash c) f in
-        let* () = on_commit i (Client.Commit.hash c') in
+        let* c' = checkout_and_commit repo (Store.Commit.hash c) f in
+        let* () = on_commit i (Store.Commit.hash c') in
         prog Int64.one;
         aux c' (i + 1)
     in
@@ -497,14 +513,14 @@ module Bench_suite (Client : Store) = struct
 
   let run_large config =
     reset_stats ();
-    let* repo, on_commit, on_end, repo_pp = Client.create_repo config in
+    let* repo, on_commit, on_end, repo_pp = Store.create_repo config in
     let* result, () =
       Trees.add_large_trees config.width config.nlarge_trees
       |> add_commits ~message:"Playing large mode" repo config.ncommits
            on_commit on_end
       |> Benchmark.run config
     in
-    let+ () = Client.close repo in
+    let+ () = Store.close repo in
     fun ppf ->
       Format.fprintf ppf
         "Large trees mode on inode config %a, %a: %d commits, each consisting \
@@ -517,14 +533,14 @@ module Bench_suite (Client : Store) = struct
 
   let run_chains config =
     reset_stats ();
-    let* repo, on_commit, on_end, repo_pp = Client.create_repo config in
+    let* repo, on_commit, on_end, repo_pp = Store.create_repo config in
     let* result, () =
       Trees.add_chain_trees config.depth config.nchain_trees
       |> add_commits ~message:"Playing chain mode" repo config.ncommits
            on_commit on_end
       |> Benchmark.run config
     in
-    let+ () = Client.close repo in
+    let+ () = Store.close repo in
     fun ppf ->
       Format.fprintf ppf
         "Chain trees mode on inode config %a, %a: %d commits, each consisting \
@@ -538,10 +554,15 @@ module Bench_suite (Client : Store) = struct
   let run_read_trace = Trace_replay.run
 end
 
-module Make_store_layered (C : Irmin_pack.Conf.S) = struct
+module Make_store_layered (Conf : sig
+  val entries : int
+
+  val stable_hash : int
+end) =
+struct
   module X = struct
     open Tezos_context_hash_irmin.Encoding
-    module Maker = Irmin_pack_layered.Maker_ext (C) (Node) (Commit)
+    module Maker = Irmin_pack_layered.Maker_ext (Conf) (Node) (Commit)
     module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
   end
 
@@ -557,13 +578,22 @@ module Make_store_layered (C : Irmin_pack.Conf.S) = struct
     in
     let on_commit _ _ = Lwt.return_unit in
     let on_end () = Lwt.return_unit in
-    let pp _ = () in
+    let pp ppf =
+      if Irmin_layers.Stats.get_freeze_count () = 0 then
+        Format.fprintf ppf "no freeze"
+      else Format.fprintf ppf "%t" Irmin_layers.Stats.pp_latest
+    in
     Lwt.return (client, on_commit, on_end, pp)
 
   include Client
 end
 
-module Make_store_pack (C : Irmin_pack.Conf.S) = struct
+module Make_store_pack (Conf : sig
+  val entries : int
+
+  val stable_hash : int
+end) =
+struct
   module X = struct
     open Tezos_context_hash_irmin.Encoding
 
@@ -571,7 +601,7 @@ module Make_store_pack (C : Irmin_pack.Conf.S) = struct
       let version = `V1
     end
 
-    module Maker = Irmin_pack.Maker_ext (V1) (C) (Node) (Commit)
+    module Maker = Irmin_pack.Maker_ext (V1) (Conf) (Node) (Commit)
     module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
   end
 
@@ -602,8 +632,11 @@ module type B = sig
 end
 
 let store_of_config config =
+  let entries, stable_hash = config.inode_config in
   let module Conf = struct
-    let entries, stable_hash = config.inode_config
+    let entries = entries
+
+    let stable_hash = stable_hash
   end in
   match config.store_type with
   | `Pack -> (module Bench_suite (Make_store_pack (Conf)) : B)
@@ -732,15 +765,15 @@ let run_server (module Conf : Irmin_pack.Conf.S) config =
 
 let main () ncommits ncommits_trace suite_filter inode_config store_type
     freeze_commit path_conversion depth width nchain_trees nlarge_trees
-    commit_data_file artefacts_dir keep_store keep_stat_trace empty_blobs =
-  let () = Memtrace.trace_if_requested () in
+    commit_data_file artefacts_dir keep_store keep_stat_trace no_summary
+    empty_blobs =
   let default = match suite_filter with `Quick -> 10000 | _ -> 13315 in
   let ncommits_trace = Option.value ~default ncommits_trace in
   let config =
     {
       ncommits;
       ncommits_trace;
-      store_dir = "/tmp/irmin-server-bench";
+      store_dir = Filename.concat artefacts_dir "store";
       uri = "unix:///tmp/irmin-server-bench.sock";
       path_conversion;
       depth;
@@ -754,12 +787,12 @@ let main () ncommits ncommits_trace suite_filter inode_config store_type
       artefacts_dir;
       keep_store;
       keep_stat_trace;
+      no_summary;
       empty_blobs;
     }
   in
   Printexc.record_backtrace true;
   Random.self_init ();
-  FSHelper.rm_dir config.store_dir;
   let suite = get_suite suite_filter in
   let configs =
     List.mapi
@@ -770,12 +803,17 @@ let main () ncommits ncommits_trace suite_filter inode_config store_type
           | Some i -> i
           | None -> config.inode_config
         in
-        {
-          config with
-          uri = config.uri ^ i;
-          store_dir = config.store_dir ^ "-" ^ i;
-          inode_config;
-        })
+        let config =
+          {
+            config with
+            uri = config.uri ^ i;
+            store_dir = config.store_dir ^ "-" ^ i;
+            inode_config;
+          }
+        in
+        FSHelper.rm_dir config.uri;
+        FSHelper.rm_dir config.store_dir;
+        config)
       suite
   in
   let run_benchmarks () =
@@ -862,6 +900,16 @@ let keep_store =
   in
   Arg.(value @@ flag doc)
 
+let no_summary =
+  let doc =
+    Arg.info
+      ~doc:
+        "Whether or not the stat trace should be converted to a summary at the \
+         end of a replay."
+      [ "no-summary" ]
+  in
+  Arg.(value @@ flag doc)
+
 let keep_stat_trace =
   let doc =
     Arg.info
@@ -929,7 +977,7 @@ let main_term =
     const main $ setup_log $ ncommits $ ncommits_trace $ mode $ inode_config
     $ store_type $ freeze_commit $ path_conversion $ depth $ width
     $ nchain_trees $ nlarge_trees $ commit_data_file $ artefacts_dir
-    $ keep_store $ keep_stat_trace $ empty_blobs)
+    $ keep_store $ keep_stat_trace $ no_summary $ empty_blobs)
 
 let () =
   let man =

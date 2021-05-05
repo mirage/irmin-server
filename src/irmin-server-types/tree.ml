@@ -7,32 +7,35 @@ module Make (Store : Irmin.S) = struct
   end
 
   module Local = struct
-    type t = Store.tree
+    type t = Private.Store.tree
 
-    type key = Store.key
+    type key = Private.Store.key
 
-    type contents = Store.contents
+    type contents = Private.Store.contents
 
-    type node = Store.node
+    type node = Private.Store.node
 
-    type hash = Store.hash
+    type hash = Private.Store.hash
 
-    type step = Store.Key.step
+    type step = Private.Store.Key.step
 
-    type metadata = Store.metadata
+    type metadata = Private.Store.metadata
 
-    include Store.Tree
+    include Private.Store.Tree
 
-    let t = Store.tree_t
+    let t = Private.Store.tree_t
 
     let destruct x =
-      match Store.Tree.destruct x with
-      | `Contents (x, _) -> Lwt.return (`Contents (Store.Tree.Contents.hash x))
+      match Private.Store.Tree.destruct x with
+      | `Contents (x, _) ->
+          Lwt.return (`Contents (Private.Store.Tree.Contents.hash x))
       | `Node l ->
-          let+ l = list (Store.Tree.of_node l) Store.Key.empty in
+          let+ l =
+            list (Private.Store.Tree.of_node l) Private.Store.Key.empty
+          in
           `Node l
   end
 
-  type t = Hash of Store.Hash.t | ID of int | Local of Local.concrete
+  type t = Hash of Private.Store.Hash.t | ID of int | Local of Local.concrete
   [@@deriving irmin]
 end

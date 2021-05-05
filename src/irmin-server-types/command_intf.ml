@@ -1,7 +1,8 @@
 module type S = sig
   module Store : Irmin.S
 
-  module Tree : Tree.S with module Private.Store = Store
+  module Tree :
+    Tree.S with module Private.Store = Store and type Local.t = Store.tree
 
   module Commit :
     Commit.S
@@ -238,5 +239,9 @@ end
 module type Command = sig
   module type S = S
 
-  module Make (Store : Irmin.S) : S with module Store = Store
+  module Make (Store : Irmin.S) :
+    S
+      with module Store = Store
+       and module Tree.Private.Store = Store
+       and type Tree.Local.t = Store.tree
 end

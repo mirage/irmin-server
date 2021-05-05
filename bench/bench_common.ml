@@ -16,6 +16,8 @@
 
 open Irmin.Export_for_backends
 
+let now_s () = Mtime.Span.to_s (Mtime_clock.elapsed ())
+
 let reporter ?(prefix = "") () =
   let report src level ~over k msgf =
     let k _ =
@@ -24,7 +26,7 @@ let reporter ?(prefix = "") () =
     in
     let ppf = match level with Logs.App -> Fmt.stdout | _ -> Fmt.stderr in
     let with_stamp h _tags k fmt =
-      let dt = Unix.gettimeofday () in
+      let dt = now_s () in
       Fmt.kpf k ppf
         ("%s%+04.0fus %a %a @[" ^^ fmt ^^ "@]@.")
         prefix dt Logs_fmt.pp_header (level, h)
@@ -93,10 +95,9 @@ module Conf = struct
   let stable_hash = 256
 end
 
-let info (type a) (module Client : Irmin_client.S with type Info.t = a) () =
-  let date = Int64.of_float (Unix.gettimeofday ()) in
-  let author = Printf.sprintf "TESTS" in
-  Client.Info.init date ~author ~message:"commit "
+module Info (I : Irmin.Info.S) = struct
+  let f () = I.v ~author:"tests" ~message:"commit" 0L
+end
 
 module FSHelper = struct
   let file f =
@@ -115,10 +116,17 @@ module FSHelper = struct
 
   let size root = dict root + pack root + index root
 
-  let get_size root = size root
+  let get_size root =
+    (*size root*)
+    let+ size =
+      Lwt_process.pread
+        (Lwt_process.shell ("du -s " ^ root ^ "  | awk '{ print $1 }'"))
+    in
+    let size = String.trim size in
+    float_of_string size /. 1024.
 
   let print_size_layers root =
-    let dt = Unix.gettimeofday () in
+    let dt = now_s () in
     let upper1 = Filename.concat root "upper1" in
     let upper0 = Filename.concat root "upper0" in
     let lower = Filename.concat root "lower" in
@@ -135,9 +143,9 @@ module FSHelper = struct
 end
 
 module Generate_trees
-    (Client : Irmin_client.S
-                with type contents = bytes
-                 and type key = string list) =
+    (Store : Irmin_client.S
+               with type contents = bytes
+                and type key = string list) =
 struct
   let key depth =
     let rec aux i acc =
@@ -150,16 +158,14 @@ struct
 
   let chain_tree tree depth path =
     let k = path @ key depth in
-    Client.Tree.add tree k (random_blob ())
+    Store.Tree.add tree k (random_blob ()) >|= Result.get_ok
 
   let add_chain_trees depth nb tree =
     let path = key 2 in
     let rec aux i tree =
       if i >= nb then Lwt.return tree
       else
-        let* tree =
-          chain_tree tree depth path >|= Irmin_server.Error.unwrap "chain_tree"
-        in
+        let* tree = chain_tree tree depth path in
         aux (i + 1) tree
     in
     aux 0 tree
@@ -169,10 +175,7 @@ struct
       if i >= width then Lwt.return tree
       else
         let k = path @ [ random_key () ] in
-        let* tree =
-          Client.Tree.add tree k (random_blob ())
-          >|= Irmin_server.Error.unwrap "large_tree:add"
-        in
+        let* tree = Store.Tree.add tree k (random_blob ()) >|= Result.get_ok in
         aux (i + 1) tree
     in
     aux 0 tree

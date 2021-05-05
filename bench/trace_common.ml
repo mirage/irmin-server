@@ -27,8 +27,8 @@
       - Row (row_t, _ bytes)
     v}
 
-    This file is also meant to be used from Tezos. OCaml version 4.09 and the
-    32bit architecture should be supported.
+    This file is meant to be used from Tezos. OCaml version 4.09 and the 32bit
+    architecture should be supported.
 
     {3 Example}
 
@@ -109,9 +109,7 @@ module Magic : sig
   type t
 
   val of_string : string -> t
-
   val to_string : t -> string
-
   val pp : Format.formatter -> t -> unit
 end = struct
   type t = string
@@ -122,7 +120,6 @@ end = struct
     s
 
   let to_string s = s
-
   let pp ppf s = Format.fprintf ppf "%s" (String.escaped s)
 end
 
@@ -147,7 +144,6 @@ module type File_format = sig
     val version : int
 
     type header [@@deriving repr]
-
     type row [@@deriving repr]
   end
 
@@ -198,13 +194,9 @@ end
     performance sensitive, the read operations are not. *)
 module Io (Ff : File_format) = struct
   let decode_i32 = Repr.(decode_bin int32 |> unstage)
-
   let encode_i32 = Repr.(encode_bin int32 |> unstage)
-
   let encode_lheader = Repr.(encode_bin Ff.Latest.header_t |> unstage)
-
   let encode_lrow = Repr.(encode_bin Ff.Latest.row_t |> unstage)
-
   let magic = Ff.magic
 
   let read_with_prefix_exn : (string -> int -> int * 'a) -> in_channel -> 'a =
@@ -283,7 +275,6 @@ module Io (Ff : File_format) = struct
     Buffer.clear buffer
 
   let flush { channel; _ } = flush channel
-
   let close { channel; _ } = close_out channel
 
   let remove { channel; path; _ } =

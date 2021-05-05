@@ -440,7 +440,7 @@ module Make (C : Command.S) = struct
           match res with
           | Ok x ->
               let x = Private.Tree.Local.of_concrete x in
-              Ok x
+              Ok (x : Private.Store.tree)
           | Error e -> Error e)
 
     let of_local t x =

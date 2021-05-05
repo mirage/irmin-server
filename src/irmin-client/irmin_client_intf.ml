@@ -14,4 +14,7 @@ module type Irmin_client = sig
        and type key = Store.key
        and type step = Store.step
        and type metadata = Store.metadata
+       and type slice = Store.slice
+       and module Private.Store = Store
+       and type Private.Store.tree = Store.tree
 end
