@@ -63,7 +63,7 @@ pin-depends: [
   ]
   [
     "irmin-unix.dev"
-    "git+https://github.com/zshipko/irmin#49eaa7140f04fe73cff52cf8986e0af7fd5a584"
+    "git+https://github.com/zshipko/irmin#066929faa7b795064128870e02ed9445cbeaefe4"
   ]
   [
     "irmin-test.dev"
