@@ -6,13 +6,15 @@ module V1 = struct
   let type_name x = Fmt.to_to_string Irmin.Type.pp_ty x
 
   let fingerprint (module Store : Irmin.S) : string =
-    Irmin.Type.to_string Store.Hash.t Store.Tree.(hash empty)
+    let hash = Store.Hash.hash (fun f -> f s) in
+    Irmin.Type.to_string Store.Hash.t hash
 
   let send store ic oc =
     Lwt.catch
       (fun () ->
         Lwt_unix.with_timeout 3.0 (fun () ->
-            let* () = Lwt_io.write_line oc (s ^ fingerprint store) in
+            let s = fingerprint store in
+            let* () = Lwt_io.write_line oc s in
             let+ line = Lwt_io.read_line ic in
             assert (s = String.trim line)))
       (function
@@ -22,8 +24,9 @@ module V1 = struct
         | x -> raise x)
 
   let check store ic oc =
+    let s = fingerprint store in
     let* line = Lwt_unix.with_timeout 3.0 (fun () -> Lwt_io.read_line ic) in
-    if String.trim line = s ^ fingerprint store then
+    if String.trim line = s then
       let* () = Lwt_io.write_line oc s in
       Lwt.return_true
     else Lwt.return_false
