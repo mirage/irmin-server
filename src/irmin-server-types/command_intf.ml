@@ -1,9 +1,14 @@
 module type S = sig
   module Store : Irmin.S
 
-  module Tree : Tree.S with module Private.Store = Store
+  module Tree :
+    Tree.S with module Private.Store = Store and type Local.t = Store.tree
 
-  module Commit : Commit.S with type hash = Store.Hash.t and type tree = Tree.t
+  module Commit :
+    Commit.S
+      with type hash = Store.Hash.t
+       and type tree = Tree.t
+       and module Info = Store.Info
 
   module Server_info : sig
     type t = { start_time : float }
@@ -84,7 +89,7 @@ module type S = sig
     (* Commit *)
     module Commit_v :
       CMD
-        with type Req.t = Irmin.Info.t * Store.hash list * Tree.t
+        with type Req.t = Store.Info.t * Store.hash list * Tree.t
          and type Res.t = Commit.t
 
     module Commit_of_hash :
@@ -107,32 +112,32 @@ module type S = sig
 
       module Set :
         CMD
-          with type Req.t = Store.key * Irmin.Info.t * Store.contents
+          with type Req.t = Store.key * Store.Info.t * Store.contents
            and type Res.t = unit
 
       module Test_and_set :
         CMD
           with type Req.t =
                 Store.key
-                * Irmin.Info.t
+                * Store.Info.t
                 * (Store.contents option * Store.contents option)
            and type Res.t = unit
 
       module Remove :
-        CMD with type Req.t = Store.key * Irmin.Info.t and type Res.t = unit
+        CMD with type Req.t = Store.key * Store.Info.t and type Res.t = unit
 
       module Find_tree :
         CMD with type Req.t = Store.key and type Res.t = Tree.t option
 
       module Set_tree :
         CMD
-          with type Req.t = Store.key * Irmin.Info.t * Tree.t
+          with type Req.t = Store.key * Store.Info.t * Tree.t
            and type Res.t = Tree.t
 
       module Test_and_set_tree :
         CMD
           with type Req.t =
-                Store.key * Irmin.Info.t * (Tree.t option * Tree.t option)
+                Store.key * Store.Info.t * (Tree.t option * Tree.t option)
            and type Res.t = Tree.t option
 
       module Mem : CMD with type Req.t = Store.key and type Res.t = bool
@@ -141,11 +146,11 @@ module type S = sig
 
       module Merge :
         CMD
-          with type Req.t = Irmin.Info.t * Store.Branch.t
+          with type Req.t = Store.Info.t * Store.Branch.t
            and type Res.t = unit
 
       module Merge_commit :
-        CMD with type Req.t = Irmin.Info.t * Commit.t and type Res.t = unit
+        CMD with type Req.t = Store.Info.t * Commit.t and type Res.t = unit
 
       module Last_modified :
         CMD with type Req.t = Store.key and type Res.t = Commit.t list
@@ -234,5 +239,9 @@ end
 module type Command = sig
   module type S = S
 
-  module Make (Store : Irmin.S) : S with module Store = Store
+  module Make (Store : Irmin.S) :
+    S
+      with module Store = Store
+       and module Tree.Private.Store = Store
+       and type Tree.Local.t = Store.tree
 end

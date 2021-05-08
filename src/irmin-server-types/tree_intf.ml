@@ -83,6 +83,7 @@ module type S = sig
        and type key = Store.key
        and type hash = Store.hash
        and type step = Store.Key.step
+       and type t = Store.tree
 
   type t = Hash of Store.Hash.t | ID of int | Local of Local.concrete
   [@@deriving irmin]
@@ -93,6 +94,5 @@ module type Tree = sig
 
   module type LOCAL = LOCAL
 
-  module Make (S : Irmin.S) :
-    S with module Private.Store = S and type Local.t = S.tree
+  module Make (S : Irmin.S) : S with module Private.Store = S
 end

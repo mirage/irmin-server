@@ -6,7 +6,10 @@ module Make
     (Tree : Tree.S
               with module Private.Store = Store
                and type Local.t = Store.tree)
-    (Commit : Commit.S with type hash = Store.hash and type tree = Tree.t) =
+    (Commit : Commit.S
+                with type hash = Store.hash
+                 and type tree = Tree.t
+                 and module Info = Store.Info) =
 struct
   include Context.Make (Store) (Tree)
 
@@ -35,7 +38,7 @@ struct
 
   module Set = struct
     module Req = struct
-      type t = Store.key * Irmin.Info.t * Store.contents [@@deriving irmin]
+      type t = Store.key * Store.Info.t * Store.contents [@@deriving irmin]
     end
 
     module Res = struct
@@ -53,7 +56,7 @@ struct
     module Req = struct
       type t =
         Store.key
-        * Irmin.Info.t
+        * Store.Info.t
         * (Store.contents option * Store.contents option)
       [@@deriving irmin]
     end
@@ -73,7 +76,7 @@ struct
 
   module Remove = struct
     module Req = struct
-      type t = Store.key * Irmin.Info.t [@@deriving irmin]
+      type t = Store.key * Store.Info.t [@@deriving irmin]
     end
 
     module Res = struct
@@ -106,7 +109,7 @@ struct
 
   module Set_tree = struct
     module Req = struct
-      type t = Store.key * Irmin.Info.t * Tree.t [@@deriving irmin]
+      type t = Store.key * Store.Info.t * Tree.t [@@deriving irmin]
     end
 
     module Res = struct
@@ -124,7 +127,7 @@ struct
 
   module Test_and_set_tree = struct
     module Req = struct
-      type t = Store.key * Irmin.Info.t * (Tree.t option * Tree.t option)
+      type t = Store.key * Store.Info.t * (Tree.t option * Tree.t option)
       [@@deriving irmin]
     end
 
@@ -193,7 +196,7 @@ struct
 
   module Merge = struct
     module Req = struct
-      type t = Irmin.Info.t * Store.Branch.t [@@deriving irmin]
+      type t = Store.Info.t * Store.Branch.t [@@deriving irmin]
     end
 
     module Res = struct
@@ -214,7 +217,7 @@ struct
 
   module Merge_commit = struct
     module Req = struct
-      type t = Irmin.Info.t * Commit.t [@@deriving irmin]
+      type t = Store.Info.t * Commit.t [@@deriving irmin]
     end
 
     module Res = struct

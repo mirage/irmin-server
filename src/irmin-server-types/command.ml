@@ -200,7 +200,7 @@ module Make (St : Irmin.S) = struct
 
     module Commit_v = struct
       module Req = struct
-        type t = Irmin.Info.t * St.Hash.t list * Tree.t [@@deriving irmin]
+        type t = St.Info.t * St.Hash.t list * Tree.t [@@deriving irmin]
       end
 
       module Res = struct

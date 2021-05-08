@@ -9,7 +9,9 @@ module Make (St : Irmin.S) (T : Tree.S) = struct
 
   let hash_t = St.Hash.t
 
-  type t = { info : Irmin.Info.t; parents : hash list; hash : hash; tree : T.t }
+  module Info = St.Info
+
+  type t = { info : Info.t; parents : hash list; hash : hash; tree : T.t }
   [@@deriving irmin]
 
   let info { info; _ } = info

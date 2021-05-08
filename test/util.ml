@@ -12,7 +12,7 @@ let test name f client _switch () =
 
 let run_server () =
   let path = Unix.getcwd () in
-  let uri = "unix://" ^ Filename.concat path "test.socket" in
+  let uri = Uri.of_string ("unix://" ^ Filename.concat path "test.socket") in
   let stop, wake = Lwt.wait () in
   Lwt.async (fun () ->
       let conf = Irmin_mem.config () in

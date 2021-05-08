@@ -9,7 +9,7 @@ module type S = sig
 
   val v :
     ?tls_config:[ `Cert_file of string ] * [ `Key_file of string ] ->
-    uri:string ->
+    uri:Uri.t ->
     Irmin.config ->
     t Lwt.t
   (** Create an instance of the server *)

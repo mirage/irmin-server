@@ -17,6 +17,8 @@ depends: [
   "ppx_deriving_yojson"
   "bentov"
   "benchmark"
+  "mtime"
+  "printbox"
 ]
 build: [
   ["dune" "subst"] {pinned}

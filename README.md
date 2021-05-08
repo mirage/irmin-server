@@ -106,9 +106,12 @@ A handshake is performed when a client connects to the server
 
 The following is sent as a request from the client to server **AND** the response from server to client
 
-| Field   | Type                     |
-| ------- | ------------------------ |
-| version | `\n` delimited string    |
+| Field              | Type                     |
+| -------            | ------------------------ |
+| contents type hash | `\n` delimited string    |
 
+`contents hash type` is the hex-encoded hash of the **name** of the content type using `Store.Hash`.
 
-`V1` is the handshake version for the initial implementation
+For example, for a store with `string` contents and BLAKE2B hash the `contents type hash` is equal to `BLAKE2B("string")`
+
+This is used as a basic sanity check to ensure the client and server have the same hash and contents implementation

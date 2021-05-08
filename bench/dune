@@ -19,18 +19,12 @@
 
 (library
  (name irmin_traces)
- (modules trace_common trace_definitions trace_collection)
+ (modules trace_common trace_definitions trace_collection trace_stat_summary
+   trace_stat_summary_conf trace_stat_summary_utils trace_stat_summary_pp)
  (preprocess
   (pps ppx_repr ppx_deriving.enum))
- (libraries
-  irmin-server irmin-client
-  unix
-  lwt
-  repr
-  ppx_repr
-  bentov
-  mtime
-  mtime.clock.os))
+ (libraries irmin irmin-pack unix lwt repr ppx_repr bentov mtime printbox
+   printbox.unicode mtime.clock.os))
 
 (executable
  (name main)
@@ -77,3 +71,4 @@
   mtime
   mtime.clock.os
   tezos-context-hash-irmin))
+

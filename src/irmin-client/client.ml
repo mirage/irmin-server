@@ -10,6 +10,12 @@ module Make (C : Command.S) = struct
   module Key = Store.Key
   module Metadata = Store.Metadata
 
+  module Info = struct
+    include Irmin_unix.Info (Store.Info)
+
+    let init = Store.Info.v
+  end
+
   module Private = struct
     module Store = C.Store
     module Tree = C.Tree
@@ -58,7 +64,6 @@ module Make (C : Command.S) = struct
   type tree = t * Private.Tree.t * batch
 
   let conf ?(batch_size = 32) ?(tls = false) ~uri () =
-    let uri = Uri.of_string uri in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
     let client =
@@ -435,7 +440,7 @@ module Make (C : Command.S) = struct
           match res with
           | Ok x ->
               let x = Private.Tree.Local.of_concrete x in
-              Ok x
+              Ok (x : Private.Store.tree)
           | Error e -> Error e)
 
     let of_local t x =

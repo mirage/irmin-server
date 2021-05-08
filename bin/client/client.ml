@@ -10,10 +10,7 @@ let with_timer f =
   let t1 = Sys.time () -. t0 in
   (t1, a)
 
-let init ~uri ~branch ~tls ~level (module Client : Irmin_client.S) :
-    client Lwt.t =
-  let () = Logs.set_level (Some level) in
-  let () = Logs.set_reporter (Logs_fmt.reporter ()) in
+let init ~uri ~branch ~tls (module Client : Irmin_client.S) : client Lwt.t =
   let* x = Client.connect ~tls ~uri () in
   let+ () =
     match branch with
@@ -87,7 +84,7 @@ let set client key author message contents =
         Irmin.Type.of_string Client.Contents.t contents
         |> Error.unwrap "contents"
       in
-      let info = Irmin_unix.info ~author "%s" message in
+      let info = Client.Info.v ~author "%s" message in
       let+ () =
         Client.Store.set client key ~info contents >|= Error.unwrap "set"
       in
@@ -97,7 +94,7 @@ let remove client key author message =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
       let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
-      let info = Irmin_unix.info ~author "%s" message in
+      let info = Client.Info.v ~author "%s" message in
       let+ () =
         Client.Store.remove client key ~info >|= Error.unwrap "remove"
       in
@@ -146,10 +143,6 @@ let watch client =
         client
       >|= Error.unwrap "watch" )
 
-let level =
-  let doc = Arg.info ~doc:"Log level" [ "log-level" ] in
-  Arg.(value @@ opt string "error" doc)
-
 let pr_str = Format.pp_print_string
 
 let key index =
@@ -195,37 +188,26 @@ let freq =
   Arg.(value @@ opt float 5. doc)
 
 let config =
-  let create uri (branch : string option) tls level contents hash =
-    let (module Hash : Irmin.Hash.S) =
-      Option.value ~default:Cli.default_hash hash
+  let create uri (branch : string option) tls (store, hash, contents) () =
+    let config =
+      match uri with
+      | Some uri -> Irmin_http.config uri
+      | None -> Irmin_mem.config ()
     in
-    let contents =
-      Irmin_unix.Resolver.Contents.find
-        (Option.value ~default:Cli.default_contents contents)
+    let store, config =
+      Irmin_unix.Resolver.load_config ~default:config ~store ~hash ~contents ()
     in
-    let (module Contents : Irmin.Contents.S) = contents in
-    let module Maker =
-      Irmin_pack.Maker
-        (struct
-          let version = `V1
-        end)
-        (struct
-          let entries = 32
-
-          let stable_hash = 256
-        end)
-    in
-    let module Store =
-      Maker.Make (Irmin.Metadata.None) (Contents) (Irmin.Path.String_list)
-        (Irmin.Branch.String)
-        (Hash)
+    let (module Store : Irmin.S), _ =
+      Irmin_unix.Resolver.Store.destruct store
     in
     let module Client = Irmin_client.Make (Store) in
-    init ~uri ~branch ~tls ~level (module Client)
+    let uri =
+      Irmin.Private.Conf.(get config Irmin_http.uri)
+      |> Option.value ~default:Cli.default_uri
+    in
+    init ~uri ~branch ~tls (module Client)
   in
-  Term.(
-    const create $ Cli.uri $ branch $ tls $ Cli.log_level $ Cli.contents
-    $ Cli.hash)
+  Term.(const create $ Cli.uri $ branch $ tls $ Cli.store $ Cli.setup_log)
 
 let help =
   let help () =

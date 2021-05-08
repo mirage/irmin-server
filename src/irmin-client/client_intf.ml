@@ -27,6 +27,14 @@ module type S = sig
 
   val slice_t : slice Irmin.Type.t
 
+  module Info : sig
+    include Irmin.Info.S
+
+    val init : ?author:string -> ?message:string -> int64 -> t
+
+    val v : ?author:string -> ('b, Format.formatter, unit, f) format4 -> 'b
+  end
+
   module Key : Irmin.Path.S with type t = key and type step = step
 
   module Hash : Irmin.Hash.S with type t = hash
@@ -44,11 +52,7 @@ module type S = sig
          and type slice = slice
          and type metadata = metadata
 
-    module Tree :
-      Tree.S
-        with type Private.Store.hash = hash
-         and type Private.Store.contents = contents
-         and type Private.Store.branch = branch
+    module Tree : Tree.S with module Private.Store = Store
   end
 
   type batch =
@@ -57,7 +61,7 @@ module type S = sig
       | `Tree of Private.Tree.t ])
     list
 
-  val connect : ?batch_size:int -> ?tls:bool -> uri:string -> unit -> t Lwt.t
+  val connect : ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
 
   val uri : t -> Uri.t
@@ -77,11 +81,7 @@ module type S = sig
 
   module Commit : sig
     val v :
-      t ->
-      info:Irmin.Info.f ->
-      parents:hash list ->
-      tree ->
-      commit Error.result Lwt.t
+      t -> info:Info.f -> parents:hash list -> tree -> commit Error.result Lwt.t
     (** Create a new commit
         NOTE: this will invalidate all intermediate trees *)
 
@@ -93,7 +93,7 @@ module type S = sig
     val parents : commit -> hash list
     (** The commit parents. *)
 
-    val info : commit -> Irmin.Info.t
+    val info : commit -> Info.t
     (** The commit info. *)
 
     val t : commit Irmin.Type.t
@@ -198,12 +198,12 @@ module type S = sig
 
     val merge : old:tree -> tree -> tree -> tree Error.result Lwt.t
 
-    module Local :
-      Tree.LOCAL
-        with type key = key
-         and type contents = contents
-         and type hash = hash
-         and type step = Key.step
+    module Local = Private.Tree.Local
+    (*with type key = key
+      and type contents = contents
+      and type hash = hash
+      and type step = Key.step
+      and type t = Private.Store.tree*)
 
     val to_local : tree -> Local.t Error.result Lwt.t
     (** Exchange [tree], which may be a hash or ID, for a tree
@@ -222,31 +222,30 @@ module type S = sig
     val find_tree : t -> key -> Tree.t option Error.result Lwt.t
     (** Find the tree associated with a key, if it exists *)
 
-    val set :
-      t -> info:Irmin.Info.f -> key -> contents -> unit Error.result Lwt.t
+    val set : t -> info:Info.f -> key -> contents -> unit Error.result Lwt.t
     (** Associate a new value with the given key *)
 
     val test_and_set :
       t ->
-      info:Irmin.Info.f ->
+      info:Info.f ->
       key ->
       test:contents option ->
       set:contents option ->
       unit Error.result Lwt.t
     (** Set a value only if the [test] parameter matches the existing value *)
 
-    val remove : t -> info:Irmin.Info.f -> key -> unit Error.result Lwt.t
+    val remove : t -> info:Info.f -> key -> unit Error.result Lwt.t
     (** Remove a value from the store *)
 
     val set_tree :
-      t -> info:Irmin.Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
+      t -> info:Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
     (** Set a tree at the given key
         NOTE: the tree parameter will not be valid after this call, the
         returned tree should be used instead *)
 
     val test_and_set_tree :
       t ->
-      info:Irmin.Info.f ->
+      info:Info.f ->
       key ->
       test:Tree.t option ->
       set:Tree.t option ->
@@ -261,10 +260,9 @@ module type S = sig
     val mem_tree : t -> key -> bool Error.result Lwt.t
     (** Check if the given key has an associated tree *)
 
-    val merge : t -> info:Irmin.Info.f -> branch -> unit Error.result Lwt.t
+    val merge : t -> info:Info.f -> branch -> unit Error.result Lwt.t
 
-    val merge_commit :
-      t -> info:Irmin.Info.f -> Commit.t -> unit Error.result Lwt.t
+    val merge_commit : t -> info:Info.f -> Commit.t -> unit Error.result Lwt.t
 
     val last_modified : t -> key -> Commit.t list Error.result Lwt.t
 
@@ -287,4 +285,7 @@ module type Client = sig
        and type commit = C.Commit.t
        and type step = C.Store.step
        and type metadata = C.Store.metadata
+       and type slice = C.Store.slice
+       and module Private.Store = C.Store
+       and type Private.Store.tree = C.Store.tree
 end

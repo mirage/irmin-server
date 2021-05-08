@@ -1,57 +1,48 @@
 open Lwt.Syntax
 open Irmin_server_types
 
-let main ~root ~uri ~tls ~level ~contents ~hash =
-  let (module Contents : Irmin.Contents.S) =
-    Irmin_unix.Resolver.Contents.find
-      (Option.value contents ~default:Cli.default_contents)
+let main ~root ~uri ~tls ~store ~contents ~hash =
+  let config =
+    match root with
+    | Some root -> Irmin_pack.config root
+    | None -> Irmin_mem.config ()
   in
-  let (module Hash : Irmin.Hash.S) =
-    Option.value ~default:Cli.default_hash hash
+  let config =
+    match uri with Some uri -> Irmin_http.config ~config uri | None -> config
   in
-  let module Maker =
-    Irmin_pack.Maker
-      (struct
-        let version = `V1
-      end)
-      (struct
-        let entries = 32
-
-        let stable_hash = 256
-      end)
+  let store, config =
+    Irmin_unix.Resolver.load_config ~default:config ~store ~hash ~contents ()
   in
-  let module Store =
-    Maker.Make (Irmin.Metadata.None) (Contents) (Irmin.Path.String_list)
-      (Irmin.Branch.String)
-      (Hash)
-  in
+  let (module Store : Irmin.S), _ = Irmin_unix.Resolver.Store.destruct store in
   let module Server = Irmin_server.Make (Store) in
-  let () = Logs.set_level (Some level) in
-  let () = Logs.set_reporter (Logs_fmt.reporter ()) in
-  let config = Irmin_pack.config root in
   let tls_config =
     match tls with Some (c, k) -> Some (`Cert_file c, `Key_file k) | _ -> None
   in
+  let uri =
+    Irmin.Private.Conf.(get config Irmin_http.uri)
+    |> Option.value ~default:Cli.default_uri
+  in
   let* server = Server.v ?tls_config ~uri config in
-  Logs.app (fun l -> l "Listening on %s, store: %s" uri root);
+  let root = Irmin.Private.Conf.(get config root) in
+  let root = match root with Some root -> root | None -> "<memory>" in
+  Logs.app (fun l -> l "Listening on %a, store: %s" Uri.pp_hum uri root);
   Server.serve server
 
-let main root uri tls level contents hash =
-  Lwt_main.run @@ main ~root ~uri ~tls ~level ~contents ~hash
+let main root uri tls (store, hash, contents) () =
+  Lwt_main.run @@ main ~root ~uri ~tls ~store ~contents ~hash
 
 open Cmdliner
 
 let root =
   let doc = Arg.info ~doc:"Irmin store path" [ "r"; "root" ] in
-  Arg.(value @@ opt string "/tmp/irmin-server" doc)
+  Arg.(value @@ opt (some string) None doc)
 
 let tls =
   let doc = Arg.info ~docv:"CERT_FILE,KEY_FILE" ~doc:"TLS config" [ "tls" ] in
   Arg.(value @@ opt (some (pair string string)) None doc)
 
 let main_term =
-  Term.(
-    const main $ root $ Cli.uri $ tls $ Cli.log_level $ Cli.contents $ Cli.hash)
+  Term.(const main $ root $ Cli.uri $ tls $ Cli.store $ Cli.setup_log)
 
 let () =
   let info = Term.info "irmin-server" in
