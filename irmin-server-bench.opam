@@ -10,7 +10,7 @@ depends: [
   "ocaml" {>= "4.11.0"}
   "dune" {>= "2.0.0"}
   "irmin-server-types"
-  "irmin-test.bench"
+  "irmin-test"
   "alcotest-lwt" {with-test & >= "1.0.0"}
   "memtrace" {>= "0.1.2"}
   "ppx_irmin" {>= "dev"}

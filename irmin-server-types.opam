@@ -31,43 +31,43 @@ dev-repo: "git+ssh://github.com/zshipko/irmin-server"
 pin-depends: [
   [
     "ppx_irmin.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin-git.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin-fs.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin-graphql.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin-http.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin-layers.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin-pack.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin-unix.dev"
-    "git+https://github.com/zshipko/irmin#066929faa7b795064128870e02ed9445cbeaefe4"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "irmin-test.dev"
-    "git+https://github.com/mirage/irmin#b86b3da7869ecc48e9b964f9ba8cfc88b656bdb5"
+    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
   ]
   [
     "index.dev"
