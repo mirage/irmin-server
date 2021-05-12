@@ -15,6 +15,13 @@ let () =
     add "string" ~default:true (module Irmin.Contents.String));
   Irmin_unix.Resolver.Hash.(
     add "blake2b" ~default:true (module Irmin.Hash.BLAKE2B));
+  Irmin_unix.Resolver.Hash.(
+    add "tezos" ~default:false (module Tezos_context_hash_irmin.Encoding.Hash));
+  Irmin_unix.Resolver.Store.(
+    add "tezos"
+      Irmin_unix.Resolver.Store.(
+        (* Tezos store ignores content type argument *)
+        Fixed_hash (fun _ -> v (module Tezos_context_hash_irmin.Store))));
   Irmin_unix.Resolver.Store.(add "pack" ~default:true (Variable_hash pack))
 
 let store = Irmin_unix.Resolver.Store.term
