@@ -38,6 +38,19 @@ let run f time iterations =
   in
   Lwt_main.run x
 
+let list_server_commands () =
+  let module Store = Irmin_mem.KV.Make (Irmin.Contents.String) in
+  let module Cmd = Irmin_server_types.Command.Make (Store) in
+  let str t =
+    Fmt.to_to_string Irmin.Type.pp_ty t
+    |> String.split_on_char '\n' |> String.concat "\n\t\t"
+  in
+  List.iter
+    (fun (name, (module C : Cmd.CMD)) ->
+      Printf.printf "%s:\n\tInput: %s\n\tOutput: %s\n" name (str C.Req.t)
+        (str C.Res.t))
+    Cmd.commands
+
 let ping client =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
@@ -219,6 +232,9 @@ let () =
   Term.exit
   @@ Term.eval_choice help
        [
+         ( Term.(const list_server_commands $ pure ()),
+           Term.info ~doc:"List all commands available on server"
+             "list-commands" );
          ( Term.(const ping $ config $ time $ iterations),
            Term.info ~doc:"Ping the server" "ping" );
          ( Term.(const find $ config $ key 0 $ time $ iterations),
