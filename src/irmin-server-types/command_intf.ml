@@ -105,6 +105,10 @@ module type S = sig
     module Contents_save :
       CMD with type Req.t = Store.contents and type Res.t = Store.Hash.t
 
+    module Watch : CMD with type Req.t = unit and type Res.t = unit
+
+    module Unwatch : CMD with type Req.t = unit and type Res.t = unit
+
     (* Store *)
     module Store : sig
       module Find :
@@ -154,10 +158,6 @@ module type S = sig
 
       module Last_modified :
         CMD with type Req.t = Store.key and type Res.t = Commit.t list
-
-      module Watch : CMD with type Req.t = unit and type Res.t = unit
-
-      module Unwatch : CMD with type Req.t = unit and type Res.t = unit
     end
 
     (* Tree *)

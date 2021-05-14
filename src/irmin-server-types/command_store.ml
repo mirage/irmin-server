@@ -257,61 +257,6 @@ struct
       Return.v conn Res.t res
   end
 
-  module Watch = struct
-    module Req = struct
-      type t = unit [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
-
-    let name = "store.watch"
-
-    let run conn ctx _ () =
-      let* () =
-        match ctx.watch with
-        | Some watch ->
-            ctx.watch <- None;
-            Store.unwatch watch
-        | None -> Lwt.return_unit
-      in
-      let* watch =
-        Store.watch ctx.store (fun diff ->
-            let diff =
-              match diff with
-              | `Updated (a, b) -> `Updated (convert_commit a, convert_commit b)
-              | `Added a -> `Added (convert_commit a)
-              | `Removed a -> `Removed (convert_commit a)
-            in
-            Conn.write_message conn (Irmin.Diff.t Commit.t) diff)
-      in
-      ctx.watch <- Some watch;
-      Return.v conn Res.t ()
-  end
-
-  module Unwatch = struct
-    module Req = struct
-      type t = unit [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
-
-    let name = "store.unwatch"
-
-    let run conn ctx _ () =
-      let* () =
-        match ctx.watch with
-        | Some watch ->
-            ctx.watch <- None;
-            Store.unwatch watch
-        | None -> Lwt.return_unit
-      in
-      Return.v conn Res.t ()
-  end
-
   let commands =
     [
       cmd (module Find);
@@ -326,7 +271,5 @@ struct
       cmd (module Merge);
       cmd (module Merge_commit);
       cmd (module Last_modified);
-      cmd (module Watch);
-      cmd (module Unwatch);
     ]
 end

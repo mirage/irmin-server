@@ -71,7 +71,7 @@ module Make (C : Command.S) = struct
       | "unix" -> `Unix_domain_socket (`File (Uri.path uri))
       | "tcp" ->
           let ip = Unix.gethostbyname addr in
-          let port = Uri.port uri |> Option.value ~default:8888 in
+          let port = Uri.port uri |> Option.value ~default:9181 in
           let ip =
             ip.h_addr_list.(0) |> Unix.string_of_inet_addr
             |> Ipaddr.of_string_exn
@@ -166,6 +166,29 @@ module Make (C : Command.S) = struct
 
   let import t slice = request t (module Commands.Import) slice
 
+  let unwatch t = request t (module Commands.Unwatch) ()
+
+  let watch f t =
+    request t (module Commands.Watch) () >>= function
+    | Error e -> Lwt.return_error e
+    | Ok () -> (
+        let rec loop () =
+          recv_commit_diff t >>= function
+          | Some diff -> (
+              f diff >>= function
+              | Ok `Continue -> loop ()
+              | Ok `Stop -> Lwt.return_ok ()
+              | Error e -> Lwt.return_error e)
+          | None ->
+              let* () = Lwt_unix.sleep 0.25 in
+              loop ()
+        in
+        loop () >>= function
+        | Ok () -> unwatch t
+        | Error e ->
+            let* _ = unwatch t in
+            Lwt.return_error e)
+
   module Branch = struct
     include Store.Branch
 
@@ -226,29 +249,6 @@ module Make (C : Command.S) = struct
 
     let last_modified t key =
       request t (module Commands.Store.Last_modified) key
-
-    let unwatch t = request t (module Commands.Store.Unwatch) ()
-
-    let watch f t =
-      request t (module Commands.Store.Watch) () >>= function
-      | Error e -> Lwt.return_error e
-      | Ok () -> (
-          let rec loop () =
-            recv_commit_diff t >>= function
-            | Some diff -> (
-                f diff >>= function
-                | Ok `Continue -> loop ()
-                | Ok `Stop -> Lwt.return_ok ()
-                | Error e -> Lwt.return_error e)
-            | None ->
-                let* () = Lwt_unix.sleep 0.25 in
-                loop ()
-          in
-          loop () >>= function
-          | Ok () -> unwatch t
-          | Error e ->
-              let* _ = unwatch t in
-              Lwt.return_error e)
   end
 
   module Contents = struct
