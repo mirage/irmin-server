@@ -141,7 +141,7 @@ let watch client =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
       let pp = Irmin.Type.pp Client.Commit.t in
-      Client.Store.watch
+      Client.watch
         (fun x ->
           match x with
           | `Updated (a, b) ->

@@ -79,6 +79,11 @@ module type S = sig
 
   val import : t -> slice -> unit Error.result Lwt.t
 
+  val watch :
+    (commit Irmin.Diff.t -> [ `Continue | `Stop ] Error.result Lwt.t) ->
+    t ->
+    unit Error.result Lwt.t
+
   module Commit : sig
     val v :
       t -> info:Info.f -> parents:hash list -> tree -> commit Error.result Lwt.t
@@ -265,11 +270,6 @@ module type S = sig
     val merge_commit : t -> info:Info.f -> Commit.t -> unit Error.result Lwt.t
 
     val last_modified : t -> key -> Commit.t list Error.result Lwt.t
-
-    val watch :
-      (Commit.t Irmin.Diff.t -> [ `Continue | `Stop ] Error.result Lwt.t) ->
-      t ->
-      unit Error.result Lwt.t
   end
 end
 

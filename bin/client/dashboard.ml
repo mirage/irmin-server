@@ -112,7 +112,7 @@ let main client freq =
           Widget.set_value last_updates (x :: Lwd.peek last_updates.value);
           Lwt.return_ok `Continue
         in
-        Client.Store.watch f client >|= Error.unwrap "watch")
+        Client.watch f client >|= Error.unwrap "watch")
   in
 
   let* wc = Client.dup client in
