@@ -71,7 +71,7 @@ module Make (C : Command.S) = struct
       | "unix" -> `Unix_domain_socket (`File (Uri.path uri))
       | "tcp" ->
           let ip = Unix.gethostbyname addr in
-          let port = Uri.port uri |> Option.value ~default:8888 in
+          let port = Uri.port uri |> Option.value ~default:9181 in
           let ip =
             ip.h_addr_list.(0) |> Unix.string_of_inet_addr
             |> Ipaddr.of_string_exn

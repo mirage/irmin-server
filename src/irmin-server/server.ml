@@ -43,7 +43,7 @@ module Make (X : Command.S) = struct
           let ip = Unix.gethostbyname addr in
           let addr = ip.h_addr_list.(0) |> Unix.string_of_inet_addr in
           let+ ctx = Conduit_lwt_unix.init ~src:addr () in
-          let port = Uri.port uri |> Option.value ~default:8888 in
+          let port = Uri.port uri |> Option.value ~default:9181 in
           match tls_config with
           | None -> (ctx, `TCP (`Port port))
           | Some (`Cert_file crt, `Key_file key) ->
