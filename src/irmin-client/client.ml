@@ -368,9 +368,8 @@ module Make (C : Command.S) = struct
       wrap ~batch t (request t (module Commands.Tree.Add) (tree, key, value))
 
     let add ((t, tree, batch) : tree) key value =
-      let* hash, exists =
-        Contents.exists' t value >|= Error.unwrap "Contents.mem"
-      in
+      let hash = St.Contents.hash value in
+      let exists = Cache.Hash.mem Cache.contents hash in
       let batch =
         if exists then Batch.add_hash batch key hash
         else Batch.add batch key value
