@@ -65,12 +65,16 @@ module type S = sig
   (** Connect to the server specified by [uri] *)
 
   val uri : t -> Uri.t
+  (** Get the URI the client is connected to *)
 
   val close : t -> unit Lwt.t
+  (** Close connection to the server *)
 
   val dup : t -> t Lwt.t
+  (** Duplicate a client. This will create a new connection with the same configuration *)
 
   val stats : t -> stats Error.result Lwt.t
+  (** Get stats from the server *)
 
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
@@ -83,6 +87,8 @@ module type S = sig
     (commit Irmin.Diff.t -> [ `Continue | `Stop ] Error.result Lwt.t) ->
     t ->
     unit Error.result Lwt.t
+  (** Start watching for updates, calling the provided callback for each update.
+      To continue watching return [Ok `Continue] and to stop return [Ok `Stop] *)
 
   module Commit : sig
     val v :
@@ -108,16 +114,20 @@ module type S = sig
     (** [hash_t] is the value type for {!hash}. *)
 
     val tree : t -> commit -> tree
+    (** Commit tree *)
 
     type t = commit
   end
 
   module Contents : sig
     val of_hash : t -> hash -> contents option Error.result Lwt.t
+    (** Find the contents associated with a hash *)
 
     val exists : t -> contents -> bool Error.result Lwt.t
+    (** Check if [contents] exists in the store already *)
 
     val save : t -> contents -> hash Error.result Lwt.t
+    (** Save value to store without associating it with a key *)
 
     include Irmin.Contents.S with type t = contents
   end
@@ -143,10 +153,13 @@ module type S = sig
 
   module Tree : sig
     val split : tree -> t * Private.Tree.t * batch
+    (** Get private fields from [Tree.t] *)
 
     val v : t -> ?batch:batch -> Private.Tree.t -> tree
+    (** Create a new tree *)
 
     val of_hash : t -> hash -> tree
+    (** Create a tree from a hash that specifies a tree that already exists in the store *)
 
     val empty : t -> tree
     (** Create a new, empty tree *)
@@ -202,6 +215,7 @@ module type S = sig
     (** List entries at the specified root *)
 
     val merge : old:tree -> tree -> tree -> tree Error.result Lwt.t
+    (** Three way merge *)
 
     module Local = Private.Tree.Local
     (*with type key = key
@@ -212,7 +226,7 @@ module type S = sig
 
     val to_local : tree -> Local.t Error.result Lwt.t
     (** Exchange [tree], which may be a hash or ID, for a tree
-        NOTE: this will encode the full tree  *)
+        NOTE: this will encode the full tree and should be avoided if possible  *)
 
     val of_local : t -> Local.t -> tree Lwt.t
     (** Convert a local tree into a remote tree *)
@@ -244,9 +258,7 @@ module type S = sig
 
     val set_tree :
       t -> info:Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
-    (** Set a tree at the given key
-        NOTE: the tree parameter will not be valid after this call, the
-        returned tree should be used instead *)
+    (** Set a tree at the given key *)
 
     val test_and_set_tree :
       t ->
@@ -255,9 +267,7 @@ module type S = sig
       test:Tree.t option ->
       set:Tree.t option ->
       Tree.t option Error.result Lwt.t
-    (** Set a value only if the [test] parameter matches the existing value
-        NOTE: the tree parameter will not be valid after this call, the
-        returned tree should be used instead *)
+    (** Set a value only if the [test] parameter matches the existing value *)
 
     val mem : t -> key -> bool Error.result Lwt.t
     (** Check if the given key has an associated value *)
@@ -266,10 +276,13 @@ module type S = sig
     (** Check if the given key has an associated tree *)
 
     val merge : t -> info:Info.f -> branch -> unit Error.result Lwt.t
+    (** Merge the current branch with the provided branch *)
 
     val merge_commit : t -> info:Info.f -> Commit.t -> unit Error.result Lwt.t
+    (** Merge the current branch with the provided commit *)
 
     val last_modified : t -> key -> Commit.t list Error.result Lwt.t
+    (** Get a list of commits that modified the specified key *)
   end
 end
 
