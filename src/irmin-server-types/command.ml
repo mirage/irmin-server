@@ -22,12 +22,30 @@ module Make (St : Irmin.S) = struct
 
     let t = Stats.t
 
-    let v repo info : t Lwt.t =
+    let file f =
+      try float_of_int (Unix.stat f).st_size
+      with Unix.Unix_error (Unix.ENOENT, _, _) -> 0.
+
+    let dict root = file (Irmin_pack.Layout.dict ~root) /. 1024. /. 1024.
+
+    let pack root = file (Irmin_pack.Layout.pack ~root) /. 1024. /. 1024.
+
+    let index root =
+      let index_dir = Filename.concat root "index" in
+      let a = file (Filename.concat index_dir "data") in
+      let b = file (Filename.concat index_dir "log") in
+      let c = file (Filename.concat index_dir "log_async") in
+      (a +. b +. c) /. 1024. /. 1024.
+
+    let size root = dict root +. pack root +. index root
+
+    let v ctx info : t Lwt.t =
       let pack = Irmin_pack.Stats.get () in
       let uptime = Server_info.uptime info in
       let* branches =
-        St.Branch.list repo >|= List.map (Irmin.Type.to_string St.Branch.t)
+        St.Branch.list ctx.repo >|= List.map (Irmin.Type.to_string St.Branch.t)
       in
+      let root = Irmin.Private.Conf.(get ctx.config root) |> Option.get in
       Lwt.return
         Stats.
           {
@@ -36,6 +54,7 @@ module Make (St : Irmin.S) = struct
             finds = pack.finds;
             cache_misses = pack.cache_misses;
             adds = pack.appended_hashes + pack.appended_offsets;
+            size = size root;
           }
 
     let to_json = Irmin.Type.to_json_string t
@@ -54,7 +73,7 @@ module Make (St : Irmin.S) = struct
       end
 
       let run conn ctx info () =
-        let* stats = Stats.v ctx.repo info in
+        let* stats = Stats.v ctx info in
         Return.v conn Res.t stats
     end
 

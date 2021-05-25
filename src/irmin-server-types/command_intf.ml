@@ -16,6 +16,7 @@ module type S = sig
 
   type context = {
     conn : Conn.t;
+    config : Irmin.Private.Conf.t;
     repo : Store.Repo.t;
     mutable branch : Store.branch;
     mutable store : Store.t;
@@ -28,7 +29,7 @@ module type S = sig
 
     val t : t Irmin.Type.t
 
-    val v : Store.repo -> Server_info.t -> t Lwt.t
+    val v : context -> Server_info.t -> t Lwt.t
 
     val to_json : t -> string
   end

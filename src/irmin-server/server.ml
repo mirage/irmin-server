@@ -114,7 +114,7 @@ module Make (X : Command.S) = struct
               Lwt_unix.sleep 0.01)
       >>= fun () -> loop repo clients conn client info
 
-  let callback { repo; clients; info; _ } flow ic oc =
+  let callback { repo; clients; info; config; _ } flow ic oc =
     (* Handshake check *)
     let* check =
       Lwt.catch
@@ -133,7 +133,9 @@ module Make (X : Command.S) = struct
       let branch = Store.Branch.master in
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
-      let client = Command.{ conn; repo; branch; store; trees; watch = None } in
+      let client =
+        Command.{ conn; repo; branch; store; trees; watch = None; config }
+      in
       Hashtbl.replace clients client ();
       loop repo clients conn client info
 

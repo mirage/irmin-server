@@ -4,6 +4,7 @@ type t = {
   finds : int;
   cache_misses : int;
   adds : int;
+  size : float;
 }
 [@@deriving irmin]
 
@@ -14,6 +15,7 @@ module type Stats = sig
     finds : int;
     cache_misses : int;
     adds : int;
+    size : float;
   }
   [@@deriving irmin]
 end
