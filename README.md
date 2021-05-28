@@ -26,7 +26,7 @@ $ docker run --env PORT=9999 $(docker build -q .)
 
 ### Client
 
-`irmin-client` is a command-line application that can be used to query `irmin-server`
+`irmin-client` is a command-line application that can be used to send commands to `irmin-server`
 
 For a list of available commands:
 
@@ -62,6 +62,10 @@ let () = Lwt_main.run ping
 
 See [src/irmin-client/client_intf.ml](https://github.com/zshipko/irmin-server/blob/master/src/irmin-client/client_intf.ml)
 
-### Protocol
+## Additional client implementations
+
+- [Rust](https://github.com/zshipko/irmin-rs)
+
+## Protocol
 
 A specification of the wire protocol can be found in [PROTOCOL.md](https://github.com/zshipko/irmin-server/blob/master/PROTOCOL.md)
