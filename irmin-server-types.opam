@@ -31,46 +31,46 @@ dev-repo: "git+ssh://github.com/zshipko/irmin-server"
 pin-depends: [
   [
     "ppx_irmin.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin-git.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin-fs.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin-graphql.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin-http.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin-layers.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin-pack.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin-unix.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "irmin-test.dev"
-    "git+https://github.com/mirage/irmin#8f20cadd955c21895214c5105daa239f61f06413"
+    "git+https://github.com/mirage/irmin#c2473782da73a3e2011bc0bfdb1b10718f913792"
   ]
   [
     "index.dev"
-    "git+https://github.com/mirage/index#bb36d615fbdac36c7bf794bd3ea5565644cbf274"
+    "git+https://github.com/mirage/index#97a090c45fe8cf6b8cebda7085de376c551ad3fa"
   ]
 ]
