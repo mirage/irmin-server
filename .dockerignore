@@ -6,3 +6,5 @@ _artefacts
 _results
 *.repr
 opam
+*.pem
+*.key
