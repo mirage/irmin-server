@@ -13,6 +13,7 @@ struct
 
   type context = {
     conn : Conn.t;
+    config : Irmin.Private.Conf.t;
     repo : St.Repo.t;
     mutable branch : St.branch;
     mutable store : St.t;

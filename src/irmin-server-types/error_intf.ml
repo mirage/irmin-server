@@ -16,6 +16,7 @@ module type Error = sig
   val raise_error : string -> 'a
 
   val unwrap : string -> 'a result -> 'a
+  (** Raise an exception if the result is [Error] *)
 
   val of_string : string -> t
 

@@ -1,6 +1,6 @@
 # irmin-server
 
-A server for [irmin](https://github.com/mirage/irmin) using a custom wire [protocol](#protocol).
+A server for [irmin](https://github.com/mirage/irmin) using a custom wire [protocol](#protocol), designed to have minimal overhead.
 
 ## Command-line
 
@@ -26,7 +26,7 @@ $ docker run --env PORT=9999 $(docker build -q .)
 
 ### Client
 
-`irmin-client` is a command-line application that can be used to query `irmin-server`
+`irmin-client` is a command-line application that can be used to send commands to `irmin-server`
 
 For a list of available commands:
 
@@ -60,58 +60,12 @@ let () = Lwt_main.run ping
 
 ### Docs
 
-See [src/client_intf.ml](https://github.com/zshipko/irmin-server/blob/master/src/client_intf.ml)
+See [src/irmin-client/client_intf.ml](https://github.com/zshipko/irmin-server/blob/master/src/irmin-client/client_intf.ml)
+
+## Additional client implementations
+
+- [Rust](https://github.com/zshipko/irmin-rs)
 
 ## Protocol
 
-### Message
-
-Message `data` is encoded using `Irmin.Type.to_bin_string`
-
-| Field  | Type                 |
-| ------ | -------------------- |
-| length | int64, big endian    |
-| data   | bytes                |
-
-
-### Request
-
-A request is sent from the client to the server
-
-| Field               | Type                        |
-| ------------------- | --------------------------- |
-| command             | `\n` delimited string       |
-| request             | Message                     |
-
-### Response
-
-A `response` is sent from the server back to the client after a `request` has been handled
-
-
-An error response is marked by setting `status` >= `1`. It should always be followed
-by a `string` Message containing a description of the error.
-
-A successful response is marked by setting `status` to `0`.
-
-| Field           | Type                   |
-| --------------- | ---------------------- |
-| status          | uint8                  |
-| response        | Message                |
-
-### Handshake
-
-A handshake is performed when a client connects to the server
-
-#### V1
-
-The following is sent as a request from the client to server **AND** the response from server to client
-
-| Field              | Type                     |
-| -------            | ------------------------ |
-| contents type hash | `\n` delimited string    |
-
-`contents hash type` is the hex-encoded hash of the **name** of the content type using `Store.Hash`.
-
-For example, for a store with `string` contents and BLAKE2B hash the `contents type hash` is equal to `BLAKE2B("string")`
-
-This is used as a basic sanity check to ensure the client and server have the same hash and contents implementation
+A specification of the wire protocol can be found in [PROTOCOL.md](https://github.com/zshipko/irmin-server/blob/master/PROTOCOL.md)
