@@ -1,12 +1,13 @@
 open Lwt.Syntax
 
 module V1 = struct
+  let version = "V1"
+
   let type_name x = Fmt.to_to_string Irmin.Type.pp_ty x
 
   let fingerprint (module Store : Irmin.S) : string =
     let hex = Irmin.Type.to_string Store.Hash.t in
-    let contents_name = type_name Store.Contents.t in
-    let hash = Store.Hash.hash (fun f -> f contents_name) in
+    let hash = Store.Hash.hash (fun f -> f "V1") in
     hex hash
 
   let send store ic oc =
