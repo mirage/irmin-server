@@ -201,14 +201,16 @@ let freq =
   Arg.(value @@ opt float 5. doc)
 
 let config =
-  let create uri (branch : string option) tls (store, hash, contents) () =
+  let create uri (branch : string option) tls (store, hash, contents)
+      config_path () =
     let config =
       match uri with
       | Some uri -> Irmin_http.config uri
       | None -> Irmin_mem.config ()
     in
     let store, config =
-      Irmin_unix.Resolver.load_config ~default:config ~store ~hash ~contents ()
+      Irmin_unix.Resolver.load_config ?config_path ~default:config ~store ~hash
+        ~contents ()
     in
     let (module Store : Irmin.S), _ =
       Irmin_unix.Resolver.Store.destruct store
@@ -220,7 +222,9 @@ let config =
     in
     init ~uri ~branch ~tls (module Client)
   in
-  Term.(const create $ Cli.uri $ branch $ tls $ Cli.store $ Cli.setup_log)
+  Term.(
+    const create $ Cli.uri $ branch $ tls $ Cli.store $ Cli.config_path
+    $ Cli.setup_log)
 
 let help =
   let help () =

@@ -10,6 +10,10 @@ let uri : Uri.t option Cmdliner.Term.t =
     const (Option.map Uri.of_string)
     $ Arg.(value & opt (some string) None & doc))
 
+let config_path : string option Cmdliner.Term.t =
+  let doc = Arg.info ~docv:"PATH" ~doc:"Config path" [ "config" ] in
+  Arg.(value & opt (some string) None & doc)
+
 let store =
   Irmin_unix.Resolver.Contents.(
     add "string" ~default:true (module Irmin.Contents.String));
