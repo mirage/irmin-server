@@ -61,6 +61,37 @@ module Make (St : Irmin.S) = struct
   end
 
   module Commands = struct
+    module Save_context = struct
+      let name = "save_context"
+
+      module Req = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = (int, St.tree) Hashtbl.t [@@deriving irmin]
+      end
+
+      let run conn ctx _info () = Return.v conn Res.t ctx.trees
+    end
+
+    module Load_context = struct
+      let name = "load_context"
+
+      module Req = struct
+        type t = (int, St.tree) Hashtbl.t [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = unit [@@deriving irmin]
+      end
+
+      let run conn ctx _info trees =
+        Hashtbl.clear ctx.trees;
+        Hashtbl.iter (fun k v -> Hashtbl.replace ctx.trees k v) trees;
+        Return.v conn Res.t ()
+    end
+
     module Stats = struct
       let name = "stats"
 

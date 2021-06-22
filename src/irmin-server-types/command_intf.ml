@@ -71,6 +71,12 @@ module type S = sig
   (** A list of all registered commands *)
 
   module Commands : sig
+    module Save_context :
+      CMD with type Req.t = unit and type Res.t = (int, Store.tree) Hashtbl.t
+
+    module Load_context :
+      CMD with type Req.t = (int, Store.tree) Hashtbl.t and type Res.t = unit
+
     (** Get statistics from the server *)
     module Stats : CMD with type Req.t = unit and type Res.t = Stats.t
 
