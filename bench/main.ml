@@ -186,9 +186,12 @@ struct
   type store_config = config
 
   module X = struct
-    open Tezos_context_hash_irmin.Encoding
-    module Make = Irmin_pack_layered.Maker_ext (Conf) (Node) (Commit)
-    module Store = Make (Metadata) (Contents) (Path) (Branch) (Hash)
+    module Schema = struct
+      include Tezos_context_hash_irmin.Encoding
+    end
+
+    module Maker = Irmin_pack_layered.Maker (Conf)
+    module Store = Maker.Make (Schema)
   end
 
   module Client = Irmin_client.Make (X.Store)
@@ -222,14 +225,16 @@ struct
   type store_config = config
 
   module X = struct
-    open Tezos_context_hash_irmin.Encoding
+    module Schema = struct
+      include Tezos_context_hash_irmin.Encoding
+    end
 
     module V1 = struct
       let version = `V1
     end
 
-    module Maker = Irmin_pack.Maker_ext (V1) (Conf) (Node) (Commit)
-    module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
+    module Maker = Irmin_pack.Maker_ext (V1) (Conf)
+    module Store = Maker.Make (Schema)
   end
 
   module Client = Irmin_client.Make (X.Store)
@@ -370,14 +375,16 @@ let get_suite suite_filter =
 
 let run_server (module Conf : Irmin_pack.Conf.S) config =
   let module X = struct
-    open Tezos_context_hash_irmin.Encoding
+    module Schema = struct
+      include Tezos_context_hash_irmin.Encoding
+    end
 
     module V1 = struct
       let version = `V1
     end
 
-    module Maker = Irmin_pack.Maker_ext (V1) (Conf) (Node) (Commit)
-    module Store = Maker.Make (Metadata) (Contents) (Path) (Branch) (Hash)
+    module Maker = Irmin_pack.Maker_ext (V1) (Conf)
+    module Store = Maker.Make (Schema)
   end in
   let module Server = Irmin_server.Make (X.Store) in
   Logs.app (fun l -> l "Running server: %s in %s" config.uri config.store_dir);

@@ -41,16 +41,11 @@ module type S = sig
 
   module Metadata : Irmin.Metadata.S with type t = metadata
 
+  module Schema : Irmin.Schema.S with type Path.t = key and type Path.step = step and type Hash.t = hash and type Branch.t = branch and type Metadata.t = metadata
+
   module Private : sig
     module Store :
-      Irmin.S
-        with type hash = hash
-         and type contents = contents
-         and type branch = branch
-         and type key = key
-         and type step = step
-         and type slice = slice
-         and type metadata = metadata
+      Irmin.S with module Schema = Schema
 
     module Tree : Tree.S with module Private.Store = Store
   end
@@ -299,6 +294,6 @@ module type Client = sig
        and type step = C.Store.step
        and type metadata = C.Store.metadata
        and type slice = C.Store.slice
-       and module Private.Store = C.Store
+       and module Schema = C.Store.Schema
        and type Private.Store.tree = C.Store.tree
 end

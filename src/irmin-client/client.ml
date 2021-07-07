@@ -21,6 +21,8 @@ module Make (C : Command.S) = struct
     module Tree = C.Tree
   end
 
+  module Schema = C.Store.Schema
+
   type hash = Store.hash
 
   type contents = Store.contents
