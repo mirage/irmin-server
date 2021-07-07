@@ -7,6 +7,8 @@ module type S = sig
 
   module Command : Command.S with module Store = Store
 
+  val readonly : Irmin.config -> Irmin.config
+
   val v :
     ?tls_config:[ `Cert_file of string ] * [ `Key_file of string ] ->
     uri:Uri.t ->
