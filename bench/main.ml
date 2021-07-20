@@ -113,7 +113,7 @@ module Bench_suite (Client : Store) = struct
       else
         let* c' = checkout_and_commit repo (Client.Commit.hash c) f in
         let* () = on_commit i (Client.Commit.hash c') in
-        prog Int64.one;
+        prog 1;
         aux c' (i + 1)
     in
     aux c 0

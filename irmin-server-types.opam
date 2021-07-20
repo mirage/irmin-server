@@ -21,6 +21,7 @@ depends: [
   "lwt" {>= "5.4.0"}
   "ppx_irmin" {>= "dev"}
   "conduit-lwt-unix" {>= "2.0.0"}
+  "tezos-context-hash-irmin"
 ]
 build: [
   ["dune" "subst"] {pinned}

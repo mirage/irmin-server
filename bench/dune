@@ -1,7 +1,7 @@
 (library
  (name bench_common)
  (modules bench_common)
- (libraries irmin-server irmin-client unix progress progress.unix uuidm))
+ (libraries irmin-server irmin-client unix progress uuidm))
 
 ;; Require the above executables to compile during tests
 
