@@ -341,7 +341,7 @@ module Make (C : Command.S) = struct
       let add_hash batch key hash = (key, `Contents (`Hash hash)) :: batch
 
       let add_tree batch key (_, tree, batch') =
-        (key, `Tree tree) :: batch' @ batch
+        ((key, `Tree tree) :: batch') @ batch
     end
 
     let split t = t

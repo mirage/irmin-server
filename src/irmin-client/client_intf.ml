@@ -41,11 +41,16 @@ module type S = sig
 
   module Metadata : Irmin.Metadata.S with type t = metadata
 
-  module Schema : Irmin.Schema.S with type Path.t = key and type Path.step = step and type Hash.t = hash and type Branch.t = branch and type Metadata.t = metadata
+  module Schema :
+    Irmin.Schema.S
+      with type Path.t = key
+       and type Path.step = step
+       and type Hash.t = hash
+       and type Branch.t = branch
+       and type Metadata.t = metadata
 
   module Private : sig
-    module Store :
-      Irmin.S with module Schema = Schema
+    module Store : Irmin.S with module Schema = Schema
 
     module Tree : Tree.S with module Private.Store = Store
   end
