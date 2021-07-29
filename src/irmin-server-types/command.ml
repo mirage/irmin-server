@@ -45,7 +45,7 @@ module Make (St : Irmin.S) = struct
       let* branches =
         St.Branch.list ctx.repo >|= List.map (Irmin.Type.to_string St.Branch.t)
       in
-      let root = Irmin.Private.Conf.(get ctx.config root) |> Option.get in
+      let root = Irmin_pack.Conf.root ctx.config in
       Lwt.return
         Stats.
           {
