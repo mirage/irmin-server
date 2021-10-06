@@ -145,7 +145,7 @@ module Make (C : Command.S) = struct
       (fun _ -> Lwt.return_none)
 
   module Cache = struct
-    module Hash = Irmin.Private.Lru.Make (struct
+    module Hash = Irmin.Backend.Lru.Make (struct
       type t = Hash.t
 
       let hash = Hashtbl.hash

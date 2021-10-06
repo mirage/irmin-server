@@ -57,7 +57,13 @@ module type LOCAL = sig
 
   val destruct : t -> [ `Contents of hash | `Node of (step * t) list ] Lwt.t
 
-  val list : t -> ?offset:int -> ?length:int -> key -> (step * t) list Lwt.t
+  val list :
+    t ->
+    ?offset:int ->
+    ?length:int ->
+    ?cache:bool ->
+    key ->
+    (step * t) list Lwt.t
 
   val diff : t -> t -> (key * (contents * metadata) Irmin.Diff.t) list Lwt.t
 

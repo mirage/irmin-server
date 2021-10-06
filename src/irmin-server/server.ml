@@ -27,7 +27,7 @@ module Make (X : Command.S) = struct
   end)
 
   let readonly conf =
-    Irmin.Private.Conf.add conf Irmin_pack.Conf.Key.readonly true
+    Irmin.Backend.Conf.add conf Irmin_pack.Conf.Key.readonly true
 
   let v ?tls_config ~uri conf =
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in

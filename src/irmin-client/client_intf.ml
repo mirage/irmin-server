@@ -50,7 +50,7 @@ module type S = sig
        and type Metadata.t = metadata
 
   module Private : sig
-    module Store : Irmin.S with module Schema = Schema
+    module Store : Irmin.S with type hash = Hash.t and module Schema = Schema
 
     module Tree : Tree.S with module Private.Store = Store
   end

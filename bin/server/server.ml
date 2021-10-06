@@ -22,13 +22,13 @@ let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path =
     match tls with Some (c, k) -> Some (`Cert_file c, `Key_file k) | _ -> None
   in
   let uri =
-    Irmin.Private.Conf.(get config Irmin_http.Conf.Key.uri)
+    Irmin.Backend.Conf.(get config Irmin_http.Conf.Key.uri)
     |> Option.value ~default:Cli.default_uri
   in
   let config = if readonly then Server.readonly config else config in
   let* server = Server.v ?tls_config ~uri config in
   let root =
-    try Irmin.Private.Conf.(get config Irmin_pack.Conf.Key.root)
+    try Irmin.Backend.Conf.(get config Irmin_pack.Conf.Key.root)
     with _ -> "<memory>"
   in
   Logs.app (fun l -> l "Listening on %a, store: %s" Uri.pp_hum uri root);

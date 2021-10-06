@@ -214,7 +214,7 @@ let config =
     in
     let module Client = Irmin_client.Make (Store) in
     let uri =
-      Irmin.Private.Conf.(get config Irmin_http.Conf.Key.uri)
+      Irmin.Backend.Conf.(get config Irmin_http.Conf.Key.uri)
       |> Option.value ~default:Cli.default_uri
     in
     init ~uri ~branch ~tls (module Client)
