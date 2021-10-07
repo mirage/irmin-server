@@ -21,7 +21,6 @@ depends: [
   "lwt" {>= "5.4.0"}
   "ppx_irmin" {>= "dev"}
   "conduit-lwt-unix" {>= "2.0.0"}
-  "tezos-context-hash-irmin" {>= "dev"}
 ]
 build: [
   ["dune" "subst"] {pinned}
@@ -32,46 +31,54 @@ dev-repo: "git+ssh://github.com/zshipko/irmin-server"
 pin-depends: [
   [
     "ppx_irmin.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin-git.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin-fs.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin-graphql.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin-http.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin-layers.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin-pack.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin-unix.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "irmin-test.dev"
-    "git+https://github.com/mirage/irmin#58fde77a467f1f00f77f756860d1f9759973edd5"
+    "git+https://github.com/mirage/irmin#8b550b2fc0ae21d36b8ebc627d92bdc5c38e5de5"
   ]
   [
     "index.dev"
-    "git+https://github.com/mirage/index#fb4b394edb31679376ecbe9c2385404df73e920b"
+    "git+https://github.com/mirage/index#201c5a66871c41467af0a360dc0ad5d2c28ac3b1"
+  ]
+  [
+    "repr.dev"
+    "git+https://github.com/mirage/repr#b23ce59eaae96b4d15ec8b22fb384107aeca824f"
+  ]
+  [
+    "ppx_repr.dev"
+    "git+https://github.com/mirage/repr#b23ce59eaae96b4d15ec8b22fb384107aeca824f"
   ]
 ]

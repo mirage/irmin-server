@@ -3,4 +3,5 @@
 	url = https://github.com/tarides/tezos-context-hash
 [submodule "tezos-context-hash"]
 	path = tezos-context-hash
-	url = "git@github.com:zshipko/tezos-context-hash.git#disable-bin"
+	url = https://github.com/zshipko/tezos-context-hash.git
+  branch = disable-bin
