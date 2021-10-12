@@ -38,6 +38,6 @@ jobs:
       - run: opam pin add irmin-client.dev . --no-action
         #      - run: opam depext irmin-server irmin-server-types irmin-client --yes --with-doc
       - run: opam install irmin-server-types irmin-server irmin-client --deps-only --with-doc --with-test
-      - run: opam exec -- dune build -p irmin-server-types,irmin-server,irmin-client,tezos-context-hash,tezos-context-hash-irmin
-      - run: opam exec -- dune runtest -p irmin-server-types,irmin-server,irmin-client,tezos-context-hash,tezos-context-hash-irmin
+      - run: opam exec -- dune build -p irmin-server-types,irmin-server,irmin-client
+      - run: opam exec -- dune runtest -p irmin-server-types,irmin-server,irmin-client
 
