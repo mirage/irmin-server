@@ -21,6 +21,8 @@ module Make (C : Command.S) = struct
     module Tree = C.Tree
   end
 
+  module Schema = C.Store.Schema
+
   type hash = Store.hash
 
   type contents = Store.contents
@@ -143,7 +145,7 @@ module Make (C : Command.S) = struct
       (fun _ -> Lwt.return_none)
 
   module Cache = struct
-    module Hash = Irmin.Private.Lru.Make (struct
+    module Hash = Irmin.Backend.Lru.Make (struct
       type t = Hash.t
 
       let hash = Hashtbl.hash
@@ -339,7 +341,7 @@ module Make (C : Command.S) = struct
       let add_hash batch key hash = (key, `Contents (`Hash hash)) :: batch
 
       let add_tree batch key (_, tree, batch') =
-        (key, `Tree tree) :: batch' @ batch
+        ((key, `Tree tree) :: batch') @ batch
     end
 
     let split t = t

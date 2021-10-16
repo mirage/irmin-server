@@ -113,8 +113,7 @@ module Op = struct
             Fmt.failwith "Could not convert string back to key: %s" msg
       in
       List.map (fun (k, v) -> (key_of_string k, v)) l
-      |> List.to_seq
-      |> Map.of_seq
+      |> List.to_seq |> Map.of_seq
     in
     Irmin.Type.(map (Json.assoc Val.t) decode encode)
 end
@@ -157,8 +156,7 @@ module Watched_node = struct
             Fmt.failwith "Could not convert string back to key: %s" msg
       in
       List.map (fun (k, v) -> (key_of_string k, v)) l
-      |> List.to_seq
-      |> Map.of_seq
+      |> List.to_seq |> Map.of_seq
     in
     Irmin.Type.(map (Json.assoc Val.t) decode encode)
 end
@@ -321,8 +319,7 @@ module Ops_folder = struct
       in
       let per_op =
         List.map (fun op -> (op, acc0_per_op)) ops
-        |> List.to_seq
-        |> Op.Map.of_seq
+        |> List.to_seq |> Op.Map.of_seq
       in
       { per_op; timestamp_before }
     in
@@ -551,8 +548,7 @@ module Store_watched_nodes_folder = struct
         in
         (k, v))
       Def.watched_nodes acc
-    |> List.to_seq
-    |> Watched_node.Map.of_seq
+    |> List.to_seq |> Watched_node.Map.of_seq
 
   let create block_count =
     let acc0 = create_acc block_count in
@@ -759,8 +755,7 @@ let summarise' header block_count (row_seq : Def.row Seq.t) =
              in
              let data_size = bag.Def.disk.index_data in
              Int64.to_float (Int64.mul merge_count data_size))
-      |+ merge_durations_folder
-      |> seal
+      |+ merge_durations_folder |> seal
     in
     Utils.Parallel_folders.folder acc0 Utils.Parallel_folders.accumulate
       Utils.Parallel_folders.finalise
@@ -850,16 +845,11 @@ let summarise' header block_count (row_seq : Def.row Seq.t) =
 
   let pf0 =
     let open Utils.Parallel_folders in
-    open_ construct
-    |+ misc_stats_folder header
+    open_ construct |+ misc_stats_folder header
     |+ elapsed_wall_over_blocks_folder header block_count
     |+ elapsed_cpu_over_blocks_folder header block_count
     |+ Ops_folder.create header.initial_stats.timestamp_wall block_count
-    |+ pack_folder
-    |+ tree_folder
-    |+ index_folder
-    |+ gc_folder
-    |+ disk_folder
+    |+ pack_folder |+ tree_folder |+ index_folder |+ gc_folder |+ disk_folder
     |+ Store_watched_nodes_folder.create block_count
     |> seal
   in

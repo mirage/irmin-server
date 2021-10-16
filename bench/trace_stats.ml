@@ -36,8 +36,7 @@ let class_of_path p =
   close_in chan;
   if is_trace_magic magic then
     let block_count =
-      Def.open_reader p
-      |> snd
+      Def.open_reader p |> snd
       |> Seq.fold_left
            (fun count op -> match op with `Commit _ -> count + 1 | _ -> count)
            0

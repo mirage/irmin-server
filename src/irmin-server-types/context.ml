@@ -13,7 +13,7 @@ struct
 
   type context = {
     conn : Conn.t;
-    config : Irmin.Private.Conf.t;
+    config : Irmin.Backend.Conf.t;
     repo : St.Repo.t;
     mutable branch : St.branch;
     mutable store : St.t;
@@ -57,7 +57,7 @@ struct
     let* id, tree =
       match tree with
       | Tree.ID x -> Lwt.return @@ (Some x, Hashtbl.find_opt ctx.trees x)
-      | Hash x -> St.Tree.of_hash ctx.repo (`Node x) >|= fun x -> (None, x)
+      | Hash x -> St.Tree.of_key ctx.repo (`Node x) >|= fun x -> (None, x)
       | Local x -> Lwt.return (None, Some (Tree.Local.of_concrete x))
     in
     match tree with

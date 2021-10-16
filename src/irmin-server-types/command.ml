@@ -45,7 +45,7 @@ module Make (St : Irmin.S) = struct
       let* branches =
         St.Branch.list ctx.repo >|= List.map (Irmin.Type.to_string St.Branch.t)
       in
-      let root = Irmin.Private.Conf.(get ctx.config root) |> Option.get in
+      let root = Irmin_pack.Conf.root ctx.config in
       Lwt.return
         Stats.
           {
@@ -286,7 +286,7 @@ module Make (St : Irmin.S) = struct
 
       let run conn ctx _ contents =
         let* hash =
-          St.Private.Repo.batch ctx.repo (fun t _ _ ->
+          St.Backend.Repo.batch ctx.repo (fun t _ _ ->
               St.save_contents t contents)
         in
         Return.v conn Res.t hash
@@ -305,8 +305,8 @@ module Make (St : Irmin.S) = struct
 
       let run conn ctx _ hash =
         let* exists =
-          St.Private.Repo.batch ctx.repo (fun t _ _ ->
-              St.Private.Contents.mem t hash)
+          St.Backend.Repo.batch ctx.repo (fun t _ _ ->
+              St.Backend.Contents.mem t hash)
         in
         Return.v conn Res.t exists
     end

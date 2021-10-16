@@ -15,6 +15,7 @@
  *)
 
 type histo = (float * int) list [@@deriving repr]
+
 type curve = float list [@@deriving repr]
 
 let snap_to_integer ~significant_digits v =
@@ -153,8 +154,7 @@ let approx_value_count_of_block_count value_of_row ?(first_block_idx = 0)
     let kept_tx_count =
       let f = float_of_int in
       f week_value /. f week_blocks *. f kept_block_count
-      |> Float.round
-      |> int_of_float
+      |> Float.round |> int_of_float
     in
     assert (kept_tx_count >= 0);
     assert (kept_tx_count <= week_value);
@@ -184,8 +184,7 @@ let approx_value_count_of_block_count value_of_row ?(first_block_idx = 0)
     let missing_value =
       let f = float_of_int in
       f latest_weeks_tx_count /. f latest_weeks_block_count *. f missing_blocks
-      |> Float.round
-      |> int_of_float
+      |> Float.round |> int_of_float
     in
     acc_value + missing_value
 
@@ -226,8 +225,11 @@ module Exponential_moving_average = struct
     step_count *. hl_ratio |> from_half_life ?relevance_threshold
 
   let momentum ema = ema.momentum
+
   let hidden_state ema = ema.hidden_state
+
   let void_fraction ema = ema.void_fraction
+
   let is_relevant ema = ema.void_fraction < ema.relevance_threshold
 
   let peek_exn ema =
@@ -309,8 +311,7 @@ module Exponential_moving_average = struct
         (ema, v1 :: rev_result))
       (create ?relevance_threshold momentum, [])
       vec0
-    |> snd
-    |> List.rev
+    |> snd |> List.rev
 end
 
 module Resample = struct

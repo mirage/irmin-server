@@ -20,7 +20,7 @@ module type S = sig
 
   type context = {
     conn : Conn.t;
-    config : Irmin.Private.Conf.t;
+    config : Irmin.Backend.Conf.t;
     repo : Store.Repo.t;
     mutable branch : Store.branch;
     mutable store : Store.t;

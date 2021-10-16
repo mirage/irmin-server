@@ -4,6 +4,7 @@
     "trace_*" files. *)
 
 type histo = (float * int) list [@@deriving repr]
+
 type curve = float list [@@deriving repr]
 
 val snap_to_integer : significant_digits:int -> float -> float
@@ -49,6 +50,7 @@ val pp_percent : Format.formatter -> float -> unit
     Negative inputs are undefined. *)
 
 val approx_transaction_count_of_block_count : ?first_block_idx:int -> int -> int
+
 val approx_operation_count_of_block_count : ?first_block_idx:int -> int -> int
 
 (** Functional Exponential Moving Average (EMA). *)
@@ -160,7 +162,9 @@ module Exponential_moving_average : sig
   (** Read the EMA value. *)
 
   val momentum : t -> float
+
   val hidden_state : t -> float
+
   val void_fraction : t -> float
 end
 
@@ -213,6 +217,7 @@ module Resample : sig
       Requires the first point of vec0. *)
 
   val accumulate : acc -> float -> acc
+
   val finalise : acc -> curve
 
   val resample_vector :
@@ -321,6 +326,7 @@ module Variable_summary : sig
     acc
 
   val accumulate : acc -> float list -> acc
+
   val finalise : acc -> t
 end
 
@@ -360,6 +366,7 @@ module Parallel_folders : sig
   (** Section 2/3 - Open parallel folder *)
 
   type ('res, 'row, 'v) folders
+
   type ('res, 'row, 'f, 'rest) open_t
 
   val open_ : 'f -> ('res, 'row, 'f, 'f) open_t

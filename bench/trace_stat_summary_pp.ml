@@ -35,14 +35,11 @@ module Pb = struct
   (* Some utilities to work with lists instead of array *)
 
   let transpose_matrix l =
-    l
-    |> List.map Array.of_list
-    |> Array.of_list
-    |> PrintBox.transpose
-    |> Array.to_list
-    |> List.map Array.to_list
+    l |> List.map Array.of_list |> Array.of_list |> PrintBox.transpose
+    |> Array.to_list |> List.map Array.to_list
 
   let matrix_to_text m = List.map (List.map PrintBox.text) m
+
   let align_matrix where = List.map (List.map (PrintBox.align ~h:where ~v:`Top))
 
   (** Dirty trick to only have vertical bars, and not the horizontal ones *)
@@ -292,6 +289,7 @@ module Table1 = struct
     ]
 
   type data_row = [ `Data of scalar_format_fixed * string * float list ]
+
   type section_row = [ `Section of string ]
 
   let cells_of_data_row (`Data (scalar_format, row_name, scalars) : data_row) =
@@ -306,10 +304,8 @@ module Table1 = struct
     in
 
     Pb.text row_name
-    ::
-    (List.mapi pp_cell scalars
-    |> List.map Pb.text
-    |> List.map (Pb.align ~h:`Right ~v:`Top))
+    :: (List.mapi pp_cell scalars |> List.map Pb.text
+       |> List.map (Pb.align ~h:`Right ~v:`Top))
 
   let cells_of_section_row col_count (`Section name : section_row) =
     Pb.text name
@@ -336,15 +332,16 @@ module Table2 = struct
       entry. *)
 
   let sum_curves curves =
-    curves
-    |> Pb.transpose_matrix
+    curves |> Pb.transpose_matrix
     |> List.map
          (List.fold_left
             (fun acc v -> if Float.is_nan v then acc else acc +. v)
             0.)
 
   let div_curves a b = List.map2 ( /. ) a b
+
   let mul_curves a b = List.map2 ( *. ) a b
+
   let mul_curve_scalar a v = List.map (( *. ) v) a
 
   let all_9_ops =
@@ -359,6 +356,7 @@ module Table2 = struct
     [ `Add; `Remove; `Find; `Mem; `Mem_tree; `Checkout; `Copy ]
 
   let all_buildup_ro_ops = [ `Find; `Mem; `Mem_tree ]
+
   let all_buildup_rw_ops = [ `Add; `Remove; `Copy ]
 
   let create_header_rows sample_count summaries =
@@ -746,7 +744,7 @@ module Table2 = struct
           let c =
             List.mapi (box_of_scalar row_idx) (List.combine curve0 curve)
           in
-          a :: b @ c)
+          (a :: b) @ c)
         names_and_curves
     in
     rows
@@ -775,8 +773,7 @@ let unsafe_pp sample_count ppf summary_names (summaries : Summary.t list) =
   in
   let table0 =
     Table0.box_of_summaries_config summary_names summaries
-    |> Pb.matrix_with_column_spacers
-    |> Pb.grid_l ~bars:false
+    |> Pb.matrix_with_column_spacers |> Pb.grid_l ~bars:false
     |> PrintBox_text.to_string
   in
   let table1 =
@@ -790,10 +787,8 @@ let unsafe_pp sample_count ppf summary_names (summaries : Summary.t list) =
     let body_rows =
       Table1.rows_of_summaries summaries |> Table1.matrix_of_rows col_count
     in
-    header_rows @ body_rows
-    |> Pb.matrix_with_column_spacers
-    |> Pb.grid_l ~bars:false
-    |> PrintBox_text.to_string
+    header_rows @ body_rows |> Pb.matrix_with_column_spacers
+    |> Pb.grid_l ~bars:false |> PrintBox_text.to_string
   in
   let table2 =
     let header_rows = Table2.create_header_rows sample_count summaries in
@@ -806,10 +801,8 @@ let unsafe_pp sample_count ppf summary_names (summaries : Summary.t list) =
       |> List.map (Table2.matrix_of_floor col_count)
       |> List.concat
     in
-    header_rows @ body_rows
-    |> Pb.matrix_with_column_spacers
-    |> Pb.grid_l ~bars:false
-    |> PrintBox_text.to_string
+    header_rows @ body_rows |> Pb.matrix_with_column_spacers
+    |> Pb.grid_l ~bars:false |> PrintBox_text.to_string
   in
   fprintf_result ppf table0 table1 table2
     (moving_average_half_life_ratio *. float_of_int (block_count + 1))

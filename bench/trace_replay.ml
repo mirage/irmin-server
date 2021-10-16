@@ -345,7 +345,7 @@ module Make (Client : Store) = struct
             Logs.app (fun l ->
                 l "\nAfter commit %6d we have %d/%d history sizes" i len0 len1);
           let* () = on_commit i (Option.get t.latest_commit) in
-          prog Int64.one;
+          prog 1;
           aux commit_seq (i + 1)
     in
     aux commit_seq 0

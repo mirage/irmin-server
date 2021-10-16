@@ -8,25 +8,29 @@ let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path =
     | None -> Irmin_mem.config ()
   in
   let config =
-    match uri with Some uri -> Irmin_http.config ~config uri | None -> config
+    match uri with Some uri -> Irmin_http.config uri config | None -> config
   in
   let store, config =
-    Irmin_unix.Resolver.load_config ~default:config ?config_path ~store ~hash
-      ~contents ()
+    Irmin_unix.Resolver.load_config ~default:config ?config_path ?store ?hash
+      ?contents ()
   in
-  let (module Store : Irmin.S), _ = Irmin_unix.Resolver.Store.destruct store in
+  let (module Store : Irmin.S), _, _ =
+    Irmin_unix.Resolver.Store.destruct store
+  in
   let module Server = Irmin_server.Make (Store) in
   let tls_config =
     match tls with Some (c, k) -> Some (`Cert_file c, `Key_file k) | _ -> None
   in
   let uri =
-    Irmin.Private.Conf.(get config Irmin_http.uri)
+    Irmin.Backend.Conf.(get config Irmin_http.Conf.Key.uri)
     |> Option.value ~default:Cli.default_uri
   in
   let config = if readonly then Server.readonly config else config in
   let* server = Server.v ?tls_config ~uri config in
-  let root = Irmin.Private.Conf.(get config root) in
-  let root = match root with Some root -> root | None -> "<memory>" in
+  let root =
+    try Irmin.Backend.Conf.(get config Irmin_pack.Conf.Key.root)
+    with _ -> "<memory>"
+  in
   Logs.app (fun l -> l "Listening on %a, store: %s" Uri.pp_hum uri root);
   Server.serve server
 
