@@ -2,17 +2,11 @@ open Lwt.Syntax
 open Irmin_server_types
 
 let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path =
-  let config =
-    match root with
-    | Some root -> Irmin_pack.config root
-    | None -> Irmin_mem.config ()
+  let store, config =
+    Irmin_unix.Resolver.load_config ?root ?config_path ?store ?hash ?contents ()
   in
   let config =
     match uri with Some uri -> Irmin_http.config uri config | None -> config
-  in
-  let store, config =
-    Irmin_unix.Resolver.load_config ~default:config ?config_path ?store ?hash
-      ?contents ()
   in
   let (module Store : Irmin.S), _, _ =
     Irmin_unix.Resolver.Store.destruct store
