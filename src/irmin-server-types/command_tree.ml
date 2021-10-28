@@ -52,7 +52,8 @@ struct
         Tree.t
         * (Store.path
           * [ `Contents of [ `Hash of Store.Hash.t | `Value of Store.contents ]
-            | `Tree of Tree.t ])
+            | `Tree of Tree.t ]
+            option)
           list
       [@@deriving irmin]
     end
@@ -69,13 +70,14 @@ struct
         Lwt_list.fold_left_s
           (fun tree (path, value) ->
             match value with
-            | `Contents (`Hash value) ->
+            | Some (`Contents (`Hash value)) ->
                 let* value = Store.Contents.of_hash ctx.repo value in
                 Store.Tree.add tree path (Option.get value)
-            | `Contents (`Value value) -> Store.Tree.add tree path value
-            | `Tree t ->
+            | Some (`Contents (`Value value)) -> Store.Tree.add tree path value
+            | Some (`Tree t) ->
                 let* _, tree' = resolve_tree ctx t in
-                Store.Tree.add_tree tree path tree')
+                Store.Tree.add_tree tree path tree'
+            | None -> Store.Tree.remove tree path)
           tree l
       in
       let id = incr_id () in

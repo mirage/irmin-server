@@ -58,7 +58,8 @@ module type S = sig
   type batch =
     (path
     * [ `Contents of [ `Hash of hash | `Value of contents ]
-      | `Tree of Private.Tree.t ])
+      | `Tree of Private.Tree.t ]
+      option)
     list
 
   val connect : ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
@@ -186,7 +187,7 @@ module type S = sig
     val add_tree' : tree -> path -> tree -> tree Error.result Lwt.t
     (** Non-batch version of [add_tree] *)
 
-    val add_batch : tree -> batch -> tree Error.result Lwt.t
+    val batch_update : tree -> batch -> tree Error.result Lwt.t
     (** Batch update tree *)
 
     val find : tree -> path -> contents option Error.result Lwt.t

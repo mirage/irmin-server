@@ -60,7 +60,8 @@ module Make (C : Command.S) = struct
     * [ `Contents of
         [ `Hash of Tree.Private.Store.hash
         | `Value of Tree.Private.Store.contents ]
-      | `Tree of Tree.t ])
+      | `Tree of Tree.t ]
+      option)
     list
 
   type tree = t * Private.Tree.t * batch
@@ -293,9 +294,9 @@ module Make (C : Command.S) = struct
       in
       match b with
       | [] -> Lwt.return_ok (t, tree, [])
-      | b -> add_batch (t, tree, b) []
+      | b -> batch_update (t, tree, b) []
 
-    and add_batch (((t : store), tree, batch) : tree) l =
+    and batch_update (((t : store), tree, batch) : tree) l =
       wrap t
         (request t
            (module Commands.Tree.Add_batch)
@@ -311,37 +312,49 @@ module Make (C : Command.S) = struct
       let path_equal = Irmin.Type.(unstage (equal Path.t))
 
       let find b k =
-        List.find_opt
-          (fun (a, b) ->
-            match b with `Contents _ -> path_equal k a | _ -> false)
-          b
-        |> Option.map snd
+        let l =
+          List.filter_map
+            (fun (a, b) ->
+              match b with
+              | Some (`Contents _ as x) when path_equal k a -> Some x
+              | _ -> None)
+            b
+        in
+        match l with [] -> None | h :: _ -> Some h
 
       let find_tree b k =
-        List.find_opt
-          (fun (a, b) -> match b with `Tree _ -> path_equal k a | _ -> false)
-          b
-        |> Option.map snd
+        let l =
+          List.filter_map
+            (fun (a, b) ->
+              match b with
+              | Some (`Tree _ as x) when path_equal k a -> Some x
+              | _ -> None)
+            b
+        in
+        match l with [] -> None | h :: _ -> Some h
 
       let mem b k =
         List.exists
           (fun (a, b) ->
-            match b with `Contents _ -> path_equal k a | _ -> false)
+            match b with Some (`Contents _) -> path_equal k a | _ -> false)
           b
 
       let mem_tree b k =
         List.exists
-          (fun (a, b) -> match b with `Tree _ -> path_equal k a | _ -> false)
+          (fun (a, b) ->
+            match b with Some (`Tree _) -> path_equal k a | _ -> false)
           b
 
-      let remove b k = List.filter (fun (a, _) -> not (path_equal k a)) b
+      let remove b k = (k, None) :: b
 
-      let add batch path value = (path, `Contents (`Value value)) :: batch
+      let add batch path value =
+        (path, Some (`Contents (`Value value))) :: batch
 
-      let add_hash batch path hash = (path, `Contents (`Hash hash)) :: batch
+      let add_hash batch path hash =
+        (path, Some (`Contents (`Hash hash))) :: batch
 
       let add_tree batch path (_, tree, batch') =
-        ((path, `Tree tree) :: batch') @ batch
+        ((path, Some (`Tree tree)) :: batch') @ batch
     end
 
     let split t = t
