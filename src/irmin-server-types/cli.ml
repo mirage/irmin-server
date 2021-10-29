@@ -20,7 +20,7 @@ let store =
   Irmin_unix.Resolver.Hash.(
     add "blake2b" ~default:true (module Irmin.Hash.BLAKE2B));
   Irmin_unix.Resolver.Hash.(
-    add "tezos" ~default:false (module Tezos_context_hash_irmin.Encoding.Hash));
+    add "tezos" ~default:false (module Irmin_tezos.Schema.Hash));
   Irmin_unix.Resolver.Store.(add "pack" ~default:true (Variable_hash pack));
   Irmin_unix.Resolver.Store.term
 

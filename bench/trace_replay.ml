@@ -261,7 +261,7 @@ module Make (Client : Store) = struct
     List.iter (maybe_forget_hash t) parents_trace;
     let { tree } = Hashtbl.find t.contexts (unscope in_ctx_id) in
     maybe_forget_ctx t in_ctx_id;
-    let local_tree = Client.Tree.Local.empty in
+    let local_tree = Client.Tree.Local.empty () in
     let* () = Stat_collector.commit_begin stats local_tree in
     (*let* _ =
         (* in tezos commits call Tree.list first for the unshallow operation *)

@@ -186,10 +186,7 @@ struct
   type store_config = config
 
   module X = struct
-    module Schema = struct
-      include Tezos_context_hash_irmin.Encoding
-    end
-
+    module Schema = Irmin_tezos.Schema
     module Maker = Irmin_pack_layered.Maker (Conf)
     module Store = Maker.Make (Schema)
   end
@@ -225,9 +222,7 @@ struct
   type store_config = config
 
   module X = struct
-    module Schema = struct
-      include Tezos_context_hash_irmin.Encoding
-    end
+    module Schema = Irmin_tezos.Schema
 
     module V1 = struct
       let version = `V1
@@ -375,9 +370,7 @@ let get_suite suite_filter =
 
 let run_server (module Conf : Irmin_pack.Conf.S) config =
   let module X = struct
-    module Schema = struct
-      include Tezos_context_hash_irmin.Encoding
-    end
+    module Schema = Irmin_tezos.Schema
 
     module V1 = struct
       let version = `V1

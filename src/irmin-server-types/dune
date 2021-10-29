@@ -4,7 +4,7 @@
  (libraries
   irmin-unix
   irmin-pack.layered
-  tezos-context-hash-irmin
+  irmin-tezos
   conduit-lwt-unix)
  (preprocess
   (pps ppx_irmin)))
