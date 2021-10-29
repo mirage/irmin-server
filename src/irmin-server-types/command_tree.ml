@@ -23,7 +23,7 @@ struct
     let run conn ctx _ () =
       let empty = Store.Tree.empty in
       let id = incr_id () in
-      Hashtbl.replace ctx.trees id empty;
+      Hashtbl.replace ctx.trees id (empty ());
       Return.v conn Res.t (ID id)
   end
 

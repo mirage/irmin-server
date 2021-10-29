@@ -24,7 +24,7 @@ module type LOCAL = sig
 
   val to_concrete : t -> concrete Lwt.t
 
-  val empty : t
+  val empty : unit -> t
 
   val of_contents : ?metadata:metadata -> contents -> t
 

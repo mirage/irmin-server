@@ -40,12 +40,12 @@ let tree client =
   let open Rpc.Client in
   let tree = Tree.empty client in
   let* local = Tree.to_local tree >|= Error.unwrap "local" in
-  Alcotest.(check (ty Tree.Local.t)) "empty tree" Tree.Local.empty local;
+  Alcotest.(check (ty Tree.Local.t)) "empty tree" (Tree.Local.empty ()) local;
   let* tree = Tree.add tree [ "x" ] "foo" >|= Error.unwrap "x" in
   let* tree = Tree.add tree [ "y" ] "bar" >|= Error.unwrap "y" in
   let* local = Tree.to_local tree >|= Error.unwrap "local x, y" in
   let* local' =
-    Tree.Local.(add empty [ "x" ] "foo" >>= fun x -> add x [ "y" ] "bar")
+    Tree.Local.(add (empty ()) [ "x" ] "foo" >>= fun x -> add x [ "y" ] "bar")
   in
   Alcotest.(check (ty Tree.Local.t)) "x, y" local' local;
   let+ res = Store.set_tree ~info:(Info.v "set_tree") client [ "tree" ] tree in
