@@ -46,7 +46,7 @@ struct
       Return.v conn Res.t (ID id)
   end
 
-  module Add_batch = struct
+  module Batch_update = struct
     module Req = struct
       type t =
         Tree.t
@@ -62,7 +62,7 @@ struct
       type t = Tree.t [@@deriving irmin]
     end
 
-    let name = "tree.add_batch"
+    let name = "tree.batch_update"
 
     let run conn ctx _ (tree, l) =
       let* _, tree = resolve_tree ctx tree in
@@ -342,7 +342,7 @@ struct
     [
       cmd (module Empty);
       cmd (module Add);
-      cmd (module Add_batch);
+      cmd (module Batch_update);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Cleanup_all);

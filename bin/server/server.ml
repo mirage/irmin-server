@@ -21,10 +21,7 @@ let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path =
   in
   let config = if readonly then Server.readonly config else config in
   let* server = Server.v ?tls_config ~uri config in
-  let root =
-    try Irmin.Backend.Conf.(get config Irmin_pack.Conf.Key.root)
-    with _ -> "<memory>"
-  in
+  let root = match root with Some root -> root | None -> "" in
   Logs.app (fun l -> l "Listening on %a, store: %s" Uri.pp_hum uri root);
   Server.serve server
 

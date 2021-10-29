@@ -148,10 +148,10 @@ let stats client =
       let* stats = Client.stats client >|= Error.unwrap "stats" in
       Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats))
 
-let replicate client author message (input : string) =
+let replicate client author message =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
-      let diff =
+      let diff input =
         Irmin.Type.(
           of_json_string
             (list
@@ -160,34 +160,35 @@ let replicate client author message (input : string) =
           input
         |> Result.get_ok
       in
-      let batch : Client.batch =
-        List.fold_left
-          (fun acc (k, diff) ->
-            match diff with
-            | `Updated (_, (v, _)) -> (k, Some (`Contents (`Value v))) :: acc
-            | `Added (v, _) -> (k, Some (`Contents (`Value v))) :: acc
-            | `Removed _ -> (k, None) :: acc)
-          [] diff
+      let rec loop () =
+        let* input = Lwt_io.read_line Lwt_io.stdin in
+        let batch : Client.batch =
+          List.fold_left
+            (fun acc (k, diff) ->
+              match diff with
+              | `Updated (_, (v, _)) -> (k, Some (`Contents (`Value v))) :: acc
+              | `Added (v, _) -> (k, Some (`Contents (`Value v))) :: acc
+              | `Removed _ -> (k, None) :: acc)
+            [] (diff input)
+        in
+        let info = Client.Info.v ~author "%s" message in
+        let* tree =
+          Client.Store.find_tree client Client.Path.empty
+          >|= Error.unwrap "find_tree"
+        in
+        let tree =
+          match tree with Some t -> t | None -> Client.Tree.empty client
+        in
+        let* tree =
+          Client.Tree.batch_update tree batch >|= Error.unwrap "build"
+        in
+        let* _ =
+          Client.Store.set_tree client ~info Client.Path.empty tree
+          >|= Error.unwrap "set_tree"
+        in
+        loop ()
       in
-      let info = Client.Info.v ~author "%s" message in
-      let* tree =
-        Client.Store.find_tree client Client.Path.empty
-        >|= Error.unwrap "find_tree"
-      in
-      let* tree =
-        match tree with
-        | Some t -> Lwt.return t
-        | None ->
-            Client.Tree.of_local client (Client.Private.Tree.Local.empty ())
-      in
-      let* tree =
-        Client.Tree.batch_update tree batch >|= Error.unwrap "build"
-      in
-      let* _ =
-        Client.Store.set_tree client ~info Client.Path.empty tree
-        >|= Error.unwrap "set_tree"
-      in
-      Lwt.return_unit )
+      loop () )
 
 let watch client =
   Lwt_main.run
@@ -216,12 +217,6 @@ let path index =
 
 let filename index =
   let doc = Arg.info ~docv:"PATH" ~doc:"Filename" [] in
-  Arg.(required & pos index (some string) None & doc)
-
-let input index =
-  let doc =
-    Arg.info ~docv:"DATA" ~doc:"JSON diff from irmin watch command" []
-  in
   Arg.(required & pos index (some string) None & doc)
 
 let author =
@@ -321,7 +316,7 @@ let () =
            Term.info ~doc:"Server stats" "stats" );
          ( Term.(const watch $ config),
            Term.info ~doc:"Watch for updates" "watch" );
-         ( Term.(const replicate $ config $ author $ message $ input 0),
+         ( Term.(const replicate $ config $ author $ message),
            Term.info ~doc:"Replicate changes from irmin CLI" "replicate" );
          ( Term.(const Dashboard.main $ config $ freq),
            Term.info ~doc:"Run dashboard" "dashboard" );

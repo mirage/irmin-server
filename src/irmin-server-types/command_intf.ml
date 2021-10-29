@@ -215,7 +215,7 @@ module type S = sig
            and type Res.t = Tree.t
 
       (** Add multiple trees/values to a tree *)
-      module Add_batch :
+      module Batch_update :
         CMD
           with type Req.t =
                 Tree.t

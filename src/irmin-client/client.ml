@@ -299,7 +299,7 @@ module Make (C : Command.S) = struct
     and batch_update (((t : store), tree, batch) : tree) l =
       wrap t
         (request t
-           (module Commands.Tree.Add_batch)
+           (module Commands.Tree.Batch_update)
            (tree, List.rev_append batch (List.rev l)))
 
     and wrap ?(batch = []) store tree =

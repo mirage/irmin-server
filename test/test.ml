@@ -48,6 +48,10 @@ let tree client =
     Tree.Local.(add (empty ()) [ "x" ] "foo" >>= fun x -> add x [ "y" ] "bar")
   in
   Alcotest.(check (ty Tree.Local.t)) "x, y" local' local;
+  let* res = Store.set_tree ~info:(Info.v "set_tree") client [ "tree" ] tree in
+  Alcotest.(check bool "set_tree") true (Result.is_ok res);
+  let* tree = Store.find_tree client Path.empty >|= Error.unwrap "find_tree" in
+  let tree = Option.get tree in
   let+ res = Store.set_tree ~info:(Info.v "set_tree") client [ "tree" ] tree in
   Alcotest.(check bool "set_tree") true (Result.is_ok res)
 
