@@ -29,7 +29,7 @@ struct
 
   module Add = struct
     module Req = struct
-      type t = Tree.t * Store.key * Store.contents [@@deriving irmin]
+      type t = Tree.t * Store.path * Store.contents [@@deriving irmin]
     end
 
     module Res = struct
@@ -38,9 +38,9 @@ struct
 
     let name = "tree.add"
 
-    let run conn ctx _ (tree, key, value) =
+    let run conn ctx _ (tree, path, value) =
       let* _, tree = resolve_tree ctx tree in
-      let* tree = Store.Tree.add tree key value in
+      let* tree = Store.Tree.add tree path value in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
       Return.v conn Res.t (ID id)
@@ -50,7 +50,7 @@ struct
     module Req = struct
       type t =
         Tree.t
-        * (Store.key
+        * (Store.path
           * [ `Contents of [ `Hash of Store.Hash.t | `Value of Store.contents ]
             | `Tree of Tree.t ])
           list
@@ -67,15 +67,15 @@ struct
       let* _, tree = resolve_tree ctx tree in
       let* tree =
         Lwt_list.fold_left_s
-          (fun tree (key, value) ->
+          (fun tree (path, value) ->
             match value with
             | `Contents (`Hash value) ->
                 let* value = Store.Contents.of_hash ctx.repo value in
-                Store.Tree.add tree key (Option.get value)
-            | `Contents (`Value value) -> Store.Tree.add tree key value
+                Store.Tree.add tree path (Option.get value)
+            | `Contents (`Value value) -> Store.Tree.add tree path value
             | `Tree t ->
                 let* _, tree' = resolve_tree ctx t in
-                Store.Tree.add_tree tree key tree')
+                Store.Tree.add_tree tree path tree')
           tree l
       in
       let id = incr_id () in
@@ -85,7 +85,7 @@ struct
 
   module Add_tree = struct
     module Req = struct
-      type t = Tree.t * Store.key * Tree.t [@@deriving irmin]
+      type t = Tree.t * Store.path * Tree.t [@@deriving irmin]
     end
 
     module Res = struct
@@ -94,10 +94,10 @@ struct
 
     let name = "tree.add_tree"
 
-    let run conn ctx _ (tree, key, tr) =
+    let run conn ctx _ (tree, path, tr) =
       let* _, tree = resolve_tree ctx tree in
       let* _, tree' = resolve_tree ctx tr in
-      let* tree = Store.Tree.add_tree tree key tree' in
+      let* tree = Store.Tree.add_tree tree path tree' in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
       Return.v conn Res.t (ID id)
@@ -132,7 +132,7 @@ struct
 
   module Find = struct
     module Req = struct
-      type t = Tree.t * Store.key [@@deriving irmin]
+      type t = Tree.t * Store.path [@@deriving irmin]
     end
 
     module Res = struct
@@ -141,15 +141,15 @@ struct
 
     let name = "tree.find"
 
-    let run conn ctx _ (tree, key) =
+    let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
-      let* contents = Store.Tree.find tree key in
+      let* contents = Store.Tree.find tree path in
       Return.v conn Res.t contents
   end
 
   module Find_tree = struct
     module Req = struct
-      type t = Tree.t * Store.key [@@deriving irmin]
+      type t = Tree.t * Store.path [@@deriving irmin]
     end
 
     module Res = struct
@@ -158,9 +158,9 @@ struct
 
     let name = "tree.find_tree"
 
-    let run conn ctx _ (tree, key) =
+    let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
-      let* tree = Store.Tree.find_tree tree key in
+      let* tree = Store.Tree.find_tree tree path in
       let tree =
         Option.map
           (fun tree ->
@@ -174,7 +174,7 @@ struct
 
   module Remove = struct
     module Req = struct
-      type t = Tree.t * Store.key [@@deriving irmin]
+      type t = Tree.t * Store.path [@@deriving irmin]
     end
 
     module Res = struct
@@ -183,9 +183,9 @@ struct
 
     let name = "tree.remove"
 
-    let run conn ctx _ (tree, key) =
+    let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
-      let* tree = Store.Tree.remove tree key in
+      let* tree = Store.Tree.remove tree path in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
       Return.v conn Res.t (ID id)
@@ -228,7 +228,7 @@ struct
 
   module Mem = struct
     module Req = struct
-      type t = Tree.t * Store.key [@@deriving irmin]
+      type t = Tree.t * Store.path [@@deriving irmin]
     end
 
     module Res = struct
@@ -237,15 +237,15 @@ struct
 
     let name = "tree.mem"
 
-    let run conn ctx _ (tree, key) =
+    let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
-      let* res = Store.Tree.mem tree key in
+      let* res = Store.Tree.mem tree path in
       Return.v conn Res.t res
   end
 
   module Mem_tree = struct
     module Req = struct
-      type t = Tree.t * Store.key [@@deriving irmin]
+      type t = Tree.t * Store.path [@@deriving irmin]
     end
 
     module Res = struct
@@ -254,32 +254,32 @@ struct
 
     let name = "tree.mem_tree"
 
-    let run conn ctx _ (tree, key) =
+    let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
-      let* res = Store.Tree.mem_tree tree key in
+      let* res = Store.Tree.mem_tree tree path in
       Return.v conn Res.t res
   end
 
   module List = struct
     module Req = struct
-      type t = Tree.t * Store.key [@@deriving irmin]
+      type t = Tree.t * Store.path [@@deriving irmin]
     end
 
     type tree = [ `Contents | `Tree ] [@@deriving irmin]
 
     module Res = struct
-      type t = (Store.Key.step * [ `Contents | `Tree ]) list [@@deriving irmin]
+      type t = (Store.Path.step * [ `Contents | `Tree ]) list [@@deriving irmin]
     end
 
     let name = "tree.list"
 
-    let run conn ctx _ (tree, key) =
+    let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
-      let* l = Store.Tree.list tree key in
+      let* l = Store.Tree.list tree path in
       let* x =
         Lwt_list.map_s
           (fun (k, _) ->
-            let+ exists = Store.Tree.mem_tree tree (Store.Key.rcons key k) in
+            let+ exists = Store.Tree.mem_tree tree (Store.Path.rcons path k) in
             if exists then (k, `Tree) else (k, `Contents))
           l
       in

@@ -7,7 +7,7 @@ module Make (C : Command.S) = struct
   module St = C.Store
   open C
   module Hash = Store.Hash
-  module Key = Store.Key
+  module Path = Store.Path
   module Metadata = Store.Metadata
 
   module Info = struct
@@ -29,7 +29,7 @@ module Make (C : Command.S) = struct
 
   type branch = Store.branch
 
-  type key = Store.key
+  type path = Store.path
 
   type step = Store.step
 
@@ -56,7 +56,7 @@ module Make (C : Command.S) = struct
   let uri t = t.conf.uri
 
   type batch =
-    (key
+    (path
     * [ `Contents of
         [ `Hash of Tree.Private.Store.hash
         | `Value of Tree.Private.Store.contents ]
@@ -208,40 +208,40 @@ module Make (C : Command.S) = struct
   end
 
   module Store = struct
-    let find t key = request t (module Commands.Store.Find) key
+    let find t path = request t (module Commands.Store.Find) path
 
-    let set t ~info key value =
-      request t (module Commands.Store.Set) (key, info (), value)
+    let set t ~info path value =
+      request t (module Commands.Store.Set) (path, info (), value)
 
-    let test_and_set t ~info key ~test ~set =
-      request t (module Commands.Store.Test_and_set) (key, info (), (test, set))
+    let test_and_set t ~info path ~test ~set =
+      request t (module Commands.Store.Test_and_set) (path, info (), (test, set))
 
-    let remove t ~info key =
-      request t (module Commands.Store.Remove) (key, info ())
+    let remove t ~info path =
+      request t (module Commands.Store.Remove) (path, info ())
 
-    let find_tree t key =
-      let+ tree = request t (module Commands.Store.Find_tree) key in
+    let find_tree t path =
+      let+ tree = request t (module Commands.Store.Find_tree) path in
       Result.map (fun x -> Option.map (fun x -> (t, x, [])) x) tree
 
-    let set_tree t ~info key (_, tree, _) =
+    let set_tree t ~info path (_, tree, _) =
       let+ tree =
-        request t (module Commands.Store.Set_tree) (key, info (), tree)
+        request t (module Commands.Store.Set_tree) (path, info (), tree)
       in
       Result.map (fun tree -> (t, tree, [])) tree
 
-    let test_and_set_tree t ~info key ~test ~set =
+    let test_and_set_tree t ~info path ~test ~set =
       let test = Option.map (fun (_, x, _) -> x) test in
       let set = Option.map (fun (_, x, _) -> x) set in
       let+ tree =
         request t
           (module Commands.Store.Test_and_set_tree)
-          (key, info (), (test, set))
+          (path, info (), (test, set))
       in
       Result.map (Option.map (fun tree -> (t, tree, []))) tree
 
-    let mem t key = request t (module Commands.Store.Mem) key
+    let mem t path = request t (module Commands.Store.Mem) path
 
-    let mem_tree t key = request t (module Commands.Store.Mem_tree) key
+    let mem_tree t path = request t (module Commands.Store.Mem_tree) path
 
     let merge t ~info branch =
       request t (module Commands.Store.Merge) (info (), branch)
@@ -249,8 +249,8 @@ module Make (C : Command.S) = struct
     let merge_commit t ~info commit =
       request t (module Commands.Store.Merge_commit) (info (), commit)
 
-    let last_modified t key =
-      request t (module Commands.Store.Last_modified) key
+    let last_modified t path =
+      request t (module Commands.Store.Last_modified) path
   end
 
   module Contents = struct
@@ -308,40 +308,40 @@ module Make (C : Command.S) = struct
     and empty (t : store) : tree = (t, Tree.Local (`Tree []), [])
 
     module Batch = struct
-      let key_equal = Irmin.Type.(unstage (equal Key.t))
+      let path_equal = Irmin.Type.(unstage (equal Path.t))
 
       let find b k =
         List.find_opt
           (fun (a, b) ->
-            match b with `Contents _ -> key_equal k a | _ -> false)
+            match b with `Contents _ -> path_equal k a | _ -> false)
           b
         |> Option.map snd
 
       let find_tree b k =
         List.find_opt
-          (fun (a, b) -> match b with `Tree _ -> key_equal k a | _ -> false)
+          (fun (a, b) -> match b with `Tree _ -> path_equal k a | _ -> false)
           b
         |> Option.map snd
 
       let mem b k =
         List.exists
           (fun (a, b) ->
-            match b with `Contents _ -> key_equal k a | _ -> false)
+            match b with `Contents _ -> path_equal k a | _ -> false)
           b
 
       let mem_tree b k =
         List.exists
-          (fun (a, b) -> match b with `Tree _ -> key_equal k a | _ -> false)
+          (fun (a, b) -> match b with `Tree _ -> path_equal k a | _ -> false)
           b
 
-      let remove b k = List.filter (fun (a, _) -> not (key_equal k a)) b
+      let remove b k = List.filter (fun (a, _) -> not (path_equal k a)) b
 
-      let add batch key value = (key, `Contents (`Value value)) :: batch
+      let add batch path value = (path, `Contents (`Value value)) :: batch
 
-      let add_hash batch key hash = (key, `Contents (`Hash hash)) :: batch
+      let add_hash batch path hash = (path, `Contents (`Hash hash)) :: batch
 
-      let add_tree batch key (_, tree, batch') =
-        ((key, `Tree tree) :: batch') @ batch
+      let add_tree batch path (_, tree, batch') =
+        ((path, `Tree tree) :: batch') @ batch
     end
 
     let split t = t
@@ -366,63 +366,63 @@ module Make (C : Command.S) = struct
       let* tree = build t ~tree batch in
       map_tree tree (fun tree -> request t (module Commands.Tree.Hash) tree)
 
-    let add' (t, tree, batch) key value =
-      wrap ~batch t (request t (module Commands.Tree.Add) (tree, key, value))
+    let add' (t, tree, batch) path value =
+      wrap ~batch t (request t (module Commands.Tree.Add) (tree, path, value))
 
-    let add ((t, tree, batch) : tree) key value =
+    let add ((t, tree, batch) : tree) path value =
       let hash = St.Contents.hash value in
       let exists = Cache.Hash.mem Cache.contents hash in
       let batch =
-        if exists then Batch.add_hash batch key hash
-        else Batch.add batch key value
+        if exists then Batch.add_hash batch path hash
+        else Batch.add batch path value
       in
       if List.length batch > t.conf.batch_size then build t ~tree batch
       else Lwt.return_ok (t, tree, batch)
 
-    let add_tree ((t, tree, batch) : tree) key tr =
-      let batch = Batch.add_tree batch key tr in
+    let add_tree ((t, tree, batch) : tree) path tr =
+      let batch = Batch.add_tree batch path tr in
       if List.length batch > t.conf.batch_size then build t ~tree batch
       else Lwt.return_ok (t, tree, batch)
 
-    let add_tree' (t, tree, batch) key (_, tr, batch') =
+    let add_tree' (t, tree, batch) path (_, tr, batch') =
       wrap ~batch:(batch @ batch') t
-        (request t (module Commands.Tree.Add_tree) (tree, key, tr))
+        (request t (module Commands.Tree.Add_tree) (tree, path, tr))
 
-    let find ((t, tree, batch) : tree) key : contents option Error.result Lwt.t
+    let find ((t, tree, batch) : tree) path : contents option Error.result Lwt.t
         =
-      let x = Batch.find batch key in
+      let x = Batch.find batch path in
       match x with
       | Some (`Contents (`Value x)) -> Lwt.return_ok (Some x)
       | Some (`Contents (`Hash x)) -> Contents.of_hash t x
-      | _ -> request t (module Commands.Tree.Find) (tree, key)
+      | _ -> request t (module Commands.Tree.Find) (tree, path)
 
-    let find_tree ((t, tree, batch) : tree) key : tree option Error.result Lwt.t
-        =
-      let x = Batch.find_tree batch key in
+    let find_tree ((t, tree, batch) : tree) path :
+        tree option Error.result Lwt.t =
+      let x = Batch.find_tree batch path in
       match x with
       | Some (`Tree x) -> Lwt.return_ok (Some (t, x, []))
       | _ ->
-          let+ tree = request t (module Commands.Tree.Find_tree) (tree, key) in
+          let+ tree = request t (module Commands.Tree.Find_tree) (tree, path) in
           Result.map (Option.map (fun tree -> (t, tree, []))) tree
 
-    let remove (t, tree, batch) key =
-      let batch = Batch.remove batch key in
-      wrap ~batch t (request t (module Commands.Tree.Remove) (tree, key))
+    let remove (t, tree, batch) path =
+      let batch = Batch.remove batch path in
+      wrap ~batch t (request t (module Commands.Tree.Remove) (tree, path))
 
     let cleanup (t, tree, _) = request t (module Commands.Tree.Cleanup) tree
 
-    let mem (t, tree, batch) key =
-      if Batch.mem batch key then Lwt.return_ok true
-      else request t (module Commands.Tree.Mem) (tree, key)
+    let mem (t, tree, batch) path =
+      if Batch.mem batch path then Lwt.return_ok true
+      else request t (module Commands.Tree.Mem) (tree, path)
 
-    let mem_tree (t, tree, batch) key =
-      if Batch.mem_tree batch key then Lwt.return_ok true
-      else request t (module Commands.Tree.Mem_tree) (tree, key)
+    let mem_tree (t, tree, batch) path =
+      if Batch.mem_tree batch path then Lwt.return_ok true
+      else request t (module Commands.Tree.Mem_tree) (tree, path)
 
-    let list (t, tree, batch) key =
+    let list (t, tree, batch) path =
       let* tree = build t ~tree batch in
       map_tree tree (fun tree ->
-          request t (module Commands.Tree.List) (tree, key))
+          request t (module Commands.Tree.List) (tree, path))
 
     let merge ~old:(_, old, old') (t, a, a') (_, b, b') =
       let* _, old, _ = build t ~tree:old old' >|= Error.unwrap "build:old" in

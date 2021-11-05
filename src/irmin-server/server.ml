@@ -133,7 +133,7 @@ module Make (X : Command.S) = struct
     else
       (* Handshake ok *)
       let conn = Conn.v flow ic oc in
-      let branch = Store.Branch.master in
+      let branch = Store.Branch.main in
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
       let client =

@@ -170,8 +170,8 @@ module Make (St : Irmin.S) = struct
         let* () = Store.Branch.remove ctx.repo branch in
         let* () =
           if Irmin.Type.(unstage (equal Store.Branch.t)) ctx.branch branch then
-            let+ store = Store.master ctx.repo in
-            let () = ctx.branch <- Store.Branch.master in
+            let+ store = Store.main ctx.repo in
+            let () = ctx.branch <- Store.Branch.main in
             ctx.store <- store
           else Lwt.return_unit
         in

@@ -3,7 +3,7 @@ module type LOCAL = sig
 
   type contents
 
-  type key
+  type path
 
   type hash
 
@@ -30,30 +30,30 @@ module type LOCAL = sig
 
   val of_node : node -> t
 
-  val add : t -> key -> ?metadata:metadata -> contents -> t Lwt.t
+  val add : t -> path -> ?metadata:metadata -> contents -> t Lwt.t
 
-  val add_tree : t -> key -> t -> t Lwt.t
+  val add_tree : t -> path -> t -> t Lwt.t
 
-  val find : t -> key -> contents option Lwt.t
+  val find : t -> path -> contents option Lwt.t
 
-  val find_tree : t -> key -> t option Lwt.t
+  val find_tree : t -> path -> t option Lwt.t
 
-  val remove : t -> key -> t Lwt.t
+  val remove : t -> path -> t Lwt.t
 
-  val mem : t -> key -> bool Lwt.t
+  val mem : t -> path -> bool Lwt.t
 
-  val mem_tree : t -> key -> bool Lwt.t
+  val mem_tree : t -> path -> bool Lwt.t
 
   val update :
     t ->
-    key ->
+    path ->
     ?metadata:metadata ->
     (contents option -> contents option) ->
     t Lwt.t
 
-  val update_tree : t -> key -> (t option -> t option) -> t Lwt.t
+  val update_tree : t -> path -> (t option -> t option) -> t Lwt.t
 
-  val kind : t -> key -> [ `Contents | `Node ] option Lwt.t
+  val kind : t -> path -> [ `Contents | `Node ] option Lwt.t
 
   val destruct : t -> [ `Contents of hash | `Node of (step * t) list ] Lwt.t
 
@@ -62,10 +62,10 @@ module type LOCAL = sig
     ?offset:int ->
     ?length:int ->
     ?cache:bool ->
-    key ->
+    path ->
     (step * t) list Lwt.t
 
-  val diff : t -> t -> (key * (contents * metadata) Irmin.Diff.t) list Lwt.t
+  val diff : t -> t -> (path * (contents * metadata) Irmin.Diff.t) list Lwt.t
 
   val merge : t Irmin.Merge.t
 
@@ -86,9 +86,9 @@ module type S = sig
   module Local :
     LOCAL
       with type contents = Store.contents
-       and type key = Store.key
+       and type path = Store.path
        and type hash = Store.hash
-       and type step = Store.Key.step
+       and type step = Store.Path.step
        and type t = Store.tree
 
   type t = Hash of Store.Hash.t | ID of int | Local of Local.concrete

@@ -9,7 +9,7 @@ module Make (Store : Irmin.S) = struct
   module Local = struct
     type t = Private.Store.tree
 
-    type key = Private.Store.key
+    type path = Private.Store.path
 
     type contents = Private.Store.contents
 
@@ -17,7 +17,7 @@ module Make (Store : Irmin.S) = struct
 
     type hash = Private.Store.hash
 
-    type step = Private.Store.Key.step
+    type step = Private.Store.Path.step
 
     type metadata = Private.Store.metadata
 
@@ -31,7 +31,7 @@ module Make (Store : Irmin.S) = struct
           Lwt.return (`Contents (Private.Store.Tree.Contents.hash x))
       | `Node l ->
           let+ l =
-            list (Private.Store.Tree.of_node l) Private.Store.Key.empty
+            list (Private.Store.Tree.of_node l) Private.Store.Path.empty
           in
           `Node l
   end

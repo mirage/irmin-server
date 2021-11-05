@@ -11,7 +11,7 @@ module type S = sig
 
   type commit
 
-  type key
+  type path
 
   type tree
 
@@ -35,7 +35,7 @@ module type S = sig
     val v : ?author:string -> ('b, Format.formatter, unit, f) format4 -> 'b
   end
 
-  module Key : Irmin.Path.S with type t = key and type step = step
+  module Path : Irmin.Path.S with type t = path and type step = step
 
   module Hash : Irmin.Hash.S with type t = hash
 
@@ -43,7 +43,7 @@ module type S = sig
 
   module Schema :
     Irmin.Schema.S
-      with type Path.t = key
+      with type Path.t = path
        and type Path.step = step
        and type Hash.t = hash
        and type Branch.t = branch
@@ -56,7 +56,7 @@ module type S = sig
   end
 
   type batch =
-    (key
+    (path
     * [ `Contents of [ `Hash of hash | `Value of contents ]
       | `Tree of Private.Tree.t ])
     list
@@ -127,7 +127,7 @@ module type S = sig
     (** Check if [contents] exists in the store already *)
 
     val save : t -> contents -> hash Error.result Lwt.t
-    (** Save value to store without associating it with a key *)
+    (** Save value to store without associating it with a path *)
 
     include Irmin.Contents.S with type t = contents
   end
@@ -174,28 +174,28 @@ module type S = sig
     (** [build store ~tree batch] performs a batch update of [tree], or
         an empty tree if not specified *)
 
-    val add : tree -> key -> contents -> tree Error.result Lwt.t
+    val add : tree -> path -> contents -> tree Error.result Lwt.t
     (** Add contents to a tree, this may be batched so the update on the server
         could be delayed *)
 
-    val add' : tree -> key -> contents -> tree Error.result Lwt.t
+    val add' : tree -> path -> contents -> tree Error.result Lwt.t
     (** Non-batch version of [add] *)
 
-    val add_tree : tree -> key -> tree -> tree Error.result Lwt.t
+    val add_tree : tree -> path -> tree -> tree Error.result Lwt.t
 
-    val add_tree' : tree -> key -> tree -> tree Error.result Lwt.t
+    val add_tree' : tree -> path -> tree -> tree Error.result Lwt.t
     (** Non-batch version of [add_tree] *)
 
     val add_batch : tree -> batch -> tree Error.result Lwt.t
     (** Batch update tree *)
 
-    val find : tree -> key -> contents option Error.result Lwt.t
-    (** Find the value associated with the given key *)
+    val find : tree -> path -> contents option Error.result Lwt.t
+    (** Find the value associated with the given path *)
 
-    val find_tree : tree -> key -> tree option Error.result Lwt.t
-    (** Find the tree associated with the given key *)
+    val find_tree : tree -> path -> tree option Error.result Lwt.t
+    (** Find the tree associated with the given path *)
 
-    val remove : tree -> key -> tree Error.result Lwt.t
+    val remove : tree -> path -> tree Error.result Lwt.t
     (** Remove value from a tree, returning a new tree *)
 
     val cleanup : tree -> unit Error.result Lwt.t
@@ -204,24 +204,26 @@ module type S = sig
     val cleanup_all : t -> unit Error.result Lwt.t
     (** Cleanup all trees *)
 
-    val mem : tree -> key -> bool Error.result Lwt.t
-    (** Check if a key is associated with a value *)
+    val mem : tree -> path -> bool Error.result Lwt.t
+    (** Check if a path is associated with a value *)
 
-    val mem_tree : tree -> key -> bool Error.result Lwt.t
-    (** Check if a key is associated with a tree *)
+    val mem_tree : tree -> path -> bool Error.result Lwt.t
+    (** Check if a path is associated with a tree *)
 
     val list :
-      tree -> key -> (Key.step * [ `Contents | `Tree ]) list Error.result Lwt.t
+      tree ->
+      path ->
+      (Path.step * [ `Contents | `Tree ]) list Error.result Lwt.t
     (** List entries at the specified root *)
 
     val merge : old:tree -> tree -> tree -> tree Error.result Lwt.t
     (** Three way merge *)
 
     module Local = Private.Tree.Local
-    (*with type key = key
+    (*with type path = path
       and type contents = contents
       and type hash = hash
-      and type step = Key.step
+      and type step = Path.step
       and type t = Private.Store.tree*)
 
     val to_local : tree -> Local.t Error.result Lwt.t
@@ -235,45 +237,45 @@ module type S = sig
   end
 
   module Store : sig
-    val find : t -> key -> contents option Error.result Lwt.t
-    (** Find the value associated with a key, if it exists *)
+    val find : t -> path -> contents option Error.result Lwt.t
+    (** Find the value associated with a path, if it exists *)
 
-    val find_tree : t -> key -> Tree.t option Error.result Lwt.t
-    (** Find the tree associated with a key, if it exists *)
+    val find_tree : t -> path -> Tree.t option Error.result Lwt.t
+    (** Find the tree associated with a path, if it exists *)
 
-    val set : t -> info:Info.f -> key -> contents -> unit Error.result Lwt.t
-    (** Associate a new value with the given key *)
+    val set : t -> info:Info.f -> path -> contents -> unit Error.result Lwt.t
+    (** Associate a new value with the given path *)
 
     val test_and_set :
       t ->
       info:Info.f ->
-      key ->
+      path ->
       test:contents option ->
       set:contents option ->
       unit Error.result Lwt.t
     (** Set a value only if the [test] parameter matches the existing value *)
 
-    val remove : t -> info:Info.f -> key -> unit Error.result Lwt.t
+    val remove : t -> info:Info.f -> path -> unit Error.result Lwt.t
     (** Remove a value from the store *)
 
     val set_tree :
-      t -> info:Info.f -> key -> Tree.t -> Tree.t Error.result Lwt.t
-    (** Set a tree at the given key *)
+      t -> info:Info.f -> path -> Tree.t -> Tree.t Error.result Lwt.t
+    (** Set a tree at the given path *)
 
     val test_and_set_tree :
       t ->
       info:Info.f ->
-      key ->
+      path ->
       test:Tree.t option ->
       set:Tree.t option ->
       Tree.t option Error.result Lwt.t
     (** Set a value only if the [test] parameter matches the existing value *)
 
-    val mem : t -> key -> bool Error.result Lwt.t
-    (** Check if the given key has an associated value *)
+    val mem : t -> path -> bool Error.result Lwt.t
+    (** Check if the given path has an associated value *)
 
-    val mem_tree : t -> key -> bool Error.result Lwt.t
-    (** Check if the given key has an associated tree *)
+    val mem_tree : t -> path -> bool Error.result Lwt.t
+    (** Check if the given path has an associated tree *)
 
     val merge : t -> info:Info.f -> branch -> unit Error.result Lwt.t
     (** Merge the current branch with the provided branch *)
@@ -281,8 +283,8 @@ module type S = sig
     val merge_commit : t -> info:Info.f -> Commit.t -> unit Error.result Lwt.t
     (** Merge the current branch with the provided commit *)
 
-    val last_modified : t -> key -> Commit.t list Error.result Lwt.t
-    (** Get a list of commits that modified the specified key *)
+    val last_modified : t -> path -> Commit.t list Error.result Lwt.t
+    (** Get a list of commits that modified the specified path *)
   end
 end
 
@@ -294,7 +296,7 @@ module type Client = sig
       with type hash = C.Store.hash
        and type contents = C.Store.contents
        and type branch = C.Store.branch
-       and type key = C.Store.key
+       and type path = C.Store.path
        and type commit = C.Commit.t
        and type step = C.Store.step
        and type metadata = C.Store.metadata

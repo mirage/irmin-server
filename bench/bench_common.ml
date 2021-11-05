@@ -53,7 +53,7 @@ let random_string n = String.init n (fun _i -> random_char ())
 
 let random_blob () = random_string 10 |> Bytes.of_string
 
-let random_key () = random_string 5
+let random_path () = random_string 5
 
 let default_artefacts_dir =
   let ( / ) = Filename.concat in
@@ -152,27 +152,27 @@ end
 module Generate_trees
     (Store : Irmin_client.S
                with type contents = bytes
-                and type key = string list) =
+                and type path = string list) =
 struct
-  let key depth =
+  let path depth =
     let rec aux i acc =
       if i >= depth then acc
       else
-        let k = random_key () in
+        let k = random_path () in
         aux (i + 1) (k :: acc)
     in
     aux 0 []
 
-  let chain_tree tree depth path =
-    let k = path @ key depth in
+  let chain_tree tree depth p =
+    let k = p @ path depth in
     Store.Tree.add tree k (random_blob ()) >|= Result.get_ok
 
   let add_chain_trees depth nb tree =
-    let path = key 2 in
+    let p = path 2 in
     let rec aux i tree =
       if i >= nb then Lwt.return tree
       else
-        let* tree = chain_tree tree depth path in
+        let* tree = chain_tree tree depth p in
         aux (i + 1) tree
     in
     aux 0 tree
@@ -181,18 +181,18 @@ struct
     let rec aux i tree =
       if i >= width then Lwt.return tree
       else
-        let k = path @ [ random_key () ] in
+        let k = path @ [ random_path () ] in
         let* tree = Store.Tree.add tree k (random_blob ()) >|= Result.get_ok in
         aux (i + 1) tree
     in
     aux 0 tree
 
   let add_large_trees width nb tree =
-    let path = key 1 in
+    let path = path 1 in
     let rec aux i tree =
       if i >= nb then Lwt.return tree
       else
-        let path = path @ [ random_key () ] in
+        let path = path @ [ random_path () ] in
         let* tree = large_tree path tree width in
         aux (i + 1) tree
     in

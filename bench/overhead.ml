@@ -1,24 +1,24 @@
 module Key = Irmin.Path.String_list
 
-let encode_key = Irmin.Type.(unstage (to_bin_string Key.t))
+let encode_path = Irmin.Type.(unstage (to_bin_string Key.t))
 
-let decode_key = Irmin.Type.(unstage (of_bin_string Key.t))
+let decode_path = Irmin.Type.(unstage (of_bin_string Key.t))
 
-let random_key () =
+let random_path () =
   let steps = 2 + Random.int 14 in
   let rec aux steps acc =
     if steps = 0 then acc
-    else aux (steps - 1) (Bench_common.random_key () :: acc)
+    else aux (steps - 1) (Bench_common.random_path () :: acc)
   in
   aux steps []
 
-let check_encoding_key key =
-  let enc = encode_key key in
-  let dec = decode_key enc in
+let check_encoding_path path =
+  let enc = encode_path path in
+  let dec = decode_path enc in
   let dec = Result.get_ok dec in
   assert (List.length dec > 0)
 
-let check_direct_key key = assert (List.length key > 0)
+let check_direct_path path = assert (List.length path > 0)
 
 open Benchmark
 
@@ -26,8 +26,8 @@ let () =
   let res =
     latencyN ~repeat:1000 5000L
       [
-        ("key encoding", check_encoding_key, random_key ());
-        ("direct", check_direct_key, random_key ());
+        ("path encoding", check_encoding_path, random_path ());
+        ("direct", check_direct_path, random_path ());
       ]
   in
   print_endline "Key encoding latency";
