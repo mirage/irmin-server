@@ -34,7 +34,7 @@ module type Store = sig
     Irmin_client.S
       with type contents = bytes
        and type step = string
-       and type key = string list
+       and type path = string list
        and type branch = string
 
   type on_commit := int -> Hash.t -> unit Lwt.t

@@ -58,11 +58,13 @@ let ping client =
       let () = Error.unwrap "ping" result in
       Logs.app (fun l -> l "OK"))
 
-let find client key =
+let find client path =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
-      let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
-      let* result = Client.Store.find client key >|= Error.unwrap "find" in
+      let path =
+        Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
+      in
+      let* result = Client.Store.find client path >|= Error.unwrap "find" in
       match result with
       | Some data ->
           let* () =
@@ -70,46 +72,55 @@ let find client key =
           in
           Lwt_io.flush Lwt_io.stdout
       | None ->
-          Logs.err (fun l -> l "Not found: %a" (Irmin.Type.pp Client.Key.t) key);
+          Logs.err (fun l ->
+              l "Not found: %a" (Irmin.Type.pp Client.Path.t) path);
           Lwt.return_unit)
 
-let mem client key =
+let mem client path =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
-      let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
-      let* result = Client.Store.mem client key >|= Error.unwrap "mem" in
+      let path =
+        Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
+      in
+      let* result = Client.Store.mem client path >|= Error.unwrap "mem" in
       Lwt_io.printl (if result then "true" else "false"))
 
-let mem_tree client key =
+let mem_tree client path =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
-      let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
+      let path =
+        Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
+      in
       let* result =
-        Client.Store.mem_tree client key >|= Error.unwrap "mem_tree"
+        Client.Store.mem_tree client path >|= Error.unwrap "mem_tree"
       in
       Lwt_io.printl (if result then "true" else "false"))
 
-let set client key author message contents =
+let set client path author message contents =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
-      let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
+      let path =
+        Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
+      in
       let contents =
         Irmin.Type.of_string Client.Contents.t contents
         |> Error.unwrap "contents"
       in
       let info = Client.Info.v ~author "%s" message in
       let+ () =
-        Client.Store.set client key ~info contents >|= Error.unwrap "set"
+        Client.Store.set client path ~info contents >|= Error.unwrap "set"
       in
       Logs.app (fun l -> l "OK"))
 
-let remove client key author message =
+let remove client path author message =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
-      let key = Irmin.Type.of_string Client.Key.t key |> Error.unwrap "key" in
+      let path =
+        Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
+      in
       let info = Client.Info.v ~author "%s" message in
       let+ () =
-        Client.Store.remove client key ~info >|= Error.unwrap "remove"
+        Client.Store.remove client path ~info >|= Error.unwrap "remove"
       in
       Logs.app (fun l -> l "OK"))
 
@@ -158,8 +169,8 @@ let watch client =
 
 let pr_str = Format.pp_print_string
 
-let key index =
-  let doc = Arg.info ~docv:"PATH" ~doc:"Key to lookup or modify" [] in
+let path index =
+  let doc = Arg.info ~docv:"PATH" ~doc:"Path to lookup or modify" [] in
   Arg.(required & pos index (some string) None & doc)
 
 let filename index =
@@ -238,26 +249,27 @@ let () =
              "list-commands" );
          ( Term.(const ping $ config $ time $ iterations),
            Term.info ~doc:"Ping the server" "ping" );
-         ( Term.(const find $ config $ key 0 $ time $ iterations),
-           Term.info ~doc:"Get the key associated with a value" "get" );
-         ( Term.(const find $ config $ key 0 $ time $ iterations),
+         ( Term.(const find $ config $ path 0 $ time $ iterations),
+           Term.info ~doc:"Get the path associated with a value" "get" );
+         ( Term.(const find $ config $ path 0 $ time $ iterations),
            Term.info ~doc:"Alias for 'get' command" "find" );
          Term.
-           ( const set $ config $ key 0 $ author $ message $ value 1 $ time
+           ( const set $ config $ path 0 $ author $ message $ value 1 $ time
              $ iterations,
-             Term.info ~doc:"Set key/value" "set" );
+             Term.info ~doc:"Set path/value" "set" );
          Term.
-           ( const remove $ config $ key 0 $ author $ message $ time $ iterations,
-             Term.info ~doc:"Remove value associated with the given key"
+           ( const remove $ config $ path 0 $ author $ message $ time
+             $ iterations,
+             Term.info ~doc:"Remove value associated with the given path"
                "remove" );
          ( Term.(const import $ config $ filename 0 $ time $ iterations),
            Term.info ~doc:"Import from dump file" "import" );
          ( Term.(const export $ config $ filename 0 $ time $ iterations),
            Term.info ~doc:"Export to dump file" "export" );
-         ( Term.(const mem $ config $ key 0 $ time $ iterations),
-           Term.info ~doc:"Check if key is set" "mem" );
-         ( Term.(const mem_tree $ config $ key 0 $ time $ iterations),
-           Term.info ~doc:"Check if key is set to a tree value" "mem_tree" );
+         ( Term.(const mem $ config $ path 0 $ time $ iterations),
+           Term.info ~doc:"Check if path is set" "mem" );
+         ( Term.(const mem_tree $ config $ path 0 $ time $ iterations),
+           Term.info ~doc:"Check if path is set to a tree value" "mem_tree" );
          ( Term.(const stats $ config $ time $ iterations),
            Term.info ~doc:"Server stats" "stats" );
          ( Term.(const watch $ config),

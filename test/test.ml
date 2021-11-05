@@ -56,14 +56,14 @@ let branch (client : Rpc.Client.t) =
   let module Store = Rpc.Server.Store in
   let* current = Branch.get_current client in
   Alcotest.(check (result string error))
-    "current branch is master" (Ok Branch.master) current;
+    "current branch is main" (Ok Branch.main) current;
   let* () = Branch.set_current client "test" >|= Error.unwrap "set_current" in
   let* current = Branch.get_current client in
   Alcotest.(check (result string error)) "current branch" (Ok "test") current;
   let* () = Branch.remove client "test" >|= Error.unwrap "remove" in
   let* current = Branch.get_current client in
   Alcotest.(check (result string error))
-    "current branch is master again" (Ok Branch.master) current;
+    "current branch is main again" (Ok Branch.main) current;
   let* _ = Rpc.Client.Store.set ~info:(Info.v "test") client [ "test" ] "ok" in
   let* head = Branch.get client >|= Error.unwrap "get" in
   let head = Option.get head in

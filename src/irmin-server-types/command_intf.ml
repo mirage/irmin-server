@@ -143,49 +143,49 @@ module type S = sig
     module Store : sig
       (** Find a value in the store *)
       module Find :
-        CMD with type Req.t = Store.key and type Res.t = Store.contents option
+        CMD with type Req.t = Store.path and type Res.t = Store.contents option
 
       (** Add a new value to the store *)
       module Set :
         CMD
-          with type Req.t = Store.key * Store.Info.t * Store.contents
+          with type Req.t = Store.path * Store.Info.t * Store.contents
            and type Res.t = unit
 
       (** Add a value to the store if [test] matches the existing value *)
       module Test_and_set :
         CMD
           with type Req.t =
-                Store.key
+                Store.path
                 * Store.Info.t
                 * (Store.contents option * Store.contents option)
            and type Res.t = unit
 
       (** Remove a value from the store *)
       module Remove :
-        CMD with type Req.t = Store.key * Store.Info.t and type Res.t = unit
+        CMD with type Req.t = Store.path * Store.Info.t and type Res.t = unit
 
       (** Get a tree from the store *)
       module Find_tree :
-        CMD with type Req.t = Store.key and type Res.t = Tree.t option
+        CMD with type Req.t = Store.path and type Res.t = Tree.t option
 
       (** Add a tree to the store *)
       module Set_tree :
         CMD
-          with type Req.t = Store.key * Store.Info.t * Tree.t
+          with type Req.t = Store.path * Store.Info.t * Tree.t
            and type Res.t = Tree.t
 
       (** Add a tree to the store if [test] matches the existing tree *)
       module Test_and_set_tree :
         CMD
           with type Req.t =
-                Store.key * Store.Info.t * (Tree.t option * Tree.t option)
+                Store.path * Store.Info.t * (Tree.t option * Tree.t option)
            and type Res.t = Tree.t option
 
       (** Check for the existence of a value in the store *)
-      module Mem : CMD with type Req.t = Store.key and type Res.t = bool
+      module Mem : CMD with type Req.t = Store.path and type Res.t = bool
 
       (** Check for the existence of a tree in the store *)
-      module Mem_tree : CMD with type Req.t = Store.key and type Res.t = bool
+      module Mem_tree : CMD with type Req.t = Store.path and type Res.t = bool
 
       (** Merge the current branch with another branch *)
       module Merge :
@@ -197,9 +197,9 @@ module type S = sig
       module Merge_commit :
         CMD with type Req.t = Store.Info.t * Commit.t and type Res.t = unit
 
-      (** Get a list of commits that modified a specific key *)
+      (** Get a list of commits that modified a specific path *)
       module Last_modified :
-        CMD with type Req.t = Store.key and type Res.t = Commit.t list
+        CMD with type Req.t = Store.path and type Res.t = Commit.t list
     end
 
     (* Tree *)
@@ -211,7 +211,7 @@ module type S = sig
       module Add :
         CMD
           with type Req.t =
-                Tree.t * Tree.Private.Store.key * Tree.Private.Store.contents
+                Tree.t * Tree.Private.Store.path * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
       (** Add multiple trees/values to a tree *)
@@ -219,7 +219,7 @@ module type S = sig
         CMD
           with type Req.t =
                 Tree.t
-                * (Tree.Private.Store.key
+                * (Tree.Private.Store.path
                   * [ `Contents of
                       [ `Hash of Tree.Private.Store.hash
                       | `Value of Tree.Private.Store.contents ]
@@ -230,25 +230,25 @@ module type S = sig
       (** Add a tree to a tree *)
       module Add_tree :
         CMD
-          with type Req.t = Tree.t * Tree.Private.Store.key * Tree.t
+          with type Req.t = Tree.t * Tree.Private.Store.path * Tree.t
            and type Res.t = Tree.t
 
-      (** Remove key from a tree *)
+      (** Remove path from a tree *)
       module Remove :
         CMD
-          with type Req.t = Tree.t * Tree.Private.Store.key
+          with type Req.t = Tree.t * Tree.Private.Store.path
            and type Res.t = Tree.t
 
       (** Find a value from a tree *)
       module Find :
         CMD
-          with type Req.t = Tree.t * Tree.Private.Store.key
+          with type Req.t = Tree.t * Tree.Private.Store.path
            and type Res.t = Tree.Private.Store.contents option
 
       (** Find a tree from a tree *)
       module Find_tree :
         CMD
-          with type Req.t = Tree.t * Tree.Private.Store.key
+          with type Req.t = Tree.t * Tree.Private.Store.path
            and type Res.t = Tree.t option
 
       (** Deallocate a single tree *)
@@ -258,24 +258,24 @@ module type S = sig
       module To_local :
         CMD with type Req.t = Tree.t and type Res.t = Tree.Local.concrete
 
-      (** Check if a key is set to a value in a tree *)
+      (** Check if a path is set to a value in a tree *)
       module Mem :
         CMD
-          with type Req.t = Tree.t * Tree.Private.Store.key
+          with type Req.t = Tree.t * Tree.Private.Store.path
            and type Res.t = bool
 
-      (** Check if a key is set to a tree *)
+      (** Check if a path is set to a tree *)
       module Mem_tree :
         CMD
-          with type Req.t = Tree.t * Tree.Private.Store.key
+          with type Req.t = Tree.t * Tree.Private.Store.path
            and type Res.t = bool
 
       (** List items in one level of a tree *)
       module List :
         CMD
-          with type Req.t = Tree.t * Tree.Private.Store.key
+          with type Req.t = Tree.t * Tree.Private.Store.path
            and type Res.t =
-                (Tree.Private.Store.Key.step * [ `Contents | `Tree ]) list
+                (Tree.Private.Store.Path.step * [ `Contents | `Tree ]) list
 
       (** Clear tree cache *)
       module Clear : CMD with type Req.t = Tree.t and type Res.t = unit
