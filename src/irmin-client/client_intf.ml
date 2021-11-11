@@ -57,7 +57,7 @@ module type S = sig
 
   type batch =
     (path
-    * [ `Contents of [ `Hash of hash | `Value of contents ]
+    * [ `Contents of [ `Hash of hash | `Value of contents ] * metadata option
       | `Tree of Private.Tree.t ]
       option)
     list
@@ -175,7 +175,8 @@ module type S = sig
     (** [build store ~tree batch] performs a batch update of [tree], or
         an empty tree if not specified *)
 
-    val add : tree -> path -> contents -> tree Error.result Lwt.t
+    val add :
+      tree -> path -> ?metadata:metadata -> contents -> tree Error.result Lwt.t
     (** Add contents to a tree, this may be batched so the update on the server
         could be delayed *)
 

@@ -51,7 +51,9 @@ struct
       type t =
         Tree.t
         * (Store.path
-          * [ `Contents of [ `Hash of Store.Hash.t | `Value of Store.contents ]
+          * [ `Contents of
+              [ `Hash of Store.Hash.t | `Value of Store.contents ]
+              * Store.metadata option
             | `Tree of Tree.t ]
             option)
           list
@@ -70,10 +72,11 @@ struct
         Lwt_list.fold_left_s
           (fun tree (path, value) ->
             match value with
-            | Some (`Contents (`Hash value)) ->
+            | Some (`Contents (`Hash value, metadata)) ->
                 let* value = Store.Contents.of_hash ctx.repo value in
-                Store.Tree.add tree path (Option.get value)
-            | Some (`Contents (`Value value)) -> Store.Tree.add tree path value
+                Store.Tree.add tree path ?metadata (Option.get value)
+            | Some (`Contents (`Value value, metadata)) ->
+                Store.Tree.add tree path ?metadata value
             | Some (`Tree t) ->
                 let* _, tree' = resolve_tree ctx t in
                 Store.Tree.add_tree tree path tree'

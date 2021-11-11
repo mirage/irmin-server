@@ -166,8 +166,9 @@ let replicate client author message =
           List.fold_left
             (fun acc (k, diff) ->
               match diff with
-              | `Updated (_, (v, _)) -> (k, Some (`Contents (`Value v))) :: acc
-              | `Added (v, _) -> (k, Some (`Contents (`Value v))) :: acc
+              | `Updated (_, (v, m)) ->
+                  (k, Some (`Contents (`Value v, Some m))) :: acc
+              | `Added (v, m) -> (k, Some (`Contents (`Value v, Some m))) :: acc
               | `Removed _ -> (k, None) :: acc)
             [] (diff input)
         in

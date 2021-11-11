@@ -56,13 +56,14 @@ module Make (C : Command.S) = struct
   let uri t = t.conf.uri
 
   type batch =
-    (path
+    (Store.path
     * [ `Contents of
-        [ `Hash of Tree.Private.Store.hash
-        | `Value of Tree.Private.Store.contents ]
+        [ `Hash of Store.Hash.t | `Value of Store.contents ]
+        * Store.metadata option
       | `Tree of Tree.t ]
       option)
     list
+  [@@deriving irmin]
 
   type tree = t * Private.Tree.t * batch
 
@@ -347,11 +348,11 @@ module Make (C : Command.S) = struct
 
       let remove b k = (k, None) :: b
 
-      let add batch path value =
-        (path, Some (`Contents (`Value value))) :: batch
+      let add batch path ?metadata value =
+        (path, Some (`Contents (`Value value, metadata))) :: batch
 
-      let add_hash batch path hash =
-        (path, Some (`Contents (`Hash hash))) :: batch
+      let add_hash batch path ?metadata hash =
+        (path, Some (`Contents (`Hash hash, metadata))) :: batch
 
       let add_tree batch path (_, tree, batch') =
         ((path, Some (`Tree tree)) :: batch') @ batch
@@ -382,12 +383,12 @@ module Make (C : Command.S) = struct
     let add' (t, tree, batch) path value =
       wrap ~batch t (request t (module Commands.Tree.Add) (tree, path, value))
 
-    let add ((t, tree, batch) : tree) path value =
+    let add ((t, tree, batch) : tree) path ?metadata value =
       let hash = St.Contents.hash value in
       let exists = Cache.Hash.mem Cache.contents hash in
       let batch =
-        if exists then Batch.add_hash batch path hash
-        else Batch.add batch path value
+        if exists then Batch.add_hash batch ?metadata path hash
+        else Batch.add batch ?metadata path value
       in
       if List.length batch > t.conf.batch_size then build t ~tree batch
       else Lwt.return_ok (t, tree, batch)
@@ -405,8 +406,8 @@ module Make (C : Command.S) = struct
         =
       let x = Batch.find batch path in
       match x with
-      | Some (`Contents (`Value x)) -> Lwt.return_ok (Some x)
-      | Some (`Contents (`Hash x)) -> Contents.of_hash t x
+      | Some (`Contents (`Value x, _)) -> Lwt.return_ok (Some x)
+      | Some (`Contents (`Hash x, _)) -> Contents.of_hash t x
       | _ -> request t (module Commands.Tree.Find) (tree, path)
 
     let find_tree ((t, tree, batch) : tree) path :

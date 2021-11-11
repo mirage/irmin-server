@@ -223,6 +223,7 @@ module type S = sig
                   * [ `Contents of
                       [ `Hash of Tree.Private.Store.hash
                       | `Value of Tree.Private.Store.contents ]
+                      * Tree.Private.Store.metadata option
                     | `Tree of Tree.t ]
                     option)
                   list
