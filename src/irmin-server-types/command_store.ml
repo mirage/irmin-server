@@ -2,13 +2,14 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make
-    (Store : Irmin.S)
+    (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
               with module Private.Store = Store
                and type Local.t = Store.tree)
     (Commit : Commit.S
                 with type hash = Store.hash
                  and type tree = Tree.t
+                 and type key = Store.commit_key
                  and module Info = Store.Info) =
 struct
   include Context.Make (Store) (Tree)
@@ -16,9 +17,11 @@ struct
   let convert_commit head =
     let info = Store.Commit.info head in
     let parents = Store.Commit.parents head in
-    let hash = Store.Commit.hash head in
-    let tree = Tree.Hash (Store.Commit.tree head |> Store.Tree.hash) in
-    Commit.v ~info ~parents ~hash ~tree
+    let key = Store.Commit.key head in
+    let tree =
+      Tree.Key (Store.Commit.tree head |> Store.Tree.key |> Option.get)
+    in
+    Commit.v ~info ~parents ~key ~tree
 
   module Find = struct
     module Req = struct
@@ -103,7 +106,9 @@ struct
 
     let run conn ctx _ path =
       let* x = Store.find_tree ctx.store path in
-      let x = Option.map (fun x -> Tree.Hash (Store.Tree.hash x)) x in
+      let x =
+        Option.map (fun x -> Tree.Key (Store.Tree.key x |> Option.get)) x
+      in
       Return.v conn Res.t x
   end
 
@@ -121,8 +126,10 @@ struct
     let run conn ctx _ (path, info, tree) =
       let* id, tree = resolve_tree ctx tree in
       let* () = Store.set_tree_exn ctx.store path ~info:(fun () -> info) tree in
+      let* tree = Store.get_tree ctx.store path in
+      let key = Store.Tree.key tree in
       Option.iter (fun id -> Hashtbl.remove ctx.trees id) id;
-      Return.v conn Res.t (Tree.Hash (Store.Tree.hash tree))
+      Return.v conn Res.t (Tree.Key (Option.get key))
   end
 
   module Test_and_set_tree = struct
@@ -159,7 +166,9 @@ struct
       in
       Option.iter (Hashtbl.remove ctx.trees) id;
       Return.v conn Res.t
-        (Option.map (fun tree -> Tree.Hash (Store.Tree.hash tree)) set)
+        (Option.map
+           (fun tree -> Tree.Key (Store.Tree.key tree |> Option.get))
+           set)
   end
 
   module Mem = struct
@@ -228,7 +237,7 @@ struct
 
     let run conn ctx _ ((info, other) : Req.t) =
       let* commit =
-        Store.Commit.of_hash ctx.repo (Commit.hash other) >|= Option.get
+        Store.Commit.of_key ctx.repo (Commit.key other) >|= Option.get
       in
       let* merge =
         Store.merge_with_commit ctx.store commit ~info:(fun () -> info)

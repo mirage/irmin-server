@@ -2,7 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make
-    (St : Irmin.S)
+    (St : Irmin.Generic_key.S)
     (Tree : Tree.S with module Private.Store = St and type Local.t = St.tree) =
 struct
   module Server_info = struct
@@ -57,7 +57,7 @@ struct
     let* id, tree =
       match tree with
       | Tree.ID x -> Lwt.return @@ (Some x, Hashtbl.find_opt ctx.trees x)
-      | Hash x -> St.Tree.of_key ctx.repo (`Node x) >|= fun x -> (None, x)
+      | Key x -> St.Tree.of_key ctx.repo x >|= fun x -> (None, x)
       | Local x -> Lwt.return (None, Some (Tree.Local.of_concrete x))
     in
     match tree with

@@ -147,19 +147,25 @@ module Make (C : Command.S) = struct
       (fun _ -> Lwt.return_none)
 
   module Cache = struct
-    module Hash = Irmin.Backend.Lru.Make (struct
-      type t = Hash.t
+    module Contents = Irmin.Backend.Lru.Make (struct
+      type t = St.Hash.t
 
       let hash = Hashtbl.hash
 
-      let hash_equal = Irmin.Type.(unstage (equal Hash.t))
-
-      let equal a b = hash_equal a b
+      let equal = Irmin.Type.(unstage (equal St.Hash.t))
     end)
 
-    let hash_commit : commit Hash.t = Hash.create 64
+    module Commit = Irmin.Backend.Lru.Make (struct
+      type t = St.commit_key
 
-    let contents : contents Hash.t = Hash.create 64
+      let hash = Hashtbl.hash
+
+      let equal = Irmin.Type.(unstage (equal St.commit_key_t))
+    end)
+
+    let commit : commit Commit.t = Commit.create 64
+
+    let contents : contents Contents.t = Contents.create 64
   end
 
   let stats t = request t (module Commands.Stats) ()
@@ -209,68 +215,22 @@ module Make (C : Command.S) = struct
     let remove t branch = request t (module Commands.Branch_remove) branch
   end
 
-  module Store = struct
-    let find t path = request t (module Commands.Store.Find) path
-
-    let set t ~info path value =
-      request t (module Commands.Store.Set) (path, info (), value)
-
-    let test_and_set t ~info path ~test ~set =
-      request t (module Commands.Store.Test_and_set) (path, info (), (test, set))
-
-    let remove t ~info path =
-      request t (module Commands.Store.Remove) (path, info ())
-
-    let find_tree t path =
-      let+ tree = request t (module Commands.Store.Find_tree) path in
-      Result.map (fun x -> Option.map (fun x -> (t, x, [])) x) tree
-
-    let set_tree t ~info path (_, tree, _) =
-      let+ tree =
-        request t (module Commands.Store.Set_tree) (path, info (), tree)
-      in
-      Result.map (fun tree -> (t, tree, [])) tree
-
-    let test_and_set_tree t ~info path ~test ~set =
-      let test = Option.map (fun (_, x, _) -> x) test in
-      let set = Option.map (fun (_, x, _) -> x) set in
-      let+ tree =
-        request t
-          (module Commands.Store.Test_and_set_tree)
-          (path, info (), (test, set))
-      in
-      Result.map (Option.map (fun tree -> (t, tree, []))) tree
-
-    let mem t path = request t (module Commands.Store.Mem) path
-
-    let mem_tree t path = request t (module Commands.Store.Mem_tree) path
-
-    let merge t ~info branch =
-      request t (module Commands.Store.Merge) (info (), branch)
-
-    let merge_commit t ~info commit =
-      request t (module Commands.Store.Merge_commit) (info (), commit)
-
-    let last_modified t path =
-      request t (module Commands.Store.Last_modified) path
-  end
-
   module Contents = struct
     include St.Contents
 
     let of_hash t hash =
-      if Cache.Hash.mem Cache.contents hash then
-        Lwt.return_ok (Some (Cache.Hash.find Cache.contents hash))
+      if Cache.Contents.mem Cache.contents hash then
+        Lwt.return_ok (Some (Cache.Contents.find Cache.contents hash))
       else request t (module Commands.Contents_of_hash) hash
 
     let exists' t contents =
       let hash = hash contents in
-      if Cache.Hash.mem Cache.contents hash then Lwt.return_ok (hash, true)
+      if Cache.Contents.mem Cache.contents hash then Lwt.return_ok (hash, true)
       else
         let* res = request t (module Commands.Contents_exists) hash in
         match res with
         | Ok true ->
-            Cache.Hash.add Cache.contents hash contents;
+            Cache.Contents.add Cache.contents hash contents;
             Lwt.return_ok (hash, true)
         | x -> Lwt.return (Result.map (fun y -> (hash, y)) x)
 
@@ -278,12 +238,16 @@ module Make (C : Command.S) = struct
 
     let save t contents =
       let hash = hash contents in
-      if Cache.Hash.mem Cache.contents hash then Lwt.return_ok hash
+      if Cache.Contents.mem Cache.contents hash then Lwt.return_ok hash
       else request t (module Commands.Contents_save) contents
   end
 
   module Tree = struct
     type store = t
+
+    type key = St.Tree.kinded_key
+
+    let key_t = St.Tree.kinded_key_t
 
     let rec build (t : store) ?tree b : tree Error.result Lwt.t =
       let tree =
@@ -362,7 +326,7 @@ module Make (C : Command.S) = struct
 
     let v t ?(batch = []) tr = (t, tr, batch)
 
-    let of_hash t hash = (t, Private.Tree.Hash hash, [])
+    let of_key t k = (t, Private.Tree.Key k, [])
 
     let map_tree tree f =
       Result.map (fun (_, tree, _) -> f tree) tree |> function
@@ -376,16 +340,16 @@ module Make (C : Command.S) = struct
       let* tree = build t ~tree batch in
       map_tree tree (fun tree -> request t (module Commands.Tree.Clear) tree)
 
-    let hash (t, tree, batch) =
+    let key (t, tree, batch) =
       let* tree = build t ~tree batch in
-      map_tree tree (fun tree -> request t (module Commands.Tree.Hash) tree)
+      map_tree tree (fun tree -> request t (module Commands.Tree.Key) tree)
 
     let add' (t, tree, batch) path value =
       wrap ~batch t (request t (module Commands.Tree.Add) (tree, path, value))
 
     let add ((t, tree, batch) : tree) path ?metadata value =
       let hash = St.Contents.hash value in
-      let exists = Cache.Hash.mem Cache.contents hash in
+      let exists = Cache.Contents.mem Cache.contents hash in
       let batch =
         if exists then Batch.add_hash batch ?metadata path hash
         else Batch.add batch ?metadata path value
@@ -467,6 +431,56 @@ module Make (C : Command.S) = struct
     type t = tree
   end
 
+  module Store = struct
+    let find t path = request t (module Commands.Store.Find) path
+
+    let set t ~info path value =
+      request t (module Commands.Store.Set) (path, info (), value)
+
+    let test_and_set t ~info path ~test ~set =
+      request t (module Commands.Store.Test_and_set) (path, info (), (test, set))
+
+    let remove t ~info path =
+      request t (module Commands.Store.Remove) (path, info ())
+
+    let find_tree t path =
+      let+ tree = request t (module Commands.Store.Find_tree) path in
+      Result.map (fun x -> Option.map (fun x -> (t, x, [])) x) tree
+
+    let set_tree t ~info path (_, tree, batch) =
+      let* tree = Tree.build t ~tree batch in
+      match tree with
+      | Error e -> Lwt.return_error e
+      | Ok (_, tree, _) ->
+          let+ tree =
+            request t (module Commands.Store.Set_tree) (path, info (), tree)
+          in
+          Result.map (fun tree -> (t, tree, [])) tree
+
+    let test_and_set_tree t ~info path ~test ~set =
+      let test = Option.map (fun (_, x, _) -> x) test in
+      let set = Option.map (fun (_, x, _) -> x) set in
+      let+ tree =
+        request t
+          (module Commands.Store.Test_and_set_tree)
+          (path, info (), (test, set))
+      in
+      Result.map (Option.map (fun tree -> (t, tree, []))) tree
+
+    let mem t path = request t (module Commands.Store.Mem) path
+
+    let mem_tree t path = request t (module Commands.Store.Mem_tree) path
+
+    let merge t ~info branch =
+      request t (module Commands.Store.Merge) (info (), branch)
+
+    let merge_commit t ~info commit =
+      request t (module Commands.Store.Merge_commit) (info (), commit)
+
+    let last_modified t path =
+      request t (module Commands.Store.Last_modified) path
+  end
+
   module Commit = struct
     include C.Commit
 
@@ -479,18 +493,18 @@ module Make (C : Command.S) = struct
           >|= function
           | Error e -> Error e
           | Ok (x : t) ->
-              let hash = Commit.hash x in
-              Cache.Hash.add Cache.hash_commit hash x;
+              let key = Commit.key x in
+              Cache.Commit.add Cache.commit key x;
               Ok x)
 
-    let of_hash t hash =
-      if Cache.(Hash.mem hash_commit hash) then
-        Lwt.return_ok (Some Cache.(Hash.find hash_commit hash))
+    let of_key t key =
+      if Cache.(Commit.mem commit key) then
+        Lwt.return_ok (Some Cache.(Commit.find commit key))
       else
-        let* commit = request t (module Commands.Commit_of_hash) hash in
+        let* commit = request t (module Commands.Commit_of_key) key in
         match commit with
         | Ok c ->
-            Option.iter (Cache.Hash.add Cache.hash_commit hash) c;
+            Option.iter (Cache.Commit.add Cache.commit key) c;
             Lwt.return_ok c
         | Error e -> Lwt.return_error e
 

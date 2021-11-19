@@ -50,7 +50,7 @@ module type S = sig
        and type Metadata.t = metadata
 
   module Private : sig
-    module Store : Irmin.S with type hash = Hash.t and module Schema = Schema
+    module Store : Irmin.Generic_key.S with module Schema = Schema
 
     module Tree : Tree.S with module Private.Store = Store
   end
@@ -92,17 +92,21 @@ module type S = sig
       To continue watching return [Ok `Continue] and to stop return [Ok `Stop] *)
 
   module Commit : sig
+    type key
+
+    val key_t : key Irmin.Type.t
+
     val v :
-      t -> info:Info.f -> parents:hash list -> tree -> commit Error.result Lwt.t
+      t -> info:Info.f -> parents:key list -> tree -> commit Error.result Lwt.t
     (** Create a new commit
         NOTE: this will invalidate all intermediate trees *)
 
-    val of_hash : t -> hash -> commit option Error.result Lwt.t
+    val of_key : t -> key -> commit option Error.result Lwt.t
 
-    val hash : commit -> hash
+    val key : commit -> key
     (** Get commit hash *)
 
-    val parents : commit -> hash list
+    val parents : commit -> key list
     (** The commit parents. *)
 
     val info : commit -> Info.t
@@ -153,14 +157,18 @@ module type S = sig
   end
 
   module Tree : sig
+    type key
+
+    val key_t : key Irmin.Type.t
+
     val split : tree -> t * Private.Tree.t * batch
     (** Get private fields from [Tree.t] *)
 
     val v : t -> ?batch:batch -> Private.Tree.t -> tree
     (** Create a new tree *)
 
-    val of_hash : t -> hash -> tree
-    (** Create a tree from a hash that specifies a tree that already exists in the store *)
+    val of_key : t -> key -> tree
+    (** Create a tree from a key that specifies a tree that already exists in the store *)
 
     val empty : t -> tree
     (** Create a new, empty tree *)
@@ -168,8 +176,8 @@ module type S = sig
     val clear : tree -> unit Error.result Lwt.t
     (** Clear caches on the server for a given tree *)
 
-    val hash : tree -> hash Error.result Lwt.t
-    (** Get hash of tree *)
+    val key : tree -> key Error.result Lwt.t
+    (** Get key of tree *)
 
     val build : t -> ?tree:Private.Tree.t -> batch -> tree Error.result Lwt.t
     (** [build store ~tree batch] performs a batch update of [tree], or

@@ -263,10 +263,8 @@ let config =
     let config =
       match uri with Some uri -> Irmin_http.config uri config | None -> config
     in
-    let (module Store : Irmin.S) =
-      match Irmin_unix.Resolver.Store.hash_keyed store with
-      | None -> failwith "Unable to use Generic_key store"
-      | Some s -> s
+    let (module Store : Irmin.Generic_key.S) =
+      Irmin_unix.Resolver.Store.generic_keyed store
     in
     let module Client = Irmin_client.Make (Store) in
     let uri =

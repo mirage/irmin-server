@@ -1,5 +1,5 @@
 module type S = sig
-  module Store : Irmin.S
+  module Store : Irmin.Generic_key.S
   (** Irmin [Store] type *)
 
   (** [Tree] wraps [Store.Tree] to avoid encoding/decoding trees more than needed *)
@@ -10,6 +10,7 @@ module type S = sig
   module Commit :
     Commit.S
       with type hash = Store.Hash.t
+       and type key = Store.commit_key
        and type tree = Tree.t
        and module Info = Store.Info
 
@@ -112,26 +113,26 @@ module type S = sig
     (** Create a new commit *)
     module Commit_v :
       CMD
-        with type Req.t = Store.Info.t * Store.hash list * Tree.t
+        with type Req.t = Store.Info.t * Store.commit_key list * Tree.t
          and type Res.t = Commit.t
 
-    (** Find a commit by hash *)
-    module Commit_of_hash :
-      CMD with type Req.t = Store.Hash.t and type Res.t = Commit.t option
+    (** Find a commit by key *)
+    module Commit_of_key :
+      CMD with type Req.t = Store.commit_key and type Res.t = Commit.t option
 
     (* Contents *)
 
-    (** Find contents by hash *)
+    (** Find contents by key *)
     module Contents_of_hash :
-      CMD with type Req.t = Store.Hash.t and type Res.t = Store.contents option
+      CMD with type Req.t = Store.hash and type Res.t = Store.contents option
 
     (** Check if contents that match the provided hash can be found in the store *)
     module Contents_exists :
-      CMD with type Req.t = Store.Hash.t and type Res.t = bool
+      CMD with type Req.t = Store.hash and type Res.t = bool
 
     (** Add contents to repo *)
     module Contents_save :
-      CMD with type Req.t = Store.contents and type Res.t = Store.Hash.t
+      CMD with type Req.t = Store.contents and type Res.t = Store.hash
 
     (** Watch for changes *)
     module Watch : CMD with type Req.t = unit and type Res.t = unit
@@ -286,6 +287,12 @@ module type S = sig
       module Hash :
         CMD with type Req.t = Tree.t and type Res.t = Tree.Private.Store.Hash.t
 
+      (** Get tree key *)
+      module Key :
+        CMD
+          with type Req.t = Tree.t
+           and type Res.t = Tree.Private.Store.Tree.kinded_key
+
       (** Deallocate all trees *)
       module Cleanup_all : CMD with type Req.t = unit and type Res.t = unit
 
@@ -299,7 +306,7 @@ end
 module type Command = sig
   module type S = S
 
-  module Make (Store : Irmin.S) :
+  module Make (Store : Irmin.Generic_key.S) :
     S
       with module Store = Store
        and module Tree.Private.Store = Store

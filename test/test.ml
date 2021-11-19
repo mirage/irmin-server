@@ -72,7 +72,7 @@ let branch (client : Rpc.Client.t) =
   let* head = Branch.get client >|= Error.unwrap "get" in
   let head = Option.get head in
   let tree = Commit.tree client head in
-  let hash = Commit.hash head in
+  let hash = Commit.key head in
   let* commit =
     Commit.v client ~info:(Info.v "test") ~parents:[ hash ] tree
     >|= Error.unwrap "Commit.create"

@@ -1,7 +1,7 @@
 open Lwt.Syntax
 
 module Make
-    (Store : Irmin.S)
+    (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
               with module Private.Store = Store
                and type Local.t = Store.tree)
@@ -323,6 +323,23 @@ struct
       let* _, tree = resolve_tree ctx tree in
       let hash = Store.Tree.hash tree in
       Return.v conn Res.t hash
+  end
+
+  module Key = struct
+    module Req = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Store.Tree.kinded_key [@@deriving irmin]
+    end
+
+    let name = "tree.key"
+
+    let run conn ctx _ tree =
+      let* _, tree = resolve_tree ctx tree in
+      let key = Store.Tree.key tree in
+      Return.v conn Res.t (Option.get key)
   end
 
   module Cleanup_all = struct
