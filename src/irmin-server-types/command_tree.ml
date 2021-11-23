@@ -1,7 +1,7 @@
 open Lwt.Syntax
 
 module Make
-    (Store : Irmin.S)
+    (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
               with module Private.Store = Store
                and type Local.t = Store.tree)
@@ -46,13 +46,16 @@ struct
       Return.v conn Res.t (ID id)
   end
 
-  module Add_batch = struct
+  module Batch_update = struct
     module Req = struct
       type t =
         Tree.t
         * (Store.path
-          * [ `Contents of [ `Hash of Store.Hash.t | `Value of Store.contents ]
-            | `Tree of Tree.t ])
+          * [ `Contents of
+              [ `Hash of Store.Hash.t | `Value of Store.contents ]
+              * Store.metadata option
+            | `Tree of Tree.t ]
+            option)
           list
       [@@deriving irmin]
     end
@@ -61,7 +64,7 @@ struct
       type t = Tree.t [@@deriving irmin]
     end
 
-    let name = "tree.add_batch"
+    let name = "tree.batch_update"
 
     let run conn ctx _ (tree, l) =
       let* _, tree = resolve_tree ctx tree in
@@ -69,13 +72,15 @@ struct
         Lwt_list.fold_left_s
           (fun tree (path, value) ->
             match value with
-            | `Contents (`Hash value) ->
+            | Some (`Contents (`Hash value, metadata)) ->
                 let* value = Store.Contents.of_hash ctx.repo value in
-                Store.Tree.add tree path (Option.get value)
-            | `Contents (`Value value) -> Store.Tree.add tree path value
-            | `Tree t ->
+                Store.Tree.add tree path ?metadata (Option.get value)
+            | Some (`Contents (`Value value, metadata)) ->
+                Store.Tree.add tree path ?metadata value
+            | Some (`Tree t) ->
                 let* _, tree' = resolve_tree ctx t in
-                Store.Tree.add_tree tree path tree')
+                Store.Tree.add_tree tree path tree'
+            | None -> Store.Tree.remove tree path)
           tree l
       in
       let id = incr_id () in
@@ -320,6 +325,23 @@ struct
       Return.v conn Res.t hash
   end
 
+  module Key = struct
+    module Req = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = Store.Tree.kinded_key [@@deriving irmin]
+    end
+
+    let name = "tree.key"
+
+    let run conn ctx _ tree =
+      let* _, tree = resolve_tree ctx tree in
+      let key = Store.Tree.key tree in
+      Return.v conn Res.t (Option.get key)
+  end
+
   module Cleanup_all = struct
     module Req = struct
       type t = unit [@@deriving irmin]
@@ -340,7 +362,7 @@ struct
     [
       cmd (module Empty);
       cmd (module Add);
-      cmd (module Add_batch);
+      cmd (module Batch_update);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Cleanup_all);

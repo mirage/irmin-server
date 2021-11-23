@@ -148,6 +148,49 @@ let stats client =
       let* stats = Client.stats client >|= Error.unwrap "stats" in
       Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats))
 
+let replicate client author message =
+  Lwt_main.run
+    ( client >>= fun (S ((module Client), client)) ->
+      let diff input =
+        Irmin.Type.(
+          of_json_string
+            (list
+               (pair Client.Path.t
+                  (Irmin.Diff.t (pair Client.Contents.t Client.Metadata.t)))))
+          input
+        |> Result.get_ok
+      in
+      let rec loop () =
+        let* input = Lwt_io.read_line Lwt_io.stdin in
+        let batch : Client.batch =
+          List.fold_left
+            (fun acc (k, diff) ->
+              match diff with
+              | `Updated (_, (v, m)) ->
+                  (k, Some (`Contents (`Value v, Some m))) :: acc
+              | `Added (v, m) -> (k, Some (`Contents (`Value v, Some m))) :: acc
+              | `Removed _ -> (k, None) :: acc)
+            [] (diff input)
+        in
+        let info = Client.Info.v ~author "%s" message in
+        let* tree =
+          Client.Store.find_tree client Client.Path.empty
+          >|= Error.unwrap "find_tree"
+        in
+        let tree =
+          match tree with Some t -> t | None -> Client.Tree.empty client
+        in
+        let* tree =
+          Client.Tree.batch_update tree batch >|= Error.unwrap "build"
+        in
+        let* _ =
+          Client.Store.set_tree client ~info Client.Path.empty tree
+          >|= Error.unwrap "set_tree"
+        in
+        loop ()
+      in
+      loop () )
+
 let watch client =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
@@ -220,8 +263,8 @@ let config =
     let config =
       match uri with Some uri -> Irmin_http.config uri config | None -> config
     in
-    let (module Store : Irmin.S), _, _ =
-      Irmin_unix.Resolver.Store.destruct store
+    let (module Store : Irmin.Generic_key.S) =
+      Irmin_unix.Resolver.Store.generic_keyed store
     in
     let module Client = Irmin_client.Make (Store) in
     let uri =
@@ -274,6 +317,8 @@ let () =
            Term.info ~doc:"Server stats" "stats" );
          ( Term.(const watch $ config),
            Term.info ~doc:"Watch for updates" "watch" );
+         ( Term.(const replicate $ config $ author $ message),
+           Term.info ~doc:"Replicate changes from irmin CLI" "replicate" );
          ( Term.(const Dashboard.main $ config $ freq),
            Term.info ~doc:"Run dashboard" "dashboard" );
        ]

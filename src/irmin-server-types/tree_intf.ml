@@ -78,7 +78,7 @@ end
 
 module type S = sig
   module Private : sig
-    module Store : Irmin.S
+    module Store : Irmin.Generic_key.S
   end
 
   open Private
@@ -91,7 +91,7 @@ module type S = sig
        and type step = Store.Path.step
        and type t = Store.tree
 
-  type t = Hash of Store.Hash.t | ID of int | Local of Local.concrete
+  type t = Key of Store.Tree.kinded_key | ID of int | Local of Local.concrete
   [@@deriving irmin]
 end
 
@@ -100,5 +100,5 @@ module type Tree = sig
 
   module type LOCAL = LOCAL
 
-  module Make (S : Irmin.S) : S with module Private.Store = S
+  module Make (S : Irmin.Generic_key.S) : S with module Private.Store = S
 end

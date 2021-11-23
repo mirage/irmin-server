@@ -1,7 +1,7 @@
 open Lwt.Syntax
 include Tree_intf
 
-module Make (Store : Irmin.S) = struct
+module Make (Store : Irmin.Generic_key.S) = struct
   module Private = struct
     module Store = Store
   end
@@ -36,6 +36,9 @@ module Make (Store : Irmin.S) = struct
           `Node l
   end
 
-  type t = Hash of Private.Store.Hash.t | ID of int | Local of Local.concrete
+  type t =
+    | Key of Private.Store.Tree.kinded_key
+    | ID of int
+    | Local of Local.concrete
   [@@deriving irmin]
 end

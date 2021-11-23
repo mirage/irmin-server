@@ -3,7 +3,7 @@ open Irmin_server_types
 module type S = sig
   type t
 
-  module Store : Irmin.S
+  module Store : Irmin.Generic_key.S
 
   module Command : Command.S with module Store = Store
 

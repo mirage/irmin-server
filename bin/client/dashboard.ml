@@ -59,7 +59,7 @@ let commit_diff (type a) (module Client : Irmin_client.S with type commit = a) x
     W.printf "%s (%04d-%02d-%02d %02d:%02d:%02d)\ncommit: %s\ninfo: %s\n" t
       (localtime.tm_year + 1900) (localtime.tm_mon + 1) localtime.tm_mday
       localtime.tm_hour localtime.tm_min localtime.tm_sec
-      (Irmin.Type.to_string Client.Hash.t (Client.Commit.hash a))
+      (Irmin.Type.to_string Client.Commit.key_t (Client.Commit.key a))
       (Irmin.Type.to_string Client.Info.t info)
   in
   match x with

@@ -2,7 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 include Command_intf
 
-module Make (St : Irmin.S) = struct
+module Make (St : Irmin.Generic_key.S) = struct
   module Store = St
   module Tree = Tree.Make (St)
   module Commit = Commit.Make (St) (Tree)
@@ -13,9 +13,11 @@ module Make (St : Irmin.S) = struct
   let convert_commit head =
     let info = Store.Commit.info head in
     let parents = Store.Commit.parents head in
-    let hash = Store.Commit.hash head in
-    let tree = Tree.Hash (Store.Commit.tree head |> Store.Tree.hash) in
-    Commit.v ~info ~parents ~hash ~tree
+    let key = Store.Commit.key head in
+    let tree =
+      Tree.Key (Store.Commit.tree head |> Store.Tree.key |> Option.get)
+    in
+    Commit.v ~info ~parents ~key ~tree
 
   module Stats = struct
     type t = Stats.t
@@ -211,7 +213,7 @@ module Make (St : Irmin.S) = struct
       let run conn ctx _ (branch, commit) =
         let branch = Option.value ~default:ctx.branch branch in
         let* commit =
-          St.Commit.of_hash ctx.repo (Commit.hash commit) >|= Option.get
+          St.Commit.of_key ctx.repo (Commit.key commit) >|= Option.get
         in
         let* () = St.Branch.set ctx.repo branch commit in
         Return.ok conn
@@ -219,7 +221,7 @@ module Make (St : Irmin.S) = struct
 
     module Commit_v = struct
       module Req = struct
-        type t = St.Info.t * St.Hash.t list * Tree.t [@@deriving irmin]
+        type t = St.Info.t * St.commit_key list * Tree.t [@@deriving irmin]
       end
 
       module Res = struct
@@ -231,35 +233,37 @@ module Make (St : Irmin.S) = struct
       let run conn ctx _ (info, parents, tree) =
         let* _, tree = resolve_tree ctx tree in
         let* commit = St.Commit.v ctx.repo ~info ~parents tree in
-        let hash = St.Commit.hash commit in
+        let key = St.Commit.key commit in
         let tree_ = St.Commit.tree commit in
-        let tree = Tree.Hash (St.Commit.tree commit |> St.Tree.hash) in
-        let head = Commit.v ~info ~parents ~hash ~tree in
+        let tree =
+          Tree.Key (St.Commit.tree commit |> St.Tree.key |> Option.get)
+        in
+        let head = Commit.v ~info ~parents ~key ~tree in
         St.Tree.clear tree_;
         reset_trees ctx;
         Return.v conn Commit.t head
     end
 
-    module Commit_of_hash = struct
+    module Commit_of_key = struct
       module Req = struct
-        type t = St.Hash.t [@@deriving irmin]
+        type t = St.commit_key [@@deriving irmin]
       end
 
       module Res = struct
         type t = Commit.t option [@@deriving irmin]
       end
 
-      let name = "commit.of_hash"
+      let name = "commit.of_key"
 
       let run conn ctx _ hash =
-        let* commit = St.Commit.of_hash ctx.repo hash in
+        let* commit = St.Commit.of_key ctx.repo hash in
         let commit = Option.map convert_commit commit in
         Return.v conn Res.t commit
     end
 
     module Contents_of_hash = struct
       module Req = struct
-        type t = St.Hash.t [@@deriving irmin]
+        type t = St.hash [@@deriving irmin]
       end
 
       module Res = struct
@@ -268,8 +272,8 @@ module Make (St : Irmin.S) = struct
 
       let name = "contents.of_hash"
 
-      let run conn ctx _ hash =
-        let* contents = St.Contents.of_hash ctx.repo hash in
+      let run conn ctx _ key =
+        let* contents = St.Contents.of_hash ctx.repo key in
         Return.v conn Res.t contents
     end
 
@@ -285,16 +289,18 @@ module Make (St : Irmin.S) = struct
       let name = "contents.save"
 
       let run conn ctx _ contents =
-        let* hash =
+        let* k =
           St.Backend.Repo.batch ctx.repo (fun t _ _ ->
               St.save_contents t contents)
         in
+        let* contents = St.Contents.of_key ctx.repo k >|= Option.get in
+        let hash = St.Contents.hash contents in
         Return.v conn Res.t hash
     end
 
     module Contents_exists = struct
       module Req = struct
-        type t = St.Hash.t [@@deriving irmin]
+        type t = St.hash [@@deriving irmin]
       end
 
       module Res = struct
@@ -304,11 +310,8 @@ module Make (St : Irmin.S) = struct
       let name = "contents.exists"
 
       let run conn ctx _ hash =
-        let* exists =
-          St.Backend.Repo.batch ctx.repo (fun t _ _ ->
-              St.Backend.Contents.mem t hash)
-        in
-        Return.v conn Res.t exists
+        let* contents = St.Contents.of_hash ctx.repo hash in
+        Return.v conn Res.t (Option.is_some contents)
     end
 
     module Watch = struct
@@ -384,7 +387,7 @@ module Make (St : Irmin.S) = struct
       cmd (module Branch_set_head);
       cmd (module Branch_remove);
       cmd (module Commit_v);
-      cmd (module Commit_of_hash);
+      cmd (module Commit_of_key);
       cmd (module Contents_of_hash);
       cmd (module Contents_save);
       cmd (module Contents_exists);

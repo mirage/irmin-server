@@ -5,7 +5,7 @@ module V1 = struct
 
   let type_name x = Fmt.to_to_string Irmin.Type.pp_ty x
 
-  let fingerprint (module Store : Irmin.S) : string =
+  let fingerprint (module Store : Irmin.Generic_key.S) : string =
     let hex = Irmin.Type.to_string Store.Hash.t in
     let hash = Store.Hash.hash (fun f -> f "V1") in
     hex hash

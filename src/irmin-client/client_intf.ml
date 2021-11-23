@@ -50,15 +50,16 @@ module type S = sig
        and type Metadata.t = metadata
 
   module Private : sig
-    module Store : Irmin.S with type hash = Hash.t and module Schema = Schema
+    module Store : Irmin.Generic_key.S with module Schema = Schema
 
     module Tree : Tree.S with module Private.Store = Store
   end
 
   type batch =
     (path
-    * [ `Contents of [ `Hash of hash | `Value of contents ]
-      | `Tree of Private.Tree.t ])
+    * [ `Contents of [ `Hash of hash | `Value of contents ] * metadata option
+      | `Tree of Private.Tree.t ]
+      option)
     list
 
   val connect : ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
@@ -91,17 +92,21 @@ module type S = sig
       To continue watching return [Ok `Continue] and to stop return [Ok `Stop] *)
 
   module Commit : sig
+    type key
+
+    val key_t : key Irmin.Type.t
+
     val v :
-      t -> info:Info.f -> parents:hash list -> tree -> commit Error.result Lwt.t
+      t -> info:Info.f -> parents:key list -> tree -> commit Error.result Lwt.t
     (** Create a new commit
         NOTE: this will invalidate all intermediate trees *)
 
-    val of_hash : t -> hash -> commit option Error.result Lwt.t
+    val of_key : t -> key -> commit option Error.result Lwt.t
 
-    val hash : commit -> hash
+    val key : commit -> key
     (** Get commit hash *)
 
-    val parents : commit -> hash list
+    val parents : commit -> key list
     (** The commit parents. *)
 
     val info : commit -> Info.t
@@ -152,14 +157,18 @@ module type S = sig
   end
 
   module Tree : sig
+    type key
+
+    val key_t : key Irmin.Type.t
+
     val split : tree -> t * Private.Tree.t * batch
     (** Get private fields from [Tree.t] *)
 
     val v : t -> ?batch:batch -> Private.Tree.t -> tree
     (** Create a new tree *)
 
-    val of_hash : t -> hash -> tree
-    (** Create a tree from a hash that specifies a tree that already exists in the store *)
+    val of_key : t -> key -> tree
+    (** Create a tree from a key that specifies a tree that already exists in the store *)
 
     val empty : t -> tree
     (** Create a new, empty tree *)
@@ -167,14 +176,15 @@ module type S = sig
     val clear : tree -> unit Error.result Lwt.t
     (** Clear caches on the server for a given tree *)
 
-    val hash : tree -> hash Error.result Lwt.t
-    (** Get hash of tree *)
+    val key : tree -> key Error.result Lwt.t
+    (** Get key of tree *)
 
     val build : t -> ?tree:Private.Tree.t -> batch -> tree Error.result Lwt.t
     (** [build store ~tree batch] performs a batch update of [tree], or
         an empty tree if not specified *)
 
-    val add : tree -> path -> contents -> tree Error.result Lwt.t
+    val add :
+      tree -> path -> ?metadata:metadata -> contents -> tree Error.result Lwt.t
     (** Add contents to a tree, this may be batched so the update on the server
         could be delayed *)
 
@@ -186,7 +196,7 @@ module type S = sig
     val add_tree' : tree -> path -> tree -> tree Error.result Lwt.t
     (** Non-batch version of [add_tree] *)
 
-    val add_batch : tree -> batch -> tree Error.result Lwt.t
+    val batch_update : tree -> batch -> tree Error.result Lwt.t
     (** Batch update tree *)
 
     val find : tree -> path -> contents option Error.result Lwt.t
