@@ -32,6 +32,7 @@ jobs:
         with:
           ocaml-version: ${{ matrix.ocaml-compiler}}
 
+      - run: opam pin add irmin-tezos.dev git+https://github.com/mirage/irmin.git --no-action
       - run: opam pin add irmin-server-types.dev . --no-action
       - run: opam pin add irmin-server.dev . --no-action
       - run: opam pin add irmin-client.dev . --no-action
