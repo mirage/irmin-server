@@ -1,8 +1,8 @@
 type t = {
   uptime : float;
   branches : string list;
-  finds : int;
-  cache_misses : int;
+  finds : Irmin_pack.Stats.Find.t;
+  cache_misses : float;
   adds : int;
   size : float;
 }
@@ -12,8 +12,8 @@ module type Stats = sig
   type t = {
     uptime : float;
     branches : string list;
-    finds : int;
-    cache_misses : int;
+    finds : Irmin_pack.Stats.Find.t;
+    cache_misses : float;
     adds : int;
     size : float;
   }

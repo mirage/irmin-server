@@ -8,6 +8,7 @@ val config_path : string option Cmdliner.Term.t
 (** Command line argument to specify configuration path *)
 
 val store :
+  unit ->
   (string option * Irmin_unix.Resolver.hash option * string option)
   Cmdliner.Term.t
 (** Store term *)

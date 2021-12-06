@@ -274,7 +274,7 @@ let config =
     init ~uri ~branch ~tls (module Client)
   in
   Term.(
-    const create $ Cli.uri $ branch $ tls $ Cli.store $ Cli.config_path
+    const create $ Cli.uri $ branch $ tls $ Cli.store () $ Cli.config_path
     $ Cli.setup_log)
 
 let help =

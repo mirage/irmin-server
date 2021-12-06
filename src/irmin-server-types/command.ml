@@ -48,13 +48,14 @@ module Make (St : Irmin.Generic_key.S) = struct
         St.Branch.list ctx.repo >|= List.map (Irmin.Type.to_string St.Branch.t)
       in
       let root = Irmin_pack.Conf.root ctx.config in
+      let cache_stats = Irmin_pack.Stats.get_cache_stats () in
       Lwt.return
         Stats.
           {
             uptime;
             branches;
             finds = pack.finds;
-            cache_misses = pack.cache_misses;
+            cache_misses = cache_stats.cache_misses;
             adds = pack.appended_hashes + pack.appended_offsets;
             size = size root;
           }

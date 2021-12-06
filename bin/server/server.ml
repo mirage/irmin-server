@@ -50,8 +50,8 @@ let tls =
 
 let main_term =
   Term.(
-    const main $ readonly $ root $ Cli.uri $ tls $ Cli.store $ Cli.config_path
-    $ Cli.setup_log)
+    const main $ readonly $ root $ Cli.uri $ tls $ Cli.store ()
+    $ Cli.config_path $ Cli.setup_log)
 
 let () =
   let info = Term.info "irmin-server" in

@@ -46,9 +46,9 @@ let pack =
           W.printf "Size: %fM" size;
           W.printf "Adds: %d" adds;
           W.printf "Finds: %d" finds;
-          W.printf "Cache misses: %d" cache_misses;
+          W.printf "Cache misses: %f" cache_misses;
         ])
-    (0.0, 0, 0, 0)
+    (0., 0, 0, 0.)
 
 let commit_diff (type a) (module Client : Irmin_client.S with type commit = a) x
     =
@@ -103,7 +103,7 @@ let main client freq =
         let* stats = Client.stats client >|= Error.unwrap "stats" in
         Widget.set_value uptime stats.uptime;
         Widget.set_value pack
-          (stats.size, stats.adds, stats.finds, stats.cache_misses);
+          (stats.size, stats.adds, stats.finds.total, stats.cache_misses);
         let+ () = Lwt_unix.sleep freq in
         tick client ())
   in

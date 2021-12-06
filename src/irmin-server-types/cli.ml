@@ -14,7 +14,7 @@ let config_path : string option Cmdliner.Term.t =
   let doc = Arg.info ~docv:"PATH" ~doc:"Config path" [ "config" ] in
   Arg.(value & opt (some string) None & doc)
 
-let store =
+let store () =
   Irmin_unix.Resolver.Contents.(
     add "string" ~default:true (module Irmin.Contents.String));
   Irmin_unix.Resolver.Hash.(
@@ -22,7 +22,7 @@ let store =
   Irmin_unix.Resolver.Hash.(
     add "tezos" ~default:false (module Irmin_tezos.Schema.Hash));
   Irmin_unix.Resolver.Store.(add "pack" ~default:true (Variable_hash pack));
-  Irmin_unix.Resolver.Store.term
+  Irmin_unix.Resolver.Store.term ()
 
 let setup_log style_renderer level =
   Fmt_tty.setup_std_outputs ?style_renderer ();
