@@ -3,7 +3,7 @@
  (public_name irmin-server-types)
  (libraries
   irmin-unix
-  irmin-pack.layered
+  irmin-pack
   irmin-tezos
   conduit-lwt-unix)
  (preprocess

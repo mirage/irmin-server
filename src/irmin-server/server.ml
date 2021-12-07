@@ -29,7 +29,7 @@ module Make (X : Command.S) = struct
   let readonly conf =
     Irmin.Backend.Conf.add conf Irmin_pack.Conf.Key.readonly true
 
-  let v ?tls_config ~uri conf =
+  let v ?tls_config ~uri config =
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let* ctx, server =
       match String.lowercase_ascii scheme with
@@ -58,7 +58,6 @@ module Make (X : Command.S) = struct
                     `Port port ) ))
       | x -> invalid_arg ("Unknown server scheme: " ^ x)
     in
-    let config = Irmin_pack_layered.config ~with_lower:true conf in
     let+ repo = Store.Repo.v config in
     let clients = Hashtbl.create 8 in
     let start_time = Unix.time () in
