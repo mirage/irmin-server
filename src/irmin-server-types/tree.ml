@@ -8,17 +8,11 @@ module Make (Store : Irmin.Generic_key.S) = struct
 
   module Local = struct
     type t = Private.Store.tree
-
     type path = Private.Store.path
-
     type contents = Private.Store.contents
-
     type node = Private.Store.node
-
     type hash = Private.Store.hash
-
     type step = Private.Store.Path.step
-
     type metadata = Private.Store.metadata
 
     include Private.Store.Tree

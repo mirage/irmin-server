@@ -34,9 +34,7 @@ module type S = sig
     type t = Stats.t
 
     val t : t Irmin.Type.t
-
     val v : context -> Server_info.t -> t Lwt.t
-
     val to_json : t -> string
   end
 
@@ -156,9 +154,9 @@ module type S = sig
       module Test_and_set :
         CMD
           with type Req.t =
-                Store.path
-                * Store.Info.t
-                * (Store.contents option * Store.contents option)
+            Store.path
+            * Store.Info.t
+            * (Store.contents option * Store.contents option)
            and type Res.t = unit
 
       (** Remove a value from the store *)
@@ -179,7 +177,7 @@ module type S = sig
       module Test_and_set_tree :
         CMD
           with type Req.t =
-                Store.path * Store.Info.t * (Tree.t option * Tree.t option)
+            Store.path * Store.Info.t * (Tree.t option * Tree.t option)
            and type Res.t = Tree.t option
 
       (** Check for the existence of a value in the store *)
@@ -212,22 +210,22 @@ module type S = sig
       module Add :
         CMD
           with type Req.t =
-                Tree.t * Tree.Private.Store.path * Tree.Private.Store.contents
+            Tree.t * Tree.Private.Store.path * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
       (** Add multiple trees/values to a tree *)
       module Batch_update :
         CMD
           with type Req.t =
-                Tree.t
-                * (Tree.Private.Store.path
-                  * [ `Contents of
-                      [ `Hash of Tree.Private.Store.hash
-                      | `Value of Tree.Private.Store.contents ]
-                      * Tree.Private.Store.metadata option
-                    | `Tree of Tree.t ]
-                    option)
-                  list
+            Tree.t
+            * (Tree.Private.Store.path
+              * [ `Contents of
+                  [ `Hash of Tree.Private.Store.hash
+                  | `Value of Tree.Private.Store.contents ]
+                  * Tree.Private.Store.metadata option
+                | `Tree of Tree.t ]
+                option)
+              list
            and type Res.t = Tree.t
 
       (** Add a tree to a tree *)
@@ -278,7 +276,7 @@ module type S = sig
         CMD
           with type Req.t = Tree.t * Tree.Private.Store.path
            and type Res.t =
-                (Tree.Private.Store.Path.step * [ `Contents | `Tree ]) list
+            (Tree.Private.Store.Path.step * [ `Contents | `Tree ]) list
 
       (** Clear tree cache *)
       module Clear : CMD with type Req.t = Tree.t and type Res.t = unit

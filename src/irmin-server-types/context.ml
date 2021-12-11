@@ -41,7 +41,6 @@ struct
   end
 
   let cmd (module C : CMD) = (C.name, (module C : CMD))
-
   let next_id = ref 0
 
   let incr_id () =

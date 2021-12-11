@@ -1,14 +1,10 @@
 module type S = sig
   type hash
-
   type tree
-
   type key
 
   val tree_t : tree Irmin.Type.t
-
   val hash_t : hash Irmin.Type.t
-
   val key_t : key Irmin.Type.t
 
   module Info : Irmin.Info.S
@@ -17,13 +13,9 @@ module type S = sig
   [@@deriving irmin]
 
   val info : t -> Info.t
-
   val key : t -> key
-
   val parents : t -> key list
-
   val tree : t -> tree
-
   val v : info:Info.t -> parents:key list -> key:key -> tree:tree -> t
 end
 

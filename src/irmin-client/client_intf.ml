@@ -2,43 +2,29 @@ open Irmin_server_types
 
 module type S = sig
   type t
-
   type hash
-
   type contents
-
   type branch
-
   type commit
-
   type path
-
   type tree
-
   type step
-
   type slice
-
   type metadata
-
   type stats = Stats.t
 
   val stats_t : stats Irmin.Type.t
-
   val slice_t : slice Irmin.Type.t
 
   module Info : sig
     include Irmin.Info.S
 
     val init : ?author:string -> ?message:string -> int64 -> t
-
     val v : ?author:string -> ('b, Format.formatter, unit, f) format4 -> 'b
   end
 
   module Path : Irmin.Path.S with type t = path and type step = step
-
   module Hash : Irmin.Hash.S with type t = hash
-
   module Metadata : Irmin.Metadata.S with type t = metadata
 
   module Schema :
@@ -51,7 +37,6 @@ module type S = sig
 
   module Private : sig
     module Store : Irmin.Generic_key.S with module Schema = Schema
-
     module Tree : Tree.S with module Private.Store = Store
   end
 
@@ -81,7 +66,6 @@ module type S = sig
   (** Ping the server *)
 
   val export : t -> slice Error.result Lwt.t
-
   val import : t -> slice -> unit Error.result Lwt.t
 
   val watch :

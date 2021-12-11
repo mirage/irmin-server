@@ -7,7 +7,6 @@ let unwrap prefix = function
   | Error (`Msg e) -> raise (Error (prefix ^ ": " ^ e))
 
 let of_string s = `Msg s
-
 let to_string = function `Msg s -> s
 
 let () =

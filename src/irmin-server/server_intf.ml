@@ -4,7 +4,6 @@ module type S = sig
   type t
 
   module Store : Irmin.Generic_key.S
-
   module Command : Command.S with module Store = Store
 
   val readonly : Irmin.config -> Irmin.config

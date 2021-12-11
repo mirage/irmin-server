@@ -24,25 +24,16 @@ module Make (C : Command.S) = struct
   module Schema = C.Store.Schema
 
   type hash = Store.hash
-
   type contents = Store.contents
-
   type branch = Store.branch
-
   type path = Store.path
-
   type step = Store.step
-
   type commit = C.Commit.t
-
   type slice = St.slice
-
   type stats = Stats.t
-
   type metadata = St.metadata
 
   let stats_t = Stats.t
-
   let slice_t = St.slice_t
 
   type conf = {
@@ -98,7 +89,6 @@ module Make (C : Command.S) = struct
     connect' client
 
   let dup client = connect' client.conf
-
   let close t = Conduit_lwt_server.close (t.conn.ic, t.conn.oc)
 
   let handle_disconnect t f =
@@ -151,7 +141,6 @@ module Make (C : Command.S) = struct
       type t = St.Hash.t
 
       let hash = Hashtbl.hash
-
       let equal = Irmin.Type.(unstage (equal St.Hash.t))
     end)
 
@@ -159,23 +148,17 @@ module Make (C : Command.S) = struct
       type t = St.commit_key
 
       let hash = Hashtbl.hash
-
       let equal = Irmin.Type.(unstage (equal St.commit_key_t))
     end)
 
     let commit : commit Commit.t = Commit.create 64
-
     let contents : contents Contents.t = Contents.create 64
   end
 
   let stats t = request t (module Commands.Stats) ()
-
   let ping t = request t (module Commands.Ping) ()
-
   let export t = request t (module Commands.Export) ()
-
   let import t slice = request t (module Commands.Import) slice
-
   let unwatch t = request t (module Commands.Unwatch) ()
 
   let watch f t =
@@ -206,7 +189,6 @@ module Make (C : Command.S) = struct
       request t (module Commands.Set_current_branch) branch
 
     let get_current t = request t (module Commands.Get_current_branch) ()
-
     let get ?branch t = request t (module Commands.Branch_head) branch
 
     let set ?branch t commit =
@@ -244,7 +226,6 @@ module Make (C : Command.S) = struct
 
   module Tree = struct
     type store = t
-
     type key = St.Tree.kinded_key
 
     let key_t = St.Tree.kinded_key_t
@@ -268,7 +249,7 @@ module Make (C : Command.S) = struct
            (tree, List.rev_append batch (List.rev l)))
 
     and wrap ?(batch = []) store tree =
-      let* tree = tree in
+      let* tree in
       Lwt.return (Result.map (fun tree -> (store, tree, batch)) tree)
 
     and empty (t : store) : tree = (t, Tree.Local (`Tree []), [])
@@ -323,9 +304,7 @@ module Make (C : Command.S) = struct
     end
 
     let split t = t
-
     let v t ?(batch = []) tr = (t, tr, batch)
-
     let of_key t k = (t, Private.Tree.Key k, [])
 
     let map_tree tree f =
@@ -468,7 +447,6 @@ module Make (C : Command.S) = struct
       Result.map (Option.map (fun tree -> (t, tree, []))) tree
 
     let mem t path = request t (module Commands.Store.Mem) path
-
     let mem_tree t path = request t (module Commands.Store.Mem_tree) path
 
     let merge t ~info branch =

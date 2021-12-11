@@ -2,7 +2,6 @@ open Lwt.Syntax
 
 module V1 = struct
   let version = "V1"
-
   let type_name x = Fmt.to_to_string Irmin.Type.pp_ty x
 
   let fingerprint (module Store : Irmin.Generic_key.S) : string =

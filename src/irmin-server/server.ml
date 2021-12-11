@@ -65,9 +65,7 @@ module Make (X : Command.S) = struct
     { ctx; uri; server; config; repo; clients; info }
 
   let commands = Hashtbl.create (List.length Command.commands)
-
   let () = Hashtbl.replace_seq commands (List.to_seq Command.commands)
-
   let invalid_arguments a = Error.unwrap "Invalid arguments" a [@@inline]
 
   let[@tailrec] rec loop repo clients conn client info : unit Lwt.t =

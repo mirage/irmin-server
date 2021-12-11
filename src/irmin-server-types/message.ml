@@ -2,7 +2,6 @@ open Lwt.Syntax
 open Lwt.Infix
 
 let decode t = Irmin.Type.(unstage (of_bin_string t)) [@@inline]
-
 let encode t = Irmin.Type.(unstage (to_bin_string t)) [@@inline]
 
 let write_raw oc s : unit Lwt.t =

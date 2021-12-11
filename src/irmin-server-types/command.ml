@@ -29,7 +29,6 @@ module Make (St : Irmin.Generic_key.S) = struct
       with Unix.Unix_error (Unix.ENOENT, _, _) -> 0.
 
     let dict root = file (Irmin_pack.Layout.dict ~root) /. 1024. /. 1024.
-
     let pack root = file (Irmin_pack.Layout.pack ~root) /. 1024. /. 1024.
 
     let index root =
@@ -122,7 +121,6 @@ module Make (St : Irmin.Generic_key.S) = struct
       end
 
       let name = "get_current_branch"
-
       let run conn ctx _ () = Return.v conn Store.Branch.t ctx.branch
     end
 
@@ -398,6 +396,5 @@ module Make (St : Irmin.Generic_key.S) = struct
     @ Store.commands @ Tree.commands
 
   let of_name name = List.assoc name commands
-
   let name (module Cmd : CMD) = Cmd.name
 end

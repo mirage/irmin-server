@@ -6,7 +6,6 @@ module W = Nottui_widgets
 module Ui = Nottui.Ui
 
 let handle_keyboard = function `Escape, _ -> exit 0 | _, _ -> `Unhandled
-
 let bold = Notty.A.(st bold)
 
 module Widget = struct
@@ -26,7 +25,6 @@ module Widget = struct
     v show value
 
   let get_value widget = Lwd.get widget.value
-
   let set_value widget x = Lwd.set widget.value x
 
   let show { show; value } =
