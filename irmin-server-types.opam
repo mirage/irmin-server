@@ -76,7 +76,7 @@ pin-depends: [
   ]
   [
     "index.dev"
-    "git+https://github.com/mirage/index#07bdd1b5da5737c92c743a65df685145ffdca603"
+    "git+https://github.com/mirage/index#dd9a501dc48d05c79f85049681f3b3bc079759aa"
   ]
   [
     "repr.dev"
