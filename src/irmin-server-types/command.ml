@@ -44,7 +44,15 @@ module Make (St : Irmin.Generic_key.S) = struct
       let pack = Irmin_pack.Stats.get () in
       let uptime = Server_info.uptime info in
       let* branches =
-        St.Branch.list ctx.repo >|= List.map (Irmin.Type.to_string St.Branch.t)
+        St.Branch.list ctx.repo
+        >>= Lwt_list.map_s (fun b ->
+                let+ head = St.Branch.find ctx.repo b in
+                let hash =
+                  Option.map
+                    (fun c -> Fmt.to_to_string St.Commit.pp_hash c)
+                    head
+                in
+                (Irmin.Type.to_string St.Branch.t b, hash))
       in
       let root = Irmin_pack.Conf.root ctx.config in
       let cache_stats = Irmin_pack.Stats.get_cache_stats () in
