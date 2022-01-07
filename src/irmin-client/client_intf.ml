@@ -47,7 +47,13 @@ module type S = sig
       option)
     list
 
-  val connect : ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
+  val connect :
+    ?ctx:Conduit_lwt_unix.ctx ->
+    ?batch_size:int ->
+    ?tls:bool ->
+    uri:Uri.t ->
+    unit ->
+    t Lwt.t
   (** Connect to the server specified by [uri] *)
 
   val uri : t -> Uri.t

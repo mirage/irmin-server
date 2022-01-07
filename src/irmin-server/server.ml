@@ -41,7 +41,8 @@ module Make (X : Command.S) = struct
               (fun () -> Lwt_unix.unlink file)
               (fun _ -> Lwt.return_unit)
           in
-          (Conduit_lwt_unix.default_ctx, `Unix_domain_socket (`File file))
+          ( Lazy.force Conduit_lwt_unix.default_ctx,
+            `Unix_domain_socket (`File file) )
       | "tcp" -> (
           let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
           let ip = Unix.gethostbyname addr in

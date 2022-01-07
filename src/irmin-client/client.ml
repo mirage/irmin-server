@@ -77,16 +77,15 @@ module Make (C : Command.S) = struct
     in
     { client; batch_size; uri }
 
-  let connect' conf =
-    let ctx = Conduit_lwt_unix.default_ctx in
+  let connect' ?(ctx = Lazy.force Conduit_lwt_unix.default_ctx) conf =
     let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx conf.client in
     let conn = Conn.v flow ic oc in
     let+ () = Conn.Handshake.V1.send (module Private.Store) conn in
     { conf; conn }
 
-  let connect ?batch_size ?tls ~uri () =
+  let connect ?ctx ?batch_size ?tls ~uri () =
     let client = conf ?batch_size ?tls ~uri () in
-    connect' client
+    connect' ?ctx client
 
   let dup client = connect' client.conf
   let close t = Conduit_lwt_server.close (t.conn.ic, t.conn.oc)
