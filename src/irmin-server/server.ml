@@ -6,6 +6,7 @@ include Server_intf
 module Make (X : Command.S) = struct
   module Command = X
   module Store = X.Store
+  module Conn = Command.Conn
 
   type t = {
     ctx : Conduit_lwt_unix.ctx;
@@ -67,9 +68,10 @@ module Make (X : Command.S) = struct
   let commands = Hashtbl.create (List.length Command.commands)
   let () = Hashtbl.replace_seq commands (List.to_seq Command.commands)
   let invalid_arguments a = Error.unwrap "Invalid arguments" a [@@inline]
+  let empty_buffer = Bytes.create 0
 
   let[@tailrec] rec loop repo clients conn client info : unit Lwt.t =
-    if Lwt_io.is_closed conn.Conn.ic then
+    if Conn.is_closed conn then
       let* () =
         match client.Command.watch with
         | Some w -> Store.unwatch w
@@ -82,7 +84,7 @@ module Make (X : Command.S) = struct
         (fun () ->
           Logs.debug (fun l -> l "Receiving next command");
           (* Get request header (command and number of arguments) *)
-          let* Request.Header.{ command } = Request.Read.header conn.Conn.ic in
+          let* Conn.Request.{ command } = Conn.Request.read_header conn in
           (* Get command *)
           match Hashtbl.find_opt commands command with
           | None ->
@@ -90,11 +92,12 @@ module Make (X : Command.S) = struct
               Conn.err conn ("unknown command: " ^ command)
           | Some (module Cmd : X.CMD) ->
               let* req =
-                Conn.read_message conn Cmd.Req.t >|= invalid_arguments
+                Conn.read ~buffer:empty_buffer conn Cmd.Req.t
+                >|= invalid_arguments
               in
               Logs.debug (fun l -> l "Command: %s" Cmd.name);
               let* res = Cmd.run conn client info req in
-              Return.finish Cmd.Res.t res)
+              Conn.Return.finish res)
         (function
           | Error.Error s ->
               (* Recover *)
@@ -116,9 +119,10 @@ module Make (X : Command.S) = struct
 
   let callback { repo; clients; info; config; _ } flow ic oc =
     (* Handshake check *)
+    let conn = Conn.v flow ic oc in
     let* check =
       Lwt.catch
-        (fun () -> Handshake.V1.check (module Store) ic oc)
+        (fun () -> Conn.Handshake.V1.check (module Store) conn)
         (fun _ -> Lwt.return_false)
     in
     if not check then
@@ -129,7 +133,6 @@ module Make (X : Command.S) = struct
       Lwt_io.close ic
     else
       (* Handshake ok *)
-      let conn = Conn.v flow ic oc in
       let branch = Store.Branch.main in
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in

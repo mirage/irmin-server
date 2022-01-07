@@ -2,11 +2,12 @@ open Lwt.Syntax
 open Lwt.Infix
 include Command_intf
 
-module Make (St : Irmin.Generic_key.S) = struct
+module Make (Codec : Conn.Codec.S) (St : Irmin.Generic_key.S) = struct
   module Store = St
   module Tree = Tree.Make (St)
   module Commit = Commit.Make (St) (Tree)
-  include Context.Make (St) (Tree)
+  include Context.Make (Codec) (St) (Tree)
+  module Return = Conn.Return
 
   type t = (module CMD)
 
@@ -349,7 +350,7 @@ module Make (St : Irmin.Generic_key.S) = struct
                 | `Added a -> `Added (convert_commit a)
                 | `Removed a -> `Removed (convert_commit a)
               in
-              Conn.write_message conn (Irmin.Diff.t Commit.t) diff)
+              Conn.write conn (Irmin.Diff.t Commit.t) diff)
         in
         ctx.watch <- Some watch;
         Return.v conn Res.t ()
@@ -377,8 +378,8 @@ module Make (St : Irmin.Generic_key.S) = struct
         Return.v conn Res.t ()
     end
 
-    module Store = Command_store.Make (St) (Tree) (Commit)
-    module Tree = Command_tree.Make (St) (Tree) (Commit)
+    module Store = Command_store.Make (Codec) (St) (Tree) (Commit)
+    module Tree = Command_tree.Make (Codec) (St) (Tree) (Commit)
   end
 
   let commands : (string * (module CMD)) list =
