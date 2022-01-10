@@ -6,7 +6,31 @@ module type Irmin_client = sig
 
   module Client = Client
 
-  module Make (Store : Irmin.Generic_key.S) :
+  module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
+    S
+      with type hash = Store.hash
+       and type contents = Store.contents
+       and type branch = Store.branch
+       and type path = Store.path
+       and type step = Store.step
+       and type metadata = Store.metadata
+       and type slice = Store.slice
+       and module Schema = Store.Schema
+       and type Private.Store.tree = Store.tree
+
+  module Make_bin (Store : Irmin.Generic_key.S) :
+    S
+      with type hash = Store.hash
+       and type contents = Store.contents
+       and type branch = Store.branch
+       and type path = Store.path
+       and type step = Store.step
+       and type metadata = Store.metadata
+       and type slice = Store.slice
+       and module Schema = Store.Schema
+       and type Private.Store.tree = Store.tree
+
+  module Make_json (Store : Irmin.Generic_key.S) :
     S
       with type hash = Store.hash
        and type contents = Store.contents

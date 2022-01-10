@@ -1,7 +1,8 @@
 open Lwt.Syntax
 open Irmin_server_types
 
-let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path =
+let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path
+    (module Codec : Conn.Codec.S) =
   let store, config =
     Irmin_unix.Resolver.load_config ?root ?config_path ?store ?hash ?contents ()
   in
@@ -11,7 +12,7 @@ let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path =
   let (module Store : Irmin.Generic_key.S) =
     Irmin_unix.Resolver.Store.generic_keyed store
   in
-  let module Server = Irmin_server.Make (Store) in
+  let module Server = Irmin_server.Make (Codec) (Store) in
   let tls_config =
     match tls with Some (c, k) -> Some (`Cert_file c, `Key_file k) | _ -> None
   in
@@ -25,9 +26,9 @@ let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path =
   Logs.app (fun l -> l "Listening on %a, store: %s" Uri.pp_hum uri root);
   Server.serve server
 
-let main readonly root uri tls (store, hash, contents) config_path () =
+let main readonly root uri tls (store, hash, contents) codec config_path () =
   Lwt_main.run
-  @@ main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path
+  @@ main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path codec
 
 open Cmdliner
 
@@ -50,7 +51,7 @@ let tls =
 
 let main_term =
   Term.(
-    const main $ readonly $ root $ Cli.uri $ tls $ Cli.store ()
+    const main $ readonly $ root $ Cli.uri $ tls $ Cli.store () $ Cli.codec
     $ Cli.config_path $ Cli.setup_log)
 
 let () =

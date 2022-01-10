@@ -62,10 +62,6 @@ let () = Lwt_main.run ping
 
 See [src/irmin-client/client_intf.ml](https://github.com/zshipko/irmin-server/blob/master/src/irmin-client/client_intf.ml)
 
-## Additional client implementations
-
-- [Rust](https://github.com/zshipko/irmin-rs)
-
 ## Protocol
 
 A specification of the wire protocol can be found in [PROTOCOL.md](https://github.com/zshipko/irmin-server/blob/master/PROTOCOL.md)

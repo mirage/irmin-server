@@ -2,7 +2,8 @@
 
 ## Message
 
-Message `data` is encoded using `Irmin.Type.to_bin_string`
+Message `data` is encoded using either `Irmin.Type.to_bin_string` or `Irmin.Type.to_json_string`,
+depending on which codec is selected at runtime.
 
 | Field  | Type                 |
 | ------ | -------------------- |

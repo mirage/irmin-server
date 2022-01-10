@@ -77,16 +77,15 @@ module Make (C : Command.S) = struct
     in
     { client; batch_size; uri }
 
-  let connect' conf =
-    let ctx = Conduit_lwt_unix.default_ctx in
+  let connect' ?(ctx = Lazy.force Conduit_lwt_unix.default_ctx) conf =
     let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx conf.client in
     let conn = Conn.v flow ic oc in
-    let+ () = Handshake.V1.send (module Private.Store) ic oc in
+    let+ () = Conn.Handshake.V1.send (module Private.Store) conn in
     { conf; conn }
 
-  let connect ?batch_size ?tls ~uri () =
+  let connect ?ctx ?batch_size ?tls ~uri () =
     let client = conf ?batch_size ?tls ~uri () in
-    connect' client
+    connect' ?ctx client
 
   let dup client = connect' client.conf
   let close t = Conduit_lwt_server.close (t.conn.ic, t.conn.oc)
@@ -102,17 +101,17 @@ module Make (C : Command.S) = struct
     [@@inline]
 
   let send_command_header t (module Cmd : C.CMD) =
-    let header = Request.Header.v ~command:Cmd.name in
-    Request.Write.header t.conn.Conn.oc header
+    let header = Conn.Request.v_header ~command:Cmd.name in
+    Conn.Request.write_header t.conn header
 
   let recv (t : t) name ty =
-    let* res = Response.Read.header t.conn.ic in
-    Response.Read.get_error t.conn.buffer t.conn.ic res >>= function
+    let* res = Conn.Response.read_header t.conn in
+    Conn.Response.get_error t.conn.buffer t.conn res >>= function
     | Some err ->
         Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
         Lwt.return_error (`Msg err)
     | None ->
-        let+ x = Conn.read_message t.conn ty in
+        let+ x = Conn.read ~buffer:t.conn.buffer t.conn ty in
         Logs.debug (fun l -> l "Completed request: command=%s" name);
         x
 
@@ -122,14 +121,15 @@ module Make (C : Command.S) = struct
     Logs.debug (fun l -> l "Starting request: command=%s" name);
     handle_disconnect t (fun () ->
         let* () = send_command_header t (module Cmd) in
-        let* () = Conn.write_message t.conn Cmd.Req.t a in
+        let* () = Conn.write t.conn Cmd.Req.t a in
         let* () = Lwt_io.flush t.conn.oc in
         recv t name Cmd.Res.t)
 
   let recv_commit_diff (t : t) =
     Lwt.catch
       (fun () ->
-        Conn.read_message t.conn (Irmin.Diff.t Commit.t) >>= function
+        Conn.read ~buffer:t.conn.buffer t.conn (Irmin.Diff.t Commit.t)
+        >>= function
         | Ok x -> Lwt.return_some x
         | Error e ->
             Logs.err (fun l -> l "Watch error: %s" (Error.to_string e));

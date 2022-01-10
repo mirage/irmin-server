@@ -1,4 +1,6 @@
 module type S = sig
+  module Conn : Conn.S
+
   module Store : Irmin.Generic_key.S
   (** Irmin [Store] type *)
 
@@ -54,7 +56,7 @@ module type S = sig
     val name : string
 
     val run :
-      Conn.t -> context -> Server_info.t -> Req.t -> Res.t Return.t Lwt.t
+      Conn.t -> context -> Server_info.t -> Req.t -> Res.t Conn.Return.t Lwt.t
   end
 
   type t = (module CMD)
@@ -304,7 +306,7 @@ end
 module type Command = sig
   module type S = S
 
-  module Make (Store : Irmin.Generic_key.S) :
+  module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
     S
       with module Store = Store
        and module Tree.Private.Store = Store

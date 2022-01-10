@@ -15,3 +15,5 @@ val store :
 
 val setup_log : unit Cmdliner.Term.t
 (** Term to initialize logging *)
+
+val codec : (module Conn.Codec.S) Cmdliner.Term.t

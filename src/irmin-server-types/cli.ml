@@ -24,3 +24,9 @@ let setup_log style_renderer level =
 
 let setup_log =
   Term.(const setup_log $ Fmt_cli.style_renderer () $ Logs_cli.level ())
+
+let codec =
+  let open Conn.Codec in
+  let doc = Arg.info ~doc:"Encoding to use for messages" [ "c"; "codec" ] in
+  let t = Arg.enum [ ("bin", (module Bin : S)); ("json", (module Json : S)) ] in
+  Arg.(value & opt t (module Bin) doc)

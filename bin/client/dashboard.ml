@@ -73,14 +73,33 @@ let last_updates (type a) (module Client : Irmin_client.S with type commit = a)
       Ui.vcat last_updates)
     []
 
+let heads =
+  Widget.v
+    (fun heads ->
+      let heads =
+        List.map
+          (fun (name, commit) ->
+            let commit = match commit with Some c -> c | None -> "None" in
+            W.printf "%s: %s" name commit)
+          heads
+      in
+      let header = W.printf ~attr:Notty.A.(st bold) "Branches:" in
+      Ui.vcat (header :: heads))
+    []
+
 let main client freq =
   client >>= fun (S ((module Client), client)) ->
-  let last_updates = last_updates (module Client) in
+  let last_updates =
+    last_updates
+      (module Client : Irmin_client.S with type commit = Client.commit)
+  in
   let ui =
     let open Lwd_infix in
     let$* uptime = Widget.show uptime in
     let$* pack = Widget.show pack in
+    let$* heads = Widget.show heads in
     let$ last_updates = Widget.show last_updates in
+
     Ui.keyboard_area handle_keyboard
       (Ui.vcat
          [
@@ -94,6 +113,8 @@ let main client freq =
            pack;
            Ui.space 0 1;
            last_updates;
+           Ui.space 0 1;
+           heads;
          ])
   in
   let rec tick client () =
@@ -102,6 +123,7 @@ let main client freq =
         Widget.set_value uptime stats.uptime;
         Widget.set_value pack
           (stats.size, stats.adds, stats.finds.total, stats.cache_misses);
+        Widget.set_value heads stats.branches;
         let+ () = Lwt_unix.sleep freq in
         tick client ())
   in

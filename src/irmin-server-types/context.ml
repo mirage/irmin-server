@@ -2,6 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make
+    (Codec : Conn.Codec.S)
     (St : Irmin.Generic_key.S)
     (Tree : Tree.S with module Private.Store = St and type Local.t = St.tree) =
 struct
@@ -10,6 +11,8 @@ struct
 
     let uptime { start_time; _ } = Unix.time () -. start_time
   end
+
+  module Conn = Conn.Make (Codec)
 
   type context = {
     conn : Conn.t;
@@ -37,7 +40,7 @@ struct
     val name : string
 
     val run :
-      Conn.t -> context -> Server_info.t -> Req.t -> Res.t Return.t Lwt.t
+      Conn.t -> context -> Server_info.t -> Req.t -> Res.t Conn.Return.t Lwt.t
   end
 
   let cmd (module C : CMD) = (C.name, (module C : CMD))
