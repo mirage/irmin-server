@@ -177,5 +177,5 @@ module Make (T : Codec.S) = struct
     let header = Response.v_header ~status:1 in
     let msg = "ERROR " ^ msg in
     let* () = Response.write_header t header in
-    Message.write t.oc Irmin.Type.string msg
+    write t Irmin.Type.string msg
 end
