@@ -1,4 +1,5 @@
 open Irmin_server_internal
+module Error = Error
 
 module type S = Client.S
 
