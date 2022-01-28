@@ -4,6 +4,7 @@ module Error = Error
 module type Irmin_client = sig
   module type S = Client.S
 
+  module Error = Error
   module Client = Client
 
   module Make_ext (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :

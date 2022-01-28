@@ -42,26 +42,13 @@ $ dine exec bin/client/client.exe -- ping --help
 
 ## OCaml client
 
-An OCaml client library is provided to interact with the server from other OCaml programs.
-
-### Ping example
-
-```ocaml
-open Irmin_server
-module Rpc = KV(Irmin.Contents.String)
-module Client = Rpc.Client
-
-let ping =
-  let* client = Client.connect ~uri:"tcp://127.0.0.1:8888" () in
-  Client.ping client >|= Error.unwrap "ping result"
-
-let () = Lwt_main.run ping
-```
+An OCaml client library is provided to interact with the server. Some examples can be
+found in the [examples/](/tree/master/examples) directory.
 
 ### Docs
 
-See [src/irmin-client/client_intf.ml](https://github.com/zshipko/irmin-server/blob/master/src/irmin-client/client_intf.ml)
+See [src/irmin-client/client_intf.ml](/blob/master/src/irmin-client/client_intf.ml)
 
 ## Protocol
 
-A specification of the wire protocol can be found in [PROTOCOL.md](https://github.com/zshipko/irmin-server/blob/master/PROTOCOL.md)
+A specification of the wire protocol can be found in [PROTOCOL.md](/blob/master/PROTOCOL.md)
