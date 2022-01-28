@@ -1,5 +1,5 @@
 opam-version: "2.0"
-synopsis: "A client for irmin-server"
+synopsis: "A high-performance server for Irmin"
 maintainer: "Zach Shipko <zachshipko@gmail.com>"
 authors: "Zach Shipko <zachshipko@gmail.com>"
 license: "ISC"
@@ -9,7 +9,8 @@ bug-reports: "https://github.com/zshipko/irmin-server/issues"
 depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
-  "irmin-server-internal"
+  "irmin-server"
+  "irmin-unix"
 ]
 build: [
   ["dune" "subst"] {pinned}

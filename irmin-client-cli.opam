@@ -9,7 +9,9 @@ bug-reports: "https://github.com/zshipko/irmin-server/issues"
 depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
-  "irmin-server-internal"
+  "irmin-client"
+  "irmin-unix"
+  "nottui-lwt"
 ]
 build: [
   ["dune" "subst"] {pinned}
