@@ -1,4 +1,4 @@
 (library
  (name irmin_client)
  (public_name irmin-client)
- (libraries irmin-server-types))
+ (libraries irmin-server-internal))

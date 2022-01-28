@@ -14,8 +14,6 @@ let config_path : string option Cmdliner.Term.t =
   let doc = Arg.info ~docv:"PATH" ~doc:"Config path" [ "config" ] in
   Arg.(value & opt (some string) None & doc)
 
-let store () = Irmin_unix.Resolver.Store.term ()
-
 let setup_log style_renderer level =
   Fmt_tty.setup_std_outputs ?style_renderer ();
   Logs.set_level level;

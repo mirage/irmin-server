@@ -1,4 +1,4 @@
-open Irmin_server_types
+open Irmin_server_internal
 open Lwt.Syntax
 open Lwt.Infix
 include Client_intf
@@ -10,18 +10,25 @@ module Make (C : Command.S) = struct
   module Path = Store.Path
   module Metadata = Store.Metadata
 
-  module Info = struct
-    include Irmin_unix.Info (Store.Info)
-
-    let init = Store.Info.v
-  end
-
   module Private = struct
     module Store = C.Store
     module Tree = C.Tree
   end
 
   module Schema = C.Store.Schema
+
+  module Info = struct
+    include C.Store.Schema.Info
+
+    let init = v
+
+    let v ?author fmt =
+      Fmt.kstr
+        (fun message () ->
+          let date = Int64.of_float (Unix.gettimeofday ()) in
+          init ?author ~message date)
+        fmt
+  end
 
   type hash = Store.hash
   type contents = Store.contents

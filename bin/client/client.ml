@@ -2,7 +2,7 @@ open Cmdliner
 open Lwt.Syntax
 open Lwt.Infix
 open Import
-open Irmin_server_types
+open Irmin_server_internal
 
 let with_timer f =
   let t0 = Sys.time () in
@@ -40,9 +40,7 @@ let run f time iterations =
 
 let list_server_commands () =
   let module Store = Irmin_mem.KV.Make (Irmin.Contents.String) in
-  let module Cmd =
-    Irmin_server_types.Command.Make (Irmin_server_types.Conn.Codec.Bin) (Store)
-  in
+  let module Cmd = Command.Make (Conn.Codec.Bin) (Store) in
   let str t =
     Fmt.to_to_string Irmin.Type.pp_ty t
     |> String.split_on_char '\n' |> String.concat "\n\t\t"
@@ -258,7 +256,7 @@ let freq =
 
 let config =
   let create uri (branch : string option) tls (store, hash, contents)
-      (module Codec : Irmin_server_types.Conn.Codec.S) config_path () =
+      (module Codec : Conn.Codec.S) config_path () =
     let store, config =
       Irmin_unix.Resolver.load_config ?config_path ?store ?hash ?contents ()
     in
@@ -276,8 +274,9 @@ let config =
     init ~uri ~branch ~tls (module Client)
   in
   Term.(
-    const create $ Cli.uri $ branch $ tls $ Cli.store () $ Cli.codec
-    $ Cli.config_path $ Cli.setup_log)
+    const create $ Cli.uri $ branch $ tls
+    $ Irmin_unix.Resolver.Store.term ()
+    $ Cli.codec $ Cli.config_path $ Cli.setup_log)
 
 let help =
   let help () =
