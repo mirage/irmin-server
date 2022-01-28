@@ -3,8 +3,8 @@ open Lwt.Infix
 module Rpc = struct
   module Codec = Irmin_server_types.Conn.Codec.Bin
   module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
-  module Client = Irmin_client.Make (Codec) (Store)
-  module Server = Irmin_server.Make (Codec) (Store)
+  module Client = Irmin_client.Make_ext (Codec) (Store)
+  module Server = Irmin_server.Make_ext (Codec) (Store)
 end
 
 let test name f client _switch () =

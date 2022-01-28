@@ -6,7 +6,7 @@ module type Irmin_client = sig
 
   module Client = Client
 
-  module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
+  module Make_ext (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
     S
       with type hash = Store.hash
        and type contents = Store.contents
@@ -18,7 +18,7 @@ module type Irmin_client = sig
        and module Schema = Store.Schema
        and type Private.Store.tree = Store.tree
 
-  module Make_bin (Store : Irmin.Generic_key.S) :
+  module Make (Store : Irmin.Generic_key.S) :
     S
       with type hash = Store.hash
        and type contents = Store.contents

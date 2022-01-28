@@ -4,7 +4,7 @@ module Error = Error
 
 module type S = Server.S
 
-module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
+module Make_ext (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
   module X = struct
     include Command
     include Command.Make (Codec) (Store)
@@ -13,5 +13,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
   include Server.Make (X)
 end
 
-module Make_bin (Store : Irmin.Generic_key.S) = Make (Conn.Codec.Bin) (Store)
-module Make_json (Store : Irmin.Generic_key.S) = Make (Conn.Codec.Json) (Store)
+module Make (Store : Irmin.Generic_key.S) = Make_ext (Conn.Codec.Bin) (Store)
+
+module Make_json (Store : Irmin.Generic_key.S) =
+  Make_ext (Conn.Codec.Json) (Store)

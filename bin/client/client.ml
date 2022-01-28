@@ -268,7 +268,7 @@ let config =
     let (module Store : Irmin.Generic_key.S) =
       Irmin_unix.Resolver.Store.generic_keyed store
     in
-    let module Client = Irmin_client.Make (Codec) (Store) in
+    let module Client = Irmin_client.Make_ext (Codec) (Store) in
     let uri =
       Irmin.Backend.Conf.(get config Irmin_http.Conf.Key.uri)
       |> Option.value ~default:Cli.default_uri

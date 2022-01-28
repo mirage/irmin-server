@@ -12,7 +12,7 @@ let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path
   let (module Store : Irmin.Generic_key.S) =
     Irmin_unix.Resolver.Store.generic_keyed store
   in
-  let module Server = Irmin_server.Make (Codec) (Store) in
+  let module Server = Irmin_server.Make_ext (Codec) (Store) in
   let tls_config =
     match tls with Some (c, k) -> Some (`Cert_file c, `Key_file k) | _ -> None
   in

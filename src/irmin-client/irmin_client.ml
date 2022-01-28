@@ -3,7 +3,7 @@ module type S = Client.S
 module Error = Irmin_server_types.Error
 module Client = Client
 
-module Make
+module Make_ext
     (Codec : Irmin_server_types.Conn.Codec.S)
     (Store : Irmin.Generic_key.S) =
 struct
@@ -15,8 +15,8 @@ struct
   include Client.Make (Command)
 end
 
-module Make_bin (Store : Irmin.Generic_key.S) =
-  Make (Irmin_server_types.Conn.Codec.Bin) (Store)
+module Make (Store : Irmin.Generic_key.S) =
+  Make_ext (Irmin_server_types.Conn.Codec.Bin) (Store)
 
 module Make_json (Store : Irmin.Generic_key.S) =
-  Make (Irmin_server_types.Conn.Codec.Json) (Store)
+  Make_ext (Irmin_server_types.Conn.Codec.Json) (Store)

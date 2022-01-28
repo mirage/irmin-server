@@ -6,9 +6,9 @@ module type Irmin_server = sig
 
   module Error = Error
 
-  module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
+  module Make_ext (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
     S with module Store = Store
 
-  module Make_bin (Store : Irmin.Generic_key.S) : S with module Store = Store
+  module Make (Store : Irmin.Generic_key.S) : S with module Store = Store
   module Make_json (Store : Irmin.Generic_key.S) : S with module Store = Store
 end
