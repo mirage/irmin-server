@@ -1,4 +1,4 @@
-open Irmin_server_types
+open Irmin_server_internal
 
 module type S = sig
   type t

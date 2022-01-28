@@ -1,5 +1,5 @@
 open Lwt.Syntax
-open Irmin_server_types
+open Irmin_server_internal
 
 let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path
     (module Codec : Conn.Codec.S) =
@@ -51,8 +51,9 @@ let tls =
 
 let main_term =
   Term.(
-    const main $ readonly $ root $ Cli.uri $ tls $ Cli.store () $ Cli.codec
-    $ Cli.config_path $ Cli.setup_log)
+    const main $ readonly $ root $ Cli.uri $ tls
+    $ Irmin_unix.Resolver.Store.term ()
+    $ Cli.codec $ Cli.config_path $ Cli.setup_log)
 
 let () =
   let info = Term.info "irmin-server" in

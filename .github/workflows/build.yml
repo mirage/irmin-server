@@ -33,11 +33,11 @@ jobs:
           ocaml-version: ${{ matrix.ocaml-compiler}}
 
       - run: "opam pin add irmin-tezos.dev git+https://github.com/mirage/irmin.git --no-action"
-      - run: opam pin add irmin-server-types.dev . --no-action
+      - run: opam pin add irmin-server-internal.dev . --no-action
       - run: opam pin add irmin-server.dev . --no-action
       - run: opam pin add irmin-client.dev . --no-action
-      - run: "opam install irmin-server-types irmin-server irmin-client --deps-only --with-doc --with-test || :"
-      - run: opam install irmin-tezos irmin-unix
-      - run: opam exec -- dune build -p irmin-server-types,irmin-server,irmin-client
-      - run: opam exec -- dune runtest -p irmin-server-types,irmin-server,irmin-client
+      - run: "opam install irmin-server-internal irmin-server irmin-client --deps-only --with-doc --with-test || :"
+      - run: opam install irmin irmin-pack
+      - run: opam exec -- dune build -p irmin-server-internal,irmin-server,irmin-client
+      - run: opam exec -- dune runtest -p irmin-server-internal,irmin-server,irmin-client
 

@@ -1,6 +1,0 @@
-(library
- (name irmin_server_types)
- (public_name irmin-server-types)
- (libraries irmin-unix irmin-pack irmin-tezos conduit-lwt-unix)
- (preprocess
-  (pps ppx_irmin)))

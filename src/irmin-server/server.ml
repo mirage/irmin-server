@@ -1,6 +1,6 @@
 open Lwt.Syntax
 open Lwt.Infix
-open Irmin_server_types
+open Irmin_server_internal
 include Server_intf
 
 module Make (X : Command.S) = struct

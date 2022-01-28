@@ -1,5 +1,5 @@
 (executable
  (public_name irmin-client)
- (package irmin-client)
+ (package irmin-client-cli)
  (name client)
- (libraries irmin-client nottui-lwt))
+ (libraries irmin-client nottui-lwt irmin-unix))
