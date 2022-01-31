@@ -12,6 +12,9 @@ let main =
      committed to the store. *)
   let tree = Client.Tree.empty client in
 
+  (* If needed, [Client.Tree.cleanup] can be used to manually garbage collect
+     a tree *)
+
   (* Set foo => bar *)
   let* tree =
     Client.Tree.add tree [ "foo" ] "bar" >|= Error.unwrap "Tree.add"

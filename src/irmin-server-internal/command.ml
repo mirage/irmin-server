@@ -135,7 +135,7 @@ module Make (Codec : Conn.Codec.S) (St : Irmin.Generic_key.S) = struct
 
     module Export = struct
       module Req = struct
-        type t = unit [@@deriving irmin]
+        type t = int option [@@deriving irmin]
       end
 
       module Res = struct
@@ -144,8 +144,8 @@ module Make (Codec : Conn.Codec.S) (St : Irmin.Generic_key.S) = struct
 
       let name = "export"
 
-      let run conn ctx _ () =
-        let* slice = Store.Repo.export ~full:true ~max:`Head ctx.repo in
+      let run conn ctx _ depth =
+        let* slice = Store.Repo.export ?depth ~full:true ~max:`Head ctx.repo in
         Return.v conn Store.slice_t slice
     end
 

@@ -71,7 +71,7 @@ module type S = sig
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)
 
-  val export : t -> slice Error.result Lwt.t
+  val export : ?depth:int -> t -> slice Error.result Lwt.t
   val import : t -> slice -> unit Error.result Lwt.t
 
   val watch :
