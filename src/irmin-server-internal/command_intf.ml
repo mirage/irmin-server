@@ -89,7 +89,8 @@ module type S = sig
       CMD with type Req.t = unit and type Res.t = Store.branch
 
     (** Export repo *)
-    module Export : CMD with type Req.t = unit and type Res.t = Store.slice
+    module Export :
+      CMD with type Req.t = int option and type Res.t = Store.slice
 
     (** Import repo *)
     module Import : CMD with type Req.t = Store.slice and type Res.t = unit

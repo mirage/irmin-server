@@ -164,7 +164,7 @@ module Make (C : Command.S) = struct
 
   let stats t = request t (module Commands.Stats) ()
   let ping t = request t (module Commands.Ping) ()
-  let export t = request t (module Commands.Export) ()
+  let export ?depth t = request t (module Commands.Export) depth
   let import t slice = request t (module Commands.Import) slice
   let unwatch t = request t (module Commands.Unwatch) ()
 

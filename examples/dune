@@ -1,0 +1,27 @@
+(executables
+ (names server)
+ (libraries irmin-server)
+ (modules server)
+ (preprocess
+  (pps ppx_irmin)))
+
+(executables
+ (names ping tree branches)
+ (libraries irmin-client)
+ (modules ping tree branches)
+ (preprocess
+  (pps ppx_irmin)))
+
+(alias
+ (name examples)
+ (deps server.exe ping.exe tree.exe branches.exe))
+
+(alias
+ (name runtest)
+ (package irmin-server)
+ (deps server.exe))
+
+(alias
+ (name runtest)
+ (package irmin-client)
+ (deps ping.exe tree.exe branches.exe))
