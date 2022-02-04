@@ -2,6 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make
+    (IO : Conn.IO)
     (Codec : Conn.Codec.S)
     (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
@@ -13,7 +14,7 @@ module Make
                  and type key = Store.commit_key
                  and module Info = Store.Info) =
 struct
-  include Context.Make (Codec) (Store) (Tree)
+  include Context.Make (IO) (Codec) (Store) (Tree)
   module Return = Conn.Return
 
   let convert_commit head =

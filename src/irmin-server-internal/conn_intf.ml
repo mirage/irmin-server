@@ -5,23 +5,30 @@ module Codec = struct
   end
 end
 
-type t = {
-  flow : Conduit_lwt_unix.flow;
-  ic : Conduit_lwt_unix.ic;
-  oc : Conduit_lwt_unix.oc;
-  buffer : bytes;
-}
+module type IO = sig
+  type flow
+  type ic
+  type oc
+
+  val is_closed : ic -> bool
+  val write_int64_be : oc -> int64 -> unit Lwt.t
+  val read_int64_be : ic -> int64 Lwt.t
+  val flush : oc -> unit Lwt.t
+  val write : oc -> string -> unit Lwt.t
+  val read_into_exactly : ic -> bytes -> int -> int -> unit Lwt.t
+  val write_line : oc -> string -> unit Lwt.t
+  val read_line : ic -> string Lwt.t
+  val write_char : oc -> char -> unit Lwt.t
+  val read_char : ic -> char Lwt.t
+end
 
 module type S = sig
-  type nonrec t = t
+  module IO : IO
 
-  val v :
-    ?buffer_size:int ->
-    Conduit_lwt_unix.flow ->
-    Conduit_lwt_unix.ic ->
-    Conduit_lwt_unix.oc ->
-    t
-  (** Create a new connection using [flow], [ic] and [oc] from conduit *)
+  type t = { flow : IO.flow; ic : IO.ic; oc : IO.oc; buffer : bytes }
+
+  val v : ?buffer_size:int -> IO.flow -> IO.ic -> IO.oc -> t
+  (** Create a new connection using [flow], [ic] and [oc] *)
 
   val is_closed : t -> bool
   (** Check if the underlying channel is closed *)
@@ -82,8 +89,6 @@ module type S = sig
 end
 
 module type Sigs = sig
-  type nonrec t = t
-
   module Codec : sig
     module type S = Codec.S
 
@@ -92,6 +97,7 @@ module type Sigs = sig
   end
 
   module type S = S
+  module type IO = IO
 
-  module Make (C : Codec.S) : S
+  module Make (IO : IO) (C : Codec.S) : S with module IO = IO
 end

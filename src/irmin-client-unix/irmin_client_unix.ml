@@ -1,11 +1,12 @@
-include Irmin_server_intf
 open Irmin_server_internal
 module Error = Error
+module IO = IO
 
-module type S = Server.S
-
-module Make_ext (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
-  include Server.Make (Codec) (Store)
+module Make_ext
+    (Codec : Irmin_server_internal.Conn.Codec.S)
+    (Store : Irmin.Generic_key.S) =
+struct
+  include Irmin_client.Make_ext (IO) (Codec) (Store)
 end
 
 module Make (Store : Irmin.Generic_key.S) = Make_ext (Conn.Codec.Bin) (Store)

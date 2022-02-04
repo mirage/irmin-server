@@ -7,7 +7,7 @@
 
 (executables
  (names ping tree branches)
- (libraries irmin-client)
+ (libraries irmin-client-unix)
  (modules ping tree branches)
  (preprocess
   (pps ppx_irmin)))

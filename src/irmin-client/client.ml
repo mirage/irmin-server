@@ -3,12 +3,15 @@ open Lwt.Syntax
 open Lwt.Infix
 include Client_intf
 
-module Make (C : Command.S) = struct
-  module St = C.Store
+module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
+struct
+  module C = Command.Make (I) (Codec) (Store)
+  module St = Store
   open C
   module Hash = Store.Hash
   module Path = Store.Path
   module Metadata = Store.Metadata
+  module IO = I
 
   module Private = struct
     module Store = C.Store
@@ -43,12 +46,7 @@ module Make (C : Command.S) = struct
   let stats_t = Stats.t
   let slice_t = St.slice_t
 
-  type conf = {
-    uri : Uri.t;
-    client : Conduit_lwt_unix.client;
-    batch_size : int;
-  }
-
+  type conf = { uri : Uri.t; client : addr; batch_size : int }
   type t = { conf : conf; mutable conn : Conn.t }
 
   let uri t = t.conf.uri
@@ -84,8 +82,8 @@ module Make (C : Command.S) = struct
     in
     { client; batch_size; uri }
 
-  let connect' ?(ctx = Lazy.force Conduit_lwt_unix.default_ctx) conf =
-    let* flow, ic, oc = Conduit_lwt_unix.connect ~ctx conf.client in
+  let connect' ?(ctx = Lazy.force IO.default_ctx) conf =
+    let* flow, ic, oc = IO.connect ~ctx conf.client in
     let conn = Conn.v flow ic oc in
     let+ () = Conn.Handshake.V1.send (module Private.Store) conn in
     { conf; conn }
@@ -95,7 +93,7 @@ module Make (C : Command.S) = struct
     connect' ?ctx client
 
   let dup client = connect' client.conf
-  let close t = Conduit_lwt_server.close (t.conn.ic, t.conn.oc)
+  let close t = IO.close (t.conn.ic, t.conn.oc)
 
   let handle_disconnect t f =
     Lwt.catch f (function
@@ -129,7 +127,7 @@ module Make (C : Command.S) = struct
     handle_disconnect t (fun () ->
         let* () = send_command_header t (module Cmd) in
         let* () = Conn.write t.conn Cmd.Req.t a in
-        let* () = Lwt_io.flush t.conn.oc in
+        let* () = IO.flush t.conn.oc in
         recv t name Cmd.Res.t)
 
   let recv_commit_diff (t : t) =

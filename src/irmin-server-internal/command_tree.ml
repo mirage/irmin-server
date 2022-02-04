@@ -1,6 +1,7 @@
 open Lwt.Syntax
 
 module Make
+    (IO : Conn.IO)
     (Codec : Conn.Codec.S)
     (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
@@ -8,7 +9,7 @@ module Make
                and type Local.t = Store.tree)
     (Commit : Commit.S with type hash = Store.hash and type tree = Tree.t) =
 struct
-  include Context.Make (Codec) (Store) (Tree)
+  include Context.Make (IO) (Codec) (Store) (Tree)
   module Return = Conn.Return
 
   module Empty = struct

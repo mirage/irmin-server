@@ -40,7 +40,8 @@ let run f time iterations =
 
 let list_server_commands () =
   let module Store = Irmin_mem.KV.Make (Irmin.Contents.String) in
-  let module Cmd = Command.Make (Conn.Codec.Bin) (Store) in
+  let module Cmd = Command.Make (Irmin_client_unix.IO) (Conn.Codec.Bin) (Store)
+  in
   let str t =
     Fmt.to_to_string Irmin.Type.pp_ty t
     |> String.split_on_char '\n' |> String.concat "\n\t\t"
@@ -266,7 +267,7 @@ let config =
     let (module Store : Irmin.Generic_key.S) =
       Irmin_unix.Resolver.Store.generic_keyed store
     in
-    let module Client = Irmin_client.Make_ext (Codec) (Store) in
+    let module Client = Irmin_client_unix.Make_ext (Codec) (Store) in
     let uri =
       Irmin.Backend.Conf.(get config Irmin_http.Conf.Key.uri)
       |> Option.value ~default:Cli.default_uri

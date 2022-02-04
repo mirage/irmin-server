@@ -1,5 +1,20 @@
 open Irmin_server_internal
 
+type addr =
+  [ `TLS of [ `Hostname of string ] * [ `IP of Ipaddr.t ] * [ `Port of int ]
+  | `TCP of [ `IP of Ipaddr.t ] * [ `Port of int ]
+  | `Unix_domain_socket of [ `File of string ] ]
+
+module type IO = sig
+  include Conn.IO
+
+  type ctx
+
+  val default_ctx : ctx lazy_t
+  val connect : ctx:ctx -> addr -> (flow * ic * oc) Lwt.t
+  val close : ic * oc -> unit Lwt.t
+end
+
 module type S = sig
   type t
   type hash
@@ -15,6 +30,8 @@ module type S = sig
 
   val stats_t : stats Irmin.Type.t
   val slice_t : slice Irmin.Type.t
+
+  module IO : IO
 
   module Info : sig
     include Irmin.Info.S
@@ -48,12 +65,7 @@ module type S = sig
     list
 
   val connect :
-    ?ctx:Conduit_lwt_unix.ctx ->
-    ?batch_size:int ->
-    ?tls:bool ->
-    uri:Uri.t ->
-    unit ->
-    t Lwt.t
+    ?ctx:IO.ctx -> ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
   (** Connect to the server specified by [uri] *)
 
   val uri : t -> Uri.t
@@ -295,16 +307,20 @@ end
 module type Client = sig
   module type S = S
 
-  module Make (C : Command.S) :
+  type nonrec addr = addr
+
+  module type IO = IO
+
+  module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
     S
-      with type hash = C.Store.hash
-       and type contents = C.Store.contents
-       and type branch = C.Store.branch
-       and type path = C.Store.path
-       and type commit = C.Commit.t
-       and type step = C.Store.step
-       and type metadata = C.Store.metadata
-       and type slice = C.Store.slice
-       and module Schema = C.Store.Schema
-       and type Private.Store.tree = C.Store.tree
+      with type hash = Store.hash
+       and type contents = Store.contents
+       and type branch = Store.branch
+       and type path = Store.path
+       and type step = Store.step
+       and type metadata = Store.metadata
+       and type slice = Store.slice
+       and module Schema = Store.Schema
+       and type Private.Store.tree = Store.tree
+       and module IO = I
 end
