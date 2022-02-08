@@ -31,7 +31,7 @@ $ docker run --env PORT=9999 $(docker build -q .)
 For a list of available commands:
 
 ```shell
-$ dune exec bin/client/client/exe -- --help
+$ dune exec bin/client/client.exe -- --help
 ```
 
 For help with a specific command (for example, ping):
