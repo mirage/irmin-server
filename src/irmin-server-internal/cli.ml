@@ -25,6 +25,6 @@ let setup_log =
 
 let codec =
   let open Conn.Codec in
-  let doc = Arg.info ~doc:"Encoding to use for messages" [ "c"; "codec" ] in
+  let doc = Arg.info ~doc:"Encoding to use for messages" [ "codec" ] in
   let t = Arg.enum [ ("bin", (module Bin : S)); ("json", (module Json : S)) ] in
   Arg.(value & opt t (module Bin) doc)
