@@ -30,6 +30,24 @@ struct
       Return.v conn Res.t (ID id)
   end
 
+  module Save = struct
+    module Req = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = [`Contents of Store.contents_key | `Node of Store.node_key] [@@deriving irmin]
+    end
+
+    let name = "tree.save"
+
+    let run conn ctx _ tree =
+      let* _, tree = resolve_tree ctx tree in
+      let* hash = Store.Backend.Repo.batch ctx.repo (fun x y _ ->
+      Store.save_tree ctx.repo x y tree) in
+      Return.v conn Res.t hash
+  end
+
   module Add = struct
     module Req = struct
       type t = Tree.t * Store.path * Store.contents [@@deriving irmin]

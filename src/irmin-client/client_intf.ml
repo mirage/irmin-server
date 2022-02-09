@@ -235,6 +235,13 @@ module type S = sig
     val merge : old:tree -> tree -> tree -> tree Error.result Lwt.t
     (** Three way merge *)
 
+    val save :
+      tree ->
+      [ `Contents of Private.Store.contents_key
+      | `Node of Private.Store.node_key ]
+      Error.result
+      Lwt.t
+
     module Local = Private.Tree.Local
     (*with type path = path
       and type contents = contents

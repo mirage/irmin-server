@@ -226,6 +226,13 @@ module type S = sig
             Tree.t * Tree.Private.Store.path * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
+      module Save :
+        CMD
+          with type Req.t = Tree.t
+           and type Res.t =
+            [ `Contents of Tree.Private.Store.contents_key
+            | `Node of Tree.Private.Store.node_key ]
+
       (** Add multiple trees/values to a tree *)
       module Batch_update :
         CMD

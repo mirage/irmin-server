@@ -410,6 +410,12 @@ struct
       let+ x = Private.Tree.Local.to_concrete x in
       (t, Private.Tree.Local x, [])
 
+    let save (t, tree, batch) =
+      let* tree = build t ~tree batch in
+      match tree with
+      | Error e -> Lwt.return_error e
+      | Ok (_, tree, _) -> request t (module Commands.Tree.Save) tree
+
     let cleanup_all t = request t (module Commands.Tree.Cleanup_all) ()
 
     type t = tree
