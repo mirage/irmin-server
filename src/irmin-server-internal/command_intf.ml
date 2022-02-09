@@ -121,6 +121,16 @@ module type S = sig
     module Commit_of_key :
       CMD with type Req.t = Store.commit_key and type Res.t = Commit.t option
 
+    (** Convert from commit key to commit hash *)
+    module Commit_hash_of_key :
+      CMD
+        with type Req.t = Store.commit_key
+         and type Res.t = Store.Hash.t option
+
+    (** Find a commit by hash *)
+    module Commit_of_hash :
+      CMD with type Req.t = Store.hash and type Res.t = Commit.t option
+
     (* Contents *)
 
     (** Find contents by key *)

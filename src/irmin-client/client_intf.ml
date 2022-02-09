@@ -92,8 +92,12 @@ module type S = sig
         NOTE: this will invalidate all intermediate trees *)
 
     val of_key : t -> key -> commit option Error.result Lwt.t
+    val of_hash : t -> hash -> commit option Error.result Lwt.t
 
     val key : commit -> key
+    (** Get commit key *)
+
+    val hash : t -> commit -> hash option Error.result Lwt.t
     (** Get commit hash *)
 
     val parents : commit -> key list

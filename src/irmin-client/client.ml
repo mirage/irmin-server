@@ -493,6 +493,11 @@ module Make (C : Command.S) = struct
             Lwt.return_ok c
         | Error e -> Lwt.return_error e
 
+    let of_hash t hash = request t (module Commands.Commit_of_hash) hash
+
+    let hash t commit =
+      request t (module Commands.Commit_hash_of_key) (key commit)
+
     let tree t commit = (t, tree commit, [])
   end
 end

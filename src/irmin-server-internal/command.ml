@@ -269,6 +269,40 @@ module Make (Codec : Conn.Codec.S) (St : Irmin.Generic_key.S) = struct
         Return.v conn Res.t commit
     end
 
+    module Commit_hash_of_key = struct
+      module Req = struct
+        type t = Commit.key [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = St.Hash.t option [@@deriving irmin]
+      end
+
+      let name = "commit.hash_of_key"
+
+      let run conn ctx _ key =
+        let* commit = St.Commit.of_key ctx.repo key in
+        let hash = Option.map St.Commit.hash commit in
+        Return.v conn Res.t hash
+    end
+
+    module Commit_of_hash = struct
+      module Req = struct
+        type t = St.hash [@@deriving irmin]
+      end
+
+      module Res = struct
+        type t = Commit.t option [@@deriving irmin]
+      end
+
+      let name = "commit.of_key"
+
+      let run conn ctx _ hash =
+        let* commit = St.Commit.of_hash ctx.repo hash in
+        let commit = Option.map convert_commit commit in
+        Return.v conn Res.t commit
+    end
+
     module Contents_of_hash = struct
       module Req = struct
         type t = St.hash [@@deriving irmin]
