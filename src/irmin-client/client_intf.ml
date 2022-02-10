@@ -329,5 +329,6 @@ module type Client = sig
        and type slice = Store.slice
        and module Schema = Store.Schema
        and type Private.Store.tree = Store.tree
+       and type Commit.key = Store.commit_key
        and module IO = I
 end
