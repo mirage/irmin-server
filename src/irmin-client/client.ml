@@ -254,7 +254,7 @@ struct
            (tree, List.rev_append batch (List.rev l)))
 
     and wrap ?(batch = []) store tree =
-      let* tree in
+      let* tree = tree in
       Lwt.return (Result.map (fun tree -> (store, tree, batch)) tree)
 
     and empty (t : store) : tree = (t, Tree.Local (`Tree []), [])
