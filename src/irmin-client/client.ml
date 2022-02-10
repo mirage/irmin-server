@@ -254,7 +254,7 @@ struct
            (tree, List.rev_append batch (List.rev l)))
 
     and wrap ?(batch = []) store tree =
-      let* tree = tree in
+      let* tree in
       Lwt.return (Result.map (fun tree -> (store, tree, batch)) tree)
 
     and empty (t : store) : tree = (t, Tree.Local (`Tree []), [])
@@ -415,6 +415,12 @@ struct
       match tree with
       | Error e -> Lwt.return_error e
       | Ok (_, tree, _) -> request t (module Commands.Tree.Save) tree
+
+    let hash (t, tree, batch) =
+      let* tree = build t ~tree batch in
+      match tree with
+      | Error e -> Lwt.return_error e
+      | Ok (_, tree, _) -> request t (module Commands.Tree.Hash) tree
 
     let cleanup_all t = request t (module Commands.Tree.Cleanup_all) ()
 
