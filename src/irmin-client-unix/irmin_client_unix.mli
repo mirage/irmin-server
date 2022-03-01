@@ -41,3 +41,15 @@ module Make_json (Store : Irmin.Generic_key.S) :
      and module Schema = Store.Schema
      and type Private.Store.tree = Store.tree
      and module IO = IO
+
+module Store : sig
+  module Make (Store : Irmin.Generic_key.S) :
+    Irmin.Generic_key.S
+      with module Schema = Store.Schema
+       and type commit_key = Store.commit_key
+
+  module Make_json (Store : Irmin.Generic_key.S) :
+    Irmin.Generic_key.S
+      with module Schema = Store.Schema
+       and type commit_key = Store.commit_key
+end

@@ -9,6 +9,8 @@ module type Irmin_client = sig
 
   type addr = Client.addr
 
+  val config : Uri.t -> Irmin.config
+
   module Make_ext
       (IO : Client.IO)
       (Codec : Conn.Codec.S)
@@ -50,4 +52,14 @@ module type Irmin_client = sig
        and module Schema = Store.Schema
        and type Private.Store.tree = Store.tree
        and module IO = IO
+
+  module Store : sig
+    module Make
+        (IO : Client.IO)
+        (Codec : Conn.Codec.S)
+        (Store : Irmin.Generic_key.S) :
+      Irmin.Generic_key.S
+        with module Schema = Store.Schema
+         and type commit_key = Store.commit_key
+  end
 end

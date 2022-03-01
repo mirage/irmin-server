@@ -17,8 +17,7 @@ let main =
   (* Set a/b/c on [current_branch] *)
   let info = Client.Info.v "set a/b/c" in
   let* () =
-    Client.Store.set ~info client [ "a"; "b"; "c" ] "123"
-    >|= Error.unwrap "Store.set"
+    Client.set ~info client [ "a"; "b"; "c" ] "123" >|= Error.unwrap "Store.set"
   in
 
   (* Switch to new [test] branch *)
@@ -29,7 +28,7 @@ let main =
 
   (* Get a/b/c in [test] branch (should be None) *)
   let* abc =
-    Client.Store.find client [ "a"; "b"; "c" ] >|= Error.unwrap "Store.find"
+    Client.find client [ "a"; "b"; "c" ] >|= Error.unwrap "Store.find"
   in
   assert (Option.is_none abc);
 
@@ -39,7 +38,7 @@ let main =
     >|= Error.unwrap "Branch.set_current"
   in
   let+ abc =
-    Client.Store.find client [ "a"; "b"; "c" ] >|= Error.unwrap "Store.find"
+    Client.find client [ "a"; "b"; "c" ] >|= Error.unwrap "Store.find"
   in
   assert (Option.is_some abc)
 

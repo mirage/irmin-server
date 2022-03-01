@@ -93,7 +93,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
               Conn.err conn ("unknown command: " ^ command)
           | Some (module Cmd : Command.CMD) ->
               let* req =
-                Conn.read ~buffer:empty_buffer conn Cmd.Req.t
+                Conn.read ~buffer:empty_buffer conn Cmd.req_t
                 >|= invalid_arguments
               in
               Logs.debug (fun l -> l "Command: %s" Cmd.name);
@@ -138,7 +138,17 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
       let client =
-        Command.{ conn; repo; branch; store; trees; watch = None; config }
+        Command.
+          {
+            conn;
+            repo;
+            branch;
+            store;
+            trees;
+            watch = None;
+            branch_watch = None;
+            config;
+          }
       in
       Hashtbl.replace clients client ();
       loop repo clients conn client info

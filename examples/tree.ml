@@ -30,7 +30,7 @@ let main =
   (* Get the tree back, now instead of existing on the client-side, you get a
      key to the stored tree *)
   let* tree =
-    Client.Store.set_tree client ~info [] tree >|= Error.unwrap "Store.set_tree"
+    Client.set_tree client ~info [] tree >|= Error.unwrap "Store.set_tree"
   in
   let _, t, _ = Client.Tree.split tree in
   let () =
@@ -40,9 +40,7 @@ let main =
   in
 
   (* Check to make sure the store contains foo => bar *)
-  let+ value =
-    Client.Store.find client [ "foo" ] >|= Error.unwrap "Tree.find"
-  in
+  let+ value = Client.find client [ "foo" ] >|= Error.unwrap "Tree.find" in
   let value = Option.get value in
   assert (value = "bar")
 

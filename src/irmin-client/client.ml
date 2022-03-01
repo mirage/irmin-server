@@ -3,6 +3,17 @@ open Lwt.Syntax
 open Lwt.Infix
 include Client_intf
 
+module Conf = struct
+  let spec = Irmin.Backend.Conf.Spec.v "irmin-client"
+  let uri = Irmin.Type.(map string) Uri.of_string Uri.to_string
+
+  let uri =
+    Irmin.Backend.Conf.key ~spec "uri" uri (Uri.of_string "127.0.0.1:9181")
+end
+
+let config uri =
+  Irmin.Backend.Conf.add (Irmin.Backend.Conf.empty Conf.spec) Conf.uri uri
+
 module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
 struct
   module C = Command.Make (I) (Codec) (Store)
@@ -82,18 +93,21 @@ struct
     in
     { client; batch_size; uri }
 
+  let close t = IO.close (t.conn.ic, t.conn.oc)
+
   let connect' ?(ctx = Lazy.force IO.default_ctx) conf =
     let* flow, ic, oc = IO.connect ~ctx conf.client in
     let conn = Conn.v flow ic oc in
     let+ () = Conn.Handshake.V1.send (module Private.Store) conn in
-    { conf; conn }
+    let t = { conf; conn } in
+    let () = Lwt_gc.finalise_or_exit (fun t -> close t) t in
+    t
 
   let connect ?ctx ?batch_size ?tls ~uri () =
     let client = conf ?batch_size ?tls ~uri () in
     connect' ?ctx client
 
   let dup client = connect' client.conf
-  let close t = IO.close (t.conn.ic, t.conn.oc)
 
   let handle_disconnect t f =
     Lwt.catch f (function
@@ -121,19 +135,42 @@ struct
         x
 
   let request (t : t) (type x y)
-      (module Cmd : C.CMD with type Res.t = x and type Req.t = y) (a : y) =
+      (module Cmd : C.CMD with type res = x and type req = y) (a : y) =
     let name = Cmd.name in
     Logs.debug (fun l -> l "Starting request: command=%s" name);
     handle_disconnect t (fun () ->
         let* () = send_command_header t (module Cmd) in
-        let* () = Conn.write t.conn Cmd.Req.t a in
+        let* () = Conn.write t.conn Cmd.req_t a in
         let* () = IO.flush t.conn.oc in
-        recv t name Cmd.Res.t)
+        recv t name Cmd.res_t)
 
   let recv_commit_diff (t : t) =
     Lwt.catch
       (fun () ->
         Conn.read ~buffer:t.conn.buffer t.conn (Irmin.Diff.t Commit.t)
+        >>= function
+        | Ok x -> Lwt.return_some x
+        | Error e ->
+            Logs.err (fun l -> l "Watch error: %s" (Error.to_string e));
+            Lwt.return_none)
+      (fun _ -> Lwt.return_none)
+
+  let recv_branch_diff (t : t) =
+    Lwt.catch
+      (fun () ->
+        Conn.read ~buffer:t.conn.buffer t.conn
+          (Irmin.Type.pair Store.Branch.t (Irmin.Diff.t Commit.key_t))
+        >>= function
+        | Ok x -> Lwt.return_some x
+        | Error e ->
+            Logs.err (fun l -> l "Watch error: %s" (Error.to_string e));
+            Lwt.return_none)
+      (fun _ -> Lwt.return_none)
+
+  let recv_branch_key_diff (t : t) =
+    Lwt.catch
+      (fun () ->
+        Conn.read ~buffer:t.conn.buffer t.conn (Irmin.Diff.t Commit.key_t)
         >>= function
         | Ok x -> Lwt.return_some x
         | Error e ->
@@ -164,26 +201,25 @@ struct
   let ping t = request t (module Commands.Ping) ()
   let export ?depth t = request t (module Commands.Export) depth
   let import t slice = request t (module Commands.Import) slice
+
+  type watch = t
+
   let unwatch t = request t (module Commands.Unwatch) ()
 
   let watch f t =
+    let* t = dup t in
     request t (module Commands.Watch) () >>= function
     | Error e -> Lwt.return_error e
-    | Ok () -> (
+    | Ok () ->
         let rec loop () =
-          recv_commit_diff t >>= function
-          | Some diff -> (
-              f diff >>= function
-              | Ok `Continue -> loop ()
-              | Ok `Stop -> Lwt.return_ok ()
-              | Error e -> Lwt.return_error e)
-          | None -> loop ()
+          if IO.is_closed t.conn.ic then Lwt.return_unit
+          else
+            recv_commit_diff t >>= function
+            | Some diff -> f diff >>= fun () -> loop ()
+            | None -> loop ()
         in
-        loop () >>= function
-        | Ok () -> unwatch t
-        | Error e ->
-            let* _ = unwatch t in
-            Lwt.return_error e)
+        Lwt.async loop;
+        Lwt.return_ok t
 
   module Branch = struct
     include Store.Branch
@@ -425,54 +461,52 @@ struct
     type t = tree
   end
 
-  module Store = struct
-    let find t path = request t (module Commands.Store.Find) path
+  let find t path = request t (module Commands.Store.Find) path
 
-    let set t ~info path value =
-      request t (module Commands.Store.Set) (path, info (), value)
+  let set t ~info path value =
+    request t (module Commands.Store.Set) (path, info (), value)
 
-    let test_and_set t ~info path ~test ~set =
-      request t (module Commands.Store.Test_and_set) (path, info (), (test, set))
+  let test_and_set t ~info path ~test ~set =
+    request t (module Commands.Store.Test_and_set) (path, info (), (test, set))
 
-    let remove t ~info path =
-      request t (module Commands.Store.Remove) (path, info ())
+  let remove t ~info path =
+    request t (module Commands.Store.Remove) (path, info ())
 
-    let find_tree t path =
-      let+ tree = request t (module Commands.Store.Find_tree) path in
-      Result.map (fun x -> Option.map (fun x -> (t, x, [])) x) tree
+  let find_tree t path =
+    let+ tree = request t (module Commands.Store.Find_tree) path in
+    Result.map (fun x -> Option.map (fun x -> (t, x, [])) x) tree
 
-    let set_tree t ~info path (_, tree, batch) =
-      let* tree = Tree.build t ~tree batch in
-      match tree with
-      | Error e -> Lwt.return_error e
-      | Ok (_, tree, _) ->
-          let+ tree =
-            request t (module Commands.Store.Set_tree) (path, info (), tree)
-          in
-          Result.map (fun tree -> (t, tree, [])) tree
+  let set_tree t ~info path (_, tree, batch) =
+    let* tree = Tree.build t ~tree batch in
+    match tree with
+    | Error e -> Lwt.return_error e
+    | Ok (_, tree, _) ->
+        let+ tree =
+          request t (module Commands.Store.Set_tree) (path, info (), tree)
+        in
+        Result.map (fun tree -> (t, tree, [])) tree
 
-    let test_and_set_tree t ~info path ~test ~set =
-      let test = Option.map (fun (_, x, _) -> x) test in
-      let set = Option.map (fun (_, x, _) -> x) set in
-      let+ tree =
-        request t
-          (module Commands.Store.Test_and_set_tree)
-          (path, info (), (test, set))
-      in
-      Result.map (Option.map (fun tree -> (t, tree, []))) tree
+  let test_and_set_tree t ~info path ~test ~set =
+    let test = Option.map (fun (_, x, _) -> x) test in
+    let set = Option.map (fun (_, x, _) -> x) set in
+    let+ tree =
+      request t
+        (module Commands.Store.Test_and_set_tree)
+        (path, info (), (test, set))
+    in
+    Result.map (Option.map (fun tree -> (t, tree, []))) tree
 
-    let mem t path = request t (module Commands.Store.Mem) path
-    let mem_tree t path = request t (module Commands.Store.Mem_tree) path
+  let mem t path = request t (module Commands.Store.Mem) path
+  let mem_tree t path = request t (module Commands.Store.Mem_tree) path
 
-    let merge t ~info branch =
-      request t (module Commands.Store.Merge) (info (), branch)
+  let merge t ~info branch =
+    request t (module Commands.Store.Merge) (info (), branch)
 
-    let merge_commit t ~info commit =
-      request t (module Commands.Store.Merge_commit) (info (), commit)
+  let merge_commit t ~info commit =
+    request t (module Commands.Store.Merge_commit) (info (), commit)
 
-    let last_modified t path =
-      request t (module Commands.Store.Last_modified) path
-  end
+  let last_modified t path =
+    request t (module Commands.Store.Last_modified) path
 
   module Commit = struct
     include C.Commit
@@ -508,4 +542,246 @@ struct
 
     let tree t commit = (t, tree commit, [])
   end
+end
+
+module Make_store (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
+struct
+  module St = Store
+  module Client = Make (I) (Codec) (Store)
+  module Command = Command.Make (I) (Codec) (Store)
+  open Command
+  open Client
+
+  module X = struct
+    open Lwt.Infix
+    module Schema = St.Schema
+    module Hash = St.Hash
+
+    module Contents = struct
+      type nonrec 'a t = t
+
+      open Commands.Backend.Contents
+      module Key = St.Backend.Contents.Key
+      module Val = St.Backend.Contents.Val
+      module Hash = St.Backend.Contents.Hash
+
+      type key = Key.t
+      type value = Val.t
+      type hash = Hash.t
+
+      let mem t key = request t (module Mem) key >|= Error.unwrap "Contents.mem"
+
+      let find t key =
+        request t (module Find) key >|= Error.unwrap "Contents.find"
+
+      let add t value =
+        request t (module Add) value >|= Error.unwrap "Contents.add"
+
+      let unsafe_add t key value =
+        request t (module Unsafe_add) (key, value)
+        >|= Error.unwrap "Contents.unsafe_add"
+
+      let index t hash =
+        request t (module Index) hash >|= Error.unwrap "Contents.index"
+
+      let clear t =
+        request t (module Clear) () >|= Error.unwrap "Contents.clear"
+
+      let batch t f = f t
+      let close t = close t
+
+      let merge t =
+        let f ~old a b =
+          let* old = old () in
+          match old with
+          | Ok old ->
+              request t (module Merge) (old, a, b)
+              >|= Error.unwrap "Contents.merge"
+          | Error e -> Lwt.return_error e
+        in
+        Irmin.Merge.v Irmin.Type.(option Key.t) f
+    end
+
+    module Node = struct
+      type nonrec 'a t = t
+
+      open Commands.Backend.Node
+      module Key = St.Backend.Node.Key
+      module Val = St.Backend.Node.Val
+      module Hash = St.Backend.Node.Hash
+      module Path = St.Backend.Node.Path
+      module Metadata = St.Backend.Node.Metadata
+      module Contents = St.Backend.Node.Contents
+
+      type key = Key.t
+      type value = Val.t
+      type hash = Hash.t
+
+      let mem t key = request t (module Mem) key >|= Error.unwrap "Node.mem"
+      let find t key = request t (module Find) key >|= Error.unwrap "Node.find"
+      let add t value = request t (module Add) value >|= Error.unwrap "Node.add"
+
+      let unsafe_add t key value =
+        request t (module Unsafe_add) (key, value)
+        >|= Error.unwrap "Node.unsafe_add"
+
+      let index t hash =
+        request t (module Index) hash >|= Error.unwrap "Node.index"
+
+      let clear t = request t (module Clear) () >|= Error.unwrap "Node.clear"
+      let batch t f = f t
+      let close t = close t
+
+      let merge t =
+        let f ~old a b =
+          let* old = old () in
+          match old with
+          | Ok old ->
+              request t (module Merge) (old, a, b) >|= Error.unwrap "Node.merge"
+          | Error e -> Lwt.return_error e
+        in
+        Irmin.Merge.v Irmin.Type.(option Key.t) f
+    end
+
+    module Node_portable = St.Backend.Node_portable
+
+    module Commit = struct
+      type nonrec 'a t = t
+
+      open Commands.Backend.Commit
+      module Key = St.Backend.Commit.Key
+      module Val = St.Backend.Commit.Val
+      module Hash = St.Backend.Commit.Hash
+      module Info = St.Backend.Commit.Info
+      module Node = Node
+
+      type key = Key.t
+      type value = Val.t
+      type hash = Hash.t
+
+      let mem t key = request t (module Mem) key >|= Error.unwrap "Commit.mem"
+
+      let find t key =
+        request t (module Find) key >|= Error.unwrap "Commit.find"
+
+      let add t value =
+        request t (module Add) value >|= Error.unwrap "Commit.add"
+
+      let unsafe_add t key value =
+        request t (module Unsafe_add) (key, value)
+        >|= Error.unwrap "Commit.unsafe_add"
+
+      let index t hash =
+        request t (module Index) hash >|= Error.unwrap "Commit.index"
+
+      let clear t = request t (module Clear) () >|= Error.unwrap "Commit.clear"
+      let batch t f = f t
+      let close t = close t
+
+      let merge t ~info =
+        let f ~old a b =
+          let* old = old () in
+          match old with
+          | Ok old ->
+              request t (module Merge) (info (), (old, a, b))
+              >|= Error.unwrap "Node.merge"
+          | Error e -> Lwt.return_error e
+        in
+        Irmin.Merge.v Irmin.Type.(option Key.t) f
+    end
+
+    module Commit_portable = St.Backend.Commit_portable
+
+    module Branch = struct
+      type nonrec t = t
+
+      open Commands.Backend.Branch
+      module Key = St.Backend.Branch.Key
+      module Val = St.Backend.Branch.Val
+
+      type key = Key.t
+      type value = Val.t
+
+      let mem t key = request t (module Mem) key >|= Error.unwrap "Branch.mem"
+
+      let find t key =
+        request t (module Find) key >|= Error.unwrap "Branch.find"
+
+      let set t key value =
+        request t (module Set) (key, value) >|= Error.unwrap "Branch.set"
+
+      let test_and_set t key ~test ~set =
+        request t (module Test_and_set) (key, test, set)
+        >|= Error.unwrap "Branch.test_and_set"
+
+      let remove t key =
+        request t (module Remove) key >|= Error.unwrap "Branch.remove"
+
+      let list t = request t (module List) () >|= Error.unwrap "Branch.list"
+
+      type watch = t
+
+      let watch t ?init f =
+        let* t = dup t in
+        let* () =
+          request t (module Watch) init >|= Error.unwrap "Branch.watch"
+        in
+        let rec loop () =
+          if IO.is_closed t.conn.ic then Lwt.return_unit
+          else
+            recv_branch_diff t >>= function
+            | Some (key, diff) -> f key diff >>= fun () -> loop ()
+            | None ->
+                let* () = Lwt_unix.sleep 0.25 in
+                loop ()
+        in
+        Lwt.async loop;
+        Lwt.return t
+
+      let watch_key t key ?init f =
+        let* t = dup t in
+        let* () =
+          request t (module Watch_key) (init, key)
+          >|= Error.unwrap "Branch.watch_key"
+        in
+        let rec loop () =
+          if IO.is_closed t.conn.ic then Lwt.return_unit
+          else
+            recv_branch_key_diff t >>= function
+            | Some diff -> f diff >>= fun () -> loop ()
+            | None ->
+                let* () = Lwt_unix.sleep 0.25 in
+                loop ()
+        in
+        Lwt.async loop;
+        Lwt.return t
+
+      let unwatch _t watch =
+        request watch (module Unwatch) () >|= Error.unwrap "Branch.unwatch"
+
+      let clear t = request t (module Clear) () >|= Error.unwrap "Branch.clear"
+      let close t = close t
+    end
+
+    module Slice = St.Backend.Slice
+
+    module Repo = struct
+      type nonrec t = t
+
+      let v config =
+        let uri = Irmin.Backend.Conf.get config Conf.uri in
+        connect ~uri ()
+
+      let close (t : t) = close t
+      let contents_t (t : t) = t
+      let node_t (t : t) = t
+      let commit_t (t : t) = t
+      let branch_t (t : t) = t
+      let batch (t : t) f = f t t t
+    end
+
+    module Remote = Irmin.Backend.Remote.None (Commit.Key) (Store.Branch)
+  end
+
+  include Irmin.Of_backend (X)
 end

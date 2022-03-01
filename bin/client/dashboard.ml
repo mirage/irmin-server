@@ -129,16 +129,15 @@ let main client freq =
   in
 
   let watch client () =
-    Lwt.async (fun () ->
-        let f x =
-          Widget.set_value last_updates (x :: Lwd.peek last_updates.value);
-          Lwt.return_ok `Continue
-        in
-        Client.watch f client >|= Error.unwrap "watch")
+    let f x =
+      Widget.set_value last_updates (x :: Lwd.peek last_updates.value);
+      Lwt.return_unit
+    in
+    Client.watch f client >|= Error.unwrap "watch"
   in
 
   let* wc = Client.dup client in
-  watch wc ();
+  let* _watch = watch wc () in
   tick client ();
   Nottui_lwt.run (W.scroll_area ui)
 

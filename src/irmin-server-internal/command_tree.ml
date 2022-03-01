@@ -13,13 +13,8 @@ struct
   module Return = Conn.Return
 
   module Empty = struct
-    module Req = struct
-      type t = unit [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
+    type req = unit [@@deriving irmin]
+    type res = Tree.t [@@deriving irmin]
 
     let name = "tree.empty"
 
@@ -27,18 +22,14 @@ struct
       let empty = Store.Tree.empty in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id (empty ());
-      Return.v conn Res.t (ID id)
+      Return.v conn res_t (ID id)
   end
 
   module Save = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
+    type req = Tree.t [@@deriving irmin]
 
-    module Res = struct
-      type t = [ `Contents of Store.contents_key | `Node of Store.node_key ]
-      [@@deriving irmin]
-    end
+    type res = [ `Contents of Store.contents_key | `Node of Store.node_key ]
+    [@@deriving irmin]
 
     let name = "tree.save"
 
@@ -48,17 +39,12 @@ struct
         Store.Backend.Repo.batch ctx.repo (fun x y _ ->
             Store.save_tree ctx.repo x y tree)
       in
-      Return.v conn Res.t hash
+      Return.v conn res_t hash
   end
 
   module Add = struct
-    module Req = struct
-      type t = Tree.t * Store.path * Store.contents [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
+    type req = Tree.t * Store.path * Store.contents [@@deriving irmin]
+    type res = Tree.t [@@deriving irmin]
 
     let name = "tree.add"
 
@@ -67,26 +53,22 @@ struct
       let* tree = Store.Tree.add tree path value in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
-      Return.v conn Res.t (ID id)
+      Return.v conn res_t (ID id)
   end
 
   module Batch_update = struct
-    module Req = struct
-      type t =
-        Tree.t
-        * (Store.path
-          * [ `Contents of
-              [ `Hash of Store.Hash.t | `Value of Store.contents ]
-              * Store.metadata option
-            | `Tree of Tree.t ]
-            option)
-          list
-      [@@deriving irmin]
-    end
+    type req =
+      Tree.t
+      * (Store.path
+        * [ `Contents of
+            [ `Hash of Store.Hash.t | `Value of Store.contents ]
+            * Store.metadata option
+          | `Tree of Tree.t ]
+          option)
+        list
+    [@@deriving irmin]
 
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
+    type res = Tree.t [@@deriving irmin]
 
     let name = "tree.batch_update"
 
@@ -109,17 +91,12 @@ struct
       in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
-      Return.v conn Res.t (ID id)
+      Return.v conn res_t (ID id)
   end
 
   module Add_tree = struct
-    module Req = struct
-      type t = Tree.t * Store.path * Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
+    type req = Tree.t * Store.path * Tree.t [@@deriving irmin]
+    type res = Tree.t [@@deriving irmin]
 
     let name = "tree.add_tree"
 
@@ -129,17 +106,12 @@ struct
       let* tree = Store.Tree.add_tree tree path tree' in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
-      Return.v conn Res.t (ID id)
+      Return.v conn res_t (ID id)
   end
 
   module Merge = struct
-    module Req = struct
-      type t = Tree.t * Tree.t * Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
+    type req = Tree.t * Tree.t * Tree.t [@@deriving irmin]
+    type res = Tree.t [@@deriving irmin]
 
     let name = "tree.merge"
 
@@ -154,36 +126,26 @@ struct
       | Ok tree ->
           let id = incr_id () in
           Hashtbl.replace ctx.trees id tree;
-          Return.v conn Res.t (ID id)
+          Return.v conn res_t (ID id)
       | Error e ->
           Return.err conn (Irmin.Type.to_string Irmin.Merge.conflict_t e)
   end
 
   module Find = struct
-    module Req = struct
-      type t = Tree.t * Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Store.contents option [@@deriving irmin]
-    end
+    type req = Tree.t * Store.path [@@deriving irmin]
+    type res = Store.contents option [@@deriving irmin]
 
     let name = "tree.find"
 
     let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
       let* contents = Store.Tree.find tree path in
-      Return.v conn Res.t contents
+      Return.v conn res_t contents
   end
 
   module Find_tree = struct
-    module Req = struct
-      type t = Tree.t * Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t option [@@deriving irmin]
-    end
+    type req = Tree.t * Store.path [@@deriving irmin]
+    type res = Tree.t option [@@deriving irmin]
 
     let name = "tree.find_tree"
 
@@ -198,17 +160,12 @@ struct
             Tree.ID id)
           tree
       in
-      Return.v conn Res.t tree
+      Return.v conn res_t tree
   end
 
   module Remove = struct
-    module Req = struct
-      type t = Tree.t * Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
+    type req = Tree.t * Store.path [@@deriving irmin]
+    type res = Tree.t [@@deriving irmin]
 
     let name = "tree.remove"
 
@@ -217,17 +174,12 @@ struct
       let* tree = Store.Tree.remove tree path in
       let id = incr_id () in
       Hashtbl.replace ctx.trees id tree;
-      Return.v conn Res.t (ID id)
+      Return.v conn res_t (ID id)
   end
 
   module Cleanup = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
+    type req = Tree.t [@@deriving irmin]
+    type res = unit [@@deriving irmin]
 
     let name = "tree.cleanup"
 
@@ -239,66 +191,45 @@ struct
   end
 
   module To_local = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.Local.concrete [@@deriving irmin]
-    end
+    type req = Tree.t [@@deriving irmin]
+    type res = Tree.Local.concrete [@@deriving irmin]
 
     let name = "tree.to_local"
 
     let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
       let* tree = Tree.Local.to_concrete tree in
-      Return.v conn Res.t tree
+      Return.v conn res_t tree
   end
 
   module Mem = struct
-    module Req = struct
-      type t = Tree.t * Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = bool [@@deriving irmin]
-    end
+    type req = Tree.t * Store.path [@@deriving irmin]
+    type res = bool [@@deriving irmin]
 
     let name = "tree.mem"
 
     let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
       let* res = Store.Tree.mem tree path in
-      Return.v conn Res.t res
+      Return.v conn res_t res
   end
 
   module Mem_tree = struct
-    module Req = struct
-      type t = Tree.t * Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = bool [@@deriving irmin]
-    end
+    type req = Tree.t * Store.path [@@deriving irmin]
+    type res = bool [@@deriving irmin]
 
     let name = "tree.mem_tree"
 
     let run conn ctx _ (tree, path) =
       let* _, tree = resolve_tree ctx tree in
       let* res = Store.Tree.mem_tree tree path in
-      Return.v conn Res.t res
+      Return.v conn res_t res
   end
 
   module List = struct
-    module Req = struct
-      type t = Tree.t * Store.path [@@deriving irmin]
-    end
-
+    type req = Tree.t * Store.path [@@deriving irmin]
     type tree = [ `Contents | `Tree ] [@@deriving irmin]
-
-    module Res = struct
-      type t = (Store.Path.step * [ `Contents | `Tree ]) list [@@deriving irmin]
-    end
+    type res = (Store.Path.step * [ `Contents | `Tree ]) list [@@deriving irmin]
 
     let name = "tree.list"
 
@@ -312,74 +243,54 @@ struct
             if exists then (k, `Tree) else (k, `Contents))
           l
       in
-      Return.v conn Res.t x
+      Return.v conn res_t x
   end
 
   module Clear = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
+    type req = Tree.t [@@deriving irmin]
+    type res = unit [@@deriving irmin]
 
     let name = "tree.clear"
 
     let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
       Store.Tree.clear tree;
-      Return.v conn Res.t ()
+      Return.v conn res_t ()
   end
 
   module Hash = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Store.Hash.t [@@deriving irmin]
-    end
+    type req = Tree.t [@@deriving irmin]
+    type res = Store.Hash.t [@@deriving irmin]
 
     let name = "tree.hash"
 
     let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
       let hash = Store.Tree.hash tree in
-      Return.v conn Res.t hash
+      Return.v conn res_t hash
   end
 
   module Key = struct
-    module Req = struct
-      type t = Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Store.Tree.kinded_key [@@deriving irmin]
-    end
+    type req = Tree.t [@@deriving irmin]
+    type res = Store.Tree.kinded_key [@@deriving irmin]
 
     let name = "tree.key"
 
     let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
       let key = Store.Tree.key tree in
-      Return.v conn Res.t (Option.get key)
+      Return.v conn res_t (Option.get key)
   end
 
   module Cleanup_all = struct
-    module Req = struct
-      type t = unit [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
+    type req = unit [@@deriving irmin]
+    type res = unit [@@deriving irmin]
 
     let name = "tree.cleanup_all"
 
     let run conn ctx _ () =
       reset_trees ctx;
-      Return.v conn Res.t ()
+      Return.v conn res_t ()
   end
 
   let commands =

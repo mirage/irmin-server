@@ -73,44 +73,543 @@ struct
   end
 
   module Commands = struct
+    module Backend = struct
+      module Schema = Store.Schema
+      module Hash = Store.Hash
+
+      module Contents = struct
+        type key = Store.Backend.Contents.key
+
+        let key_t = Store.Backend.Contents.Key.t
+
+        type value = Store.Backend.Contents.value
+
+        let value_t = Store.Backend.Contents.Val.t
+
+        type hash = Store.Backend.Contents.hash
+
+        let hash_t = Store.Backend.Contents.Hash.t
+
+        module Mem = struct
+          let name = "x.contents.mem"
+
+          type req = key [@@deriving irmin]
+          type res = bool [@@deriving irmin]
+
+          let run conn ctx _ key =
+            let* x =
+              St.Backend.Repo.batch ctx.repo (fun contents _ _ ->
+                  St.Backend.Contents.mem contents key)
+            in
+            Return.v conn res_t x
+        end
+
+        module Find = struct
+          let name = "x.contents.find"
+
+          type req = key [@@deriving irmin]
+          type res = value option [@@deriving irmin]
+
+          let run conn ctx _ key =
+            let* v =
+              St.Backend.Repo.batch ctx.repo (fun contents _ _ ->
+                  St.Backend.Contents.find contents key)
+            in
+            Return.v conn res_t v
+        end
+
+        module Add = struct
+          let name = "x.contents.add"
+
+          type req = value [@@deriving irmin]
+          type res = key [@@deriving irmin]
+
+          let run conn ctx _ value =
+            let* k =
+              St.Backend.Repo.batch ctx.repo (fun contents _ _ ->
+                  St.Backend.Contents.add contents value)
+            in
+            Return.v conn res_t k
+        end
+
+        module Unsafe_add = struct
+          let name = "x.contents.unsafe_add"
+
+          type req = hash * value [@@deriving irmin]
+          type res = key [@@deriving irmin]
+
+          let run conn ctx _ (hash, value) =
+            let* k =
+              St.Backend.Repo.batch ctx.repo (fun contents _ _ ->
+                  St.Backend.Contents.unsafe_add contents hash value)
+            in
+            Return.v conn res_t k
+        end
+
+        module Index = struct
+          let name = "x.contents.index"
+
+          type req = hash [@@deriving irmin]
+          type res = key option [@@deriving irmin]
+
+          let run conn ctx _ hash =
+            let* v =
+              St.Backend.Repo.batch ctx.repo (fun contents _ _ ->
+                  St.Backend.Contents.index contents hash)
+            in
+            Return.v conn res_t v
+        end
+
+        module Clear = struct
+          let name = "x.contents.clear"
+
+          type req = unit [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let run conn ctx _ () =
+            let* () =
+              St.Backend.Repo.batch ctx.repo (fun contents _ _ ->
+                  St.Backend.Contents.clear contents)
+            in
+            Return.v conn res_t ()
+        end
+
+        module Merge = struct
+          let name = "x.contents.merge"
+
+          type req = key option option * key option * key option
+          [@@deriving irmin]
+
+          type res = (key option, Irmin.Merge.conflict) Result.t
+          [@@deriving irmin]
+
+          let run conn ctx _ (old, a, b) =
+            let* res =
+              St.Backend.Repo.batch ctx.repo (fun contents _ _ ->
+                  let merge = St.Backend.Contents.merge contents in
+                  let f = Irmin.Merge.f merge in
+                  let old () = Lwt.return_ok old in
+                  f ~old a b)
+            in
+            Return.v conn res_t res
+        end
+      end
+
+      module Node = struct
+        type key = Store.Backend.Node.key
+
+        let key_t = Store.Backend.Node.Key.t
+
+        type value = Store.Backend.Node.value
+
+        let value_t = Store.Backend.Node.Val.t
+
+        type hash = Hash.t
+
+        module Mem = struct
+          let name = "x.node.mem"
+
+          type req = key [@@deriving irmin]
+          type res = bool [@@deriving irmin]
+
+          let run conn ctx _ key =
+            let* x =
+              St.Backend.Repo.batch ctx.repo (fun _ node _ ->
+                  St.Backend.Node.mem node key)
+            in
+            Return.v conn res_t x
+        end
+
+        module Find = struct
+          let name = "x.node.find"
+
+          type req = key [@@deriving irmin]
+          type res = value option [@@deriving irmin]
+
+          let run conn ctx _ key =
+            let* v =
+              St.Backend.Repo.batch ctx.repo (fun _ node _ ->
+                  St.Backend.Node.find node key)
+            in
+            Return.v conn res_t v
+        end
+
+        module Add = struct
+          let name = "x.node.add"
+
+          type req = value [@@deriving irmin]
+          type res = key [@@deriving irmin]
+
+          let run conn ctx _ value =
+            let* k =
+              St.Backend.Repo.batch ctx.repo (fun _ node _ ->
+                  St.Backend.Node.add node value)
+            in
+            Return.v conn res_t k
+        end
+
+        module Unsafe_add = struct
+          let name = "x.node.unsafe_add"
+
+          type req = Hash.t * value [@@deriving irmin]
+          type res = key [@@deriving irmin]
+
+          let run conn ctx _ (hash, value) =
+            let* k =
+              St.Backend.Repo.batch ctx.repo (fun _ node _ ->
+                  St.Backend.Node.unsafe_add node hash value)
+            in
+            Return.v conn res_t k
+        end
+
+        module Index = struct
+          let name = "x.node.index"
+
+          type req = Hash.t [@@deriving irmin]
+          type res = key option [@@deriving irmin]
+
+          let run conn ctx _ hash =
+            let* v =
+              St.Backend.Repo.batch ctx.repo (fun _ node _ ->
+                  St.Backend.Node.index node hash)
+            in
+            Return.v conn res_t v
+        end
+
+        module Clear = struct
+          let name = "x.node.clear"
+
+          type req = unit [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let run conn ctx _ () =
+            let* () =
+              St.Backend.Repo.batch ctx.repo (fun _ node _ ->
+                  St.Backend.Node.clear node)
+            in
+            Return.v conn res_t ()
+        end
+
+        module Merge = struct
+          let name = "x.node.merge"
+
+          type req = key option option * key option * key option
+          [@@deriving irmin]
+
+          type res = (key option, Irmin.Merge.conflict) Result.t
+          [@@deriving irmin]
+
+          let run conn ctx _ (old, a, b) =
+            let* res =
+              St.Backend.Repo.batch ctx.repo (fun _ node _ ->
+                  let merge = St.Backend.Node.merge node in
+                  let f = Irmin.Merge.f merge in
+                  let old () = Lwt.return_ok old in
+                  f ~old a b)
+            in
+            Return.v conn res_t res
+        end
+      end
+
+      module Commit = struct
+        type key = Store.Backend.Commit.key
+
+        let key_t = Store.Backend.Commit.Key.t
+
+        type value = Store.Backend.Commit.value
+
+        let value_t = Store.Backend.Commit.Val.t
+
+        type hash = Hash.t
+
+        module Mem = struct
+          let name = "x.commit.mem"
+
+          type req = key [@@deriving irmin]
+          type res = bool [@@deriving irmin]
+
+          let run conn ctx _ key =
+            let* x =
+              St.Backend.Repo.batch ctx.repo (fun _ _ commit ->
+                  St.Backend.Commit.mem commit key)
+            in
+            Return.v conn res_t x
+        end
+
+        module Find = struct
+          let name = "x.commit.find"
+
+          type req = key [@@deriving irmin]
+          type res = value option [@@deriving irmin]
+
+          let run conn ctx _ key =
+            let* v =
+              St.Backend.Repo.batch ctx.repo (fun _ _ commit ->
+                  St.Backend.Commit.find commit key)
+            in
+            Return.v conn res_t v
+        end
+
+        module Add = struct
+          let name = "x.commit.add"
+
+          type req = value [@@deriving irmin]
+          type res = key [@@deriving irmin]
+
+          let run conn ctx _ value =
+            let* k =
+              St.Backend.Repo.batch ctx.repo (fun _ _ commit ->
+                  St.Backend.Commit.add commit value)
+            in
+            Return.v conn res_t k
+        end
+
+        module Unsafe_add = struct
+          let name = "x.commit.unsafe_add"
+
+          type req = Hash.t * value [@@deriving irmin]
+          type res = key [@@deriving irmin]
+
+          let run conn ctx _ (hash, value) =
+            let* k =
+              St.Backend.Repo.batch ctx.repo (fun _ _ commit ->
+                  St.Backend.Commit.unsafe_add commit hash value)
+            in
+            Return.v conn res_t k
+        end
+
+        module Index = struct
+          let name = "x.commit.index"
+
+          type req = Hash.t [@@deriving irmin]
+          type res = key option [@@deriving irmin]
+
+          let run conn ctx _ hash =
+            let* v =
+              St.Backend.Repo.batch ctx.repo (fun _ _ commit ->
+                  St.Backend.Commit.index commit hash)
+            in
+            Return.v conn res_t v
+        end
+
+        module Clear = struct
+          let name = "x.commit.clear"
+
+          type req = unit [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let run conn ctx _ () =
+            let* () =
+              St.Backend.Repo.batch ctx.repo (fun _ _ commit ->
+                  St.Backend.Commit.clear commit)
+            in
+            Return.v conn res_t ()
+        end
+
+        module Merge = struct
+          let name = "x.commit.merge"
+
+          type req =
+            Store.Info.t * (key option option * key option * key option)
+          [@@deriving irmin]
+
+          type res = (key option, Irmin.Merge.conflict) Result.t
+          [@@deriving irmin]
+
+          let run conn ctx _ (info, (old, a, b)) =
+            let info () = info in
+            let* res =
+              St.Backend.Repo.batch ctx.repo (fun _ _ commit ->
+                  let merge = St.Backend.Commit.merge commit ~info in
+                  let f = Irmin.Merge.f merge in
+                  let old () = Lwt.return_ok old in
+                  f ~old a b)
+            in
+            Return.v conn res_t res
+        end
+      end
+
+      module Branch = struct
+        type key = Schema.Branch.t [@@deriving irmin]
+        type value = Store.commit_key [@@deriving irmin]
+
+        module Mem = struct
+          let name = "x.branch.mem"
+
+          type req = key [@@deriving irmin]
+          type res = bool [@@deriving irmin]
+
+          let run conn ctx _ branch =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* x = Store.Backend.Branch.mem b branch in
+            Return.v conn res_t x
+        end
+
+        module Find = struct
+          let name = "x.branch.find"
+
+          type req = key [@@deriving irmin]
+          type res = value option [@@deriving irmin]
+
+          let run conn ctx _ branch =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* commit = Store.Backend.Branch.find b branch in
+            Return.v conn res_t commit
+        end
+
+        module Set = struct
+          let name = "x.branch.set"
+
+          type req = key * value [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let run conn ctx _ (branch, commit) =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* () = Store.Backend.Branch.set b branch commit in
+            Return.v conn res_t ()
+        end
+
+        module Test_and_set = struct
+          let name = "x.branch.test_and_set"
+
+          type req = key * value option * value option [@@deriving irmin]
+          type res = bool [@@deriving irmin]
+
+          let run conn ctx _ (branch, test, set) =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* res = Store.Backend.Branch.test_and_set b branch ~test ~set in
+            Return.v conn res_t res
+        end
+
+        module Remove = struct
+          let name = "x.branch.remove"
+
+          type req = key [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let run conn ctx _ branch =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* () = Store.Backend.Branch.remove b branch in
+            Return.v conn res_t ()
+        end
+
+        module List = struct
+          let name = "x.branch.list"
+
+          type req = unit [@@deriving irmin]
+          type res = key list [@@deriving irmin]
+
+          let run conn ctx _ () =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* b = Store.Backend.Branch.list b in
+            Return.v conn res_t b
+        end
+
+        module Clear = struct
+          let name = "x.branch.clear"
+
+          type req = unit [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let run conn ctx _ () =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* () = Store.Backend.Branch.clear b in
+            Return.v conn res_t ()
+        end
+
+        module Watch = struct
+          type req = (key * value) list option [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let name = "x.branch.watch"
+
+          let run conn ctx _ init =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* () =
+              match ctx.branch_watch with
+              | Some watch ->
+                  ctx.branch_watch <- None;
+                  Store.Backend.Branch.unwatch b watch
+              | None -> Lwt.return_unit
+            in
+            let* watch =
+              Store.Backend.Branch.watch b ?init (fun key diff ->
+                  let diff_t = Irmin.Diff.t Store.commit_key_t in
+                  Conn.write conn
+                    (Irmin.Type.pair Store.Branch.t diff_t)
+                    (key, diff))
+            in
+            ctx.branch_watch <- Some watch;
+            Return.v conn res_t ()
+        end
+
+        module Watch_key = struct
+          type req = value option * key [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let name = "x.branch.watch_key"
+
+          let run conn ctx _ (init, key) =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* () =
+              match ctx.branch_watch with
+              | Some watch ->
+                  ctx.branch_watch <- None;
+                  Store.Backend.Branch.unwatch b watch
+              | None -> Lwt.return_unit
+            in
+            let* watch =
+              Store.Backend.Branch.watch_key b key ?init (fun diff ->
+                  let diff_t = Irmin.Diff.t Store.commit_key_t in
+                  Conn.write conn diff_t diff)
+            in
+            ctx.branch_watch <- Some watch;
+            Return.v conn res_t ()
+        end
+
+        module Unwatch = struct
+          type req = unit [@@deriving irmin]
+          type res = unit [@@deriving irmin]
+
+          let name = "x.branch.unwatch"
+
+          let run conn ctx _ () =
+            let b = Store.Backend.Repo.branch_t ctx.repo in
+            let* () =
+              match ctx.branch_watch with
+              | Some watch ->
+                  ctx.branch_watch <- None;
+                  Store.Backend.Branch.unwatch b watch
+              | None -> Lwt.return_unit
+            in
+            Return.v conn res_t ()
+        end
+      end
+    end
+
     module Stats = struct
       let name = "stats"
 
-      module Req = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = Stats.t [@@deriving irmin]
-      end
+      type req = unit [@@deriving irmin]
+      type res = Stats.t [@@deriving irmin]
 
       let run conn ctx info () =
         let* stats = Stats.v ctx info in
-        Return.v conn Res.t stats
+        Return.v conn res_t stats
     end
 
     module Ping = struct
       let name = "ping"
 
-      module Req = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
+      type req = unit [@@deriving irmin]
+      type res = unit [@@deriving irmin]
 
       let run conn _ctx _ () = Return.ok conn
     end
 
     module Set_current_branch = struct
-      module Req = struct
-        type t = St.Branch.t [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
+      type req = St.Branch.t [@@deriving irmin]
+      type res = unit [@@deriving irmin]
 
       let name = "set_current_branch"
 
@@ -122,26 +621,16 @@ struct
     end
 
     module Get_current_branch = struct
-      module Req = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = St.Branch.t [@@deriving irmin]
-      end
+      type req = unit [@@deriving irmin]
+      type res = St.Branch.t [@@deriving irmin]
 
       let name = "get_current_branch"
       let run conn ctx _ () = Return.v conn Store.Branch.t ctx.branch
     end
 
     module Export = struct
-      module Req = struct
-        type t = int option [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = St.slice [@@deriving irmin]
-      end
+      type req = int option [@@deriving irmin]
+      type res = St.slice [@@deriving irmin]
 
       let name = "export"
 
@@ -151,13 +640,8 @@ struct
     end
 
     module Import = struct
-      module Req = struct
-        type t = St.slice [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
+      type req = St.slice [@@deriving irmin]
+      type res = unit [@@deriving irmin]
 
       let name = "import"
 
@@ -167,13 +651,8 @@ struct
     end
 
     module Branch_remove = struct
-      module Req = struct
-        type t = St.Branch.t [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
+      type req = St.Branch.t [@@deriving irmin]
+      type res = unit [@@deriving irmin]
 
       let name = "branch.remove"
 
@@ -190,13 +669,8 @@ struct
     end
 
     module Branch_head = struct
-      module Req = struct
-        type t = St.branch option [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = Commit.t option [@@deriving irmin]
-      end
+      type req = St.branch option [@@deriving irmin]
+      type res = Commit.t option [@@deriving irmin]
 
       let name = "branch.head"
 
@@ -204,18 +678,13 @@ struct
         let branch = Option.value ~default:ctx.branch branch in
         let* head = Store.Branch.find ctx.repo branch in
         match head with
-        | None -> Return.v conn Res.t None
-        | Some head -> Return.v conn Res.t (Some (convert_commit head))
+        | None -> Return.v conn res_t None
+        | Some head -> Return.v conn res_t (Some (convert_commit head))
     end
 
     module Branch_set_head = struct
-      module Req = struct
-        type t = St.branch option * Commit.t [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
+      type req = St.branch option * Commit.t [@@deriving irmin]
+      type res = unit [@@deriving irmin]
 
       let name = "branch.set_head"
 
@@ -229,13 +698,8 @@ struct
     end
 
     module Commit_v = struct
-      module Req = struct
-        type t = St.Info.t * St.commit_key list * Tree.t [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = Commit.t [@@deriving irmin]
-      end
+      type req = St.Info.t * St.commit_key list * Tree.t [@@deriving irmin]
+      type res = Commit.t [@@deriving irmin]
 
       let name = "commit.v"
 
@@ -254,80 +718,55 @@ struct
     end
 
     module Commit_of_key = struct
-      module Req = struct
-        type t = St.commit_key [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = Commit.t option [@@deriving irmin]
-      end
+      type req = St.commit_key [@@deriving irmin]
+      type res = Commit.t option [@@deriving irmin]
 
       let name = "commit.of_key"
 
       let run conn ctx _ hash =
         let* commit = St.Commit.of_key ctx.repo hash in
         let commit = Option.map convert_commit commit in
-        Return.v conn Res.t commit
+        Return.v conn res_t commit
     end
 
     module Commit_hash_of_key = struct
-      module Req = struct
-        type t = Commit.key [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = St.Hash.t option [@@deriving irmin]
-      end
+      type req = Commit.key [@@deriving irmin]
+      type res = St.Hash.t option [@@deriving irmin]
 
       let name = "commit.hash_of_key"
 
       let run conn ctx _ key =
         let* commit = St.Commit.of_key ctx.repo key in
         let hash = Option.map St.Commit.hash commit in
-        Return.v conn Res.t hash
+        Return.v conn res_t hash
     end
 
     module Commit_of_hash = struct
-      module Req = struct
-        type t = St.hash [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = Commit.t option [@@deriving irmin]
-      end
+      type req = St.hash [@@deriving irmin]
+      type res = Commit.t option [@@deriving irmin]
 
       let name = "commit.of_key"
 
       let run conn ctx _ hash =
         let* commit = St.Commit.of_hash ctx.repo hash in
         let commit = Option.map convert_commit commit in
-        Return.v conn Res.t commit
+        Return.v conn res_t commit
     end
 
     module Contents_of_hash = struct
-      module Req = struct
-        type t = St.hash [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = St.contents option [@@deriving irmin]
-      end
+      type req = St.hash [@@deriving irmin]
+      type res = St.contents option [@@deriving irmin]
 
       let name = "contents.of_hash"
 
       let run conn ctx _ key =
         let* contents = St.Contents.of_hash ctx.repo key in
-        Return.v conn Res.t contents
+        Return.v conn res_t contents
     end
 
     module Contents_save = struct
-      module Req = struct
-        type t = St.contents [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = St.Hash.t [@@deriving irmin]
-      end
+      type req = St.contents [@@deriving irmin]
+      type res = St.Hash.t [@@deriving irmin]
 
       let name = "contents.save"
 
@@ -338,33 +777,23 @@ struct
         in
         let* contents = St.Contents.of_key ctx.repo k >|= Option.get in
         let hash = St.Contents.hash contents in
-        Return.v conn Res.t hash
+        Return.v conn res_t hash
     end
 
     module Contents_exists = struct
-      module Req = struct
-        type t = St.hash [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = bool [@@deriving irmin]
-      end
+      type req = St.hash [@@deriving irmin]
+      type res = bool [@@deriving irmin]
 
       let name = "contents.exists"
 
       let run conn ctx _ hash =
         let* contents = St.Contents.of_hash ctx.repo hash in
-        Return.v conn Res.t (Option.is_some contents)
+        Return.v conn res_t (Option.is_some contents)
     end
 
     module Watch = struct
-      module Req = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
+      type req = unit [@@deriving irmin]
+      type res = unit [@@deriving irmin]
 
       let name = "watch"
 
@@ -388,17 +817,12 @@ struct
               Conn.write conn (Irmin.Diff.t Commit.t) diff)
         in
         ctx.watch <- Some watch;
-        Return.v conn Res.t ()
+        Return.v conn res_t ()
     end
 
     module Unwatch = struct
-      module Req = struct
-        type t = unit [@@deriving irmin]
-      end
-
-      module Res = struct
-        type t = unit [@@deriving irmin]
-      end
+      type req = unit [@@deriving irmin]
+      type res = unit [@@deriving irmin]
 
       let name = "unwatch"
 
@@ -410,7 +834,7 @@ struct
               Store.unwatch watch
           | None -> Lwt.return_unit
         in
-        Return.v conn Res.t ()
+        Return.v conn res_t ()
     end
 
     module Store = Command_store.Make (IO) (Codec) (St) (Tree) (Commit)
@@ -420,6 +844,37 @@ struct
   let commands : (string * (module CMD)) list =
     let open Commands in
     [
+      cmd (module Backend.Contents.Mem);
+      cmd (module Backend.Contents.Find);
+      cmd (module Backend.Contents.Add);
+      cmd (module Backend.Contents.Unsafe_add);
+      cmd (module Backend.Contents.Index);
+      cmd (module Backend.Contents.Clear);
+      cmd (module Backend.Contents.Merge);
+      cmd (module Backend.Node.Mem);
+      cmd (module Backend.Node.Find);
+      cmd (module Backend.Node.Add);
+      cmd (module Backend.Node.Unsafe_add);
+      cmd (module Backend.Node.Index);
+      cmd (module Backend.Node.Clear);
+      cmd (module Backend.Node.Merge);
+      cmd (module Backend.Commit.Mem);
+      cmd (module Backend.Commit.Find);
+      cmd (module Backend.Commit.Add);
+      cmd (module Backend.Commit.Unsafe_add);
+      cmd (module Backend.Commit.Index);
+      cmd (module Backend.Commit.Clear);
+      cmd (module Backend.Commit.Merge);
+      cmd (module Backend.Branch.Mem);
+      cmd (module Backend.Branch.Find);
+      cmd (module Backend.Branch.Set);
+      cmd (module Backend.Branch.Test_and_set);
+      cmd (module Backend.Branch.Remove);
+      cmd (module Backend.Branch.List);
+      cmd (module Backend.Branch.Clear);
+      cmd (module Backend.Branch.Watch);
+      cmd (module Backend.Branch.Unwatch);
+      cmd (module Backend.Branch.Watch_key);
       cmd (module Stats);
       cmd (module Ping);
       cmd (module Set_current_branch);

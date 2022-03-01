@@ -13,3 +13,11 @@ module Make (Store : Irmin.Generic_key.S) = Make_ext (Conn.Codec.Bin) (Store)
 
 module Make_json (Store : Irmin.Generic_key.S) =
   Make_ext (Conn.Codec.Json) (Store)
+
+module Store = struct
+  module Make (Store : Irmin.Generic_key.S) =
+    Irmin_client.Store.Make (IO) (Conn.Codec.Bin) (Store)
+
+  module Make_json (Store : Irmin.Generic_key.S) =
+    Irmin_client.Store.Make (IO) (Conn.Codec.Json) (Store)
+end
