@@ -3,9 +3,9 @@ open Lwt.Infix
 open Irmin_server_internal
 include Server_intf
 
-module Make (X : Command.S) = struct
-  module Command = X
-  module Store = X.Store
+module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
+  module Command = Command.Make (IO) (Codec) (Store)
+  module Store = Store
   module Conn = Command.Conn
 
   type t = {
@@ -14,16 +14,16 @@ module Make (X : Command.S) = struct
     server : Conduit_lwt_unix.server;
     config : Irmin.config;
     repo : Store.Repo.t;
-    clients : (X.context, unit) Hashtbl.t;
+    clients : (Command.context, unit) Hashtbl.t;
     info : Command.Server_info.t;
   }
 
   module Client_set = Set.Make (struct
-    type t = X.context
+    type t = Command.context
 
     let compare a b =
-      let conn = a.X.conn.ic in
-      let conn' = b.X.conn.ic in
+      let conn = a.Command.conn.ic in
+      let conn' = b.Command.conn.ic in
       compare conn conn'
   end)
 
@@ -91,7 +91,7 @@ module Make (X : Command.S) = struct
           | None ->
               Logs.err (fun l -> l "Unknown command: %s" command);
               Conn.err conn ("unknown command: " ^ command)
-          | Some (module Cmd : X.CMD) ->
+          | Some (module Cmd : Command.CMD) ->
               let* req =
                 Conn.read ~buffer:empty_buffer conn Cmd.Req.t
                 >|= invalid_arguments

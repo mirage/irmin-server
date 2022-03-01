@@ -17,16 +17,13 @@ module Make (Store : Irmin.Generic_key.S) = struct
 
     include Private.Store.Tree
 
-    let t = Private.Store.tree_t
+    let t = Store.tree_t
 
     let destruct x =
-      match Private.Store.Tree.destruct x with
-      | `Contents (x, _) ->
-          Lwt.return (`Contents (Private.Store.Tree.Contents.hash x))
+      match Store.Tree.destruct x with
+      | `Contents (x, _) -> Lwt.return (`Contents (Store.Tree.Contents.hash x))
       | `Node l ->
-          let+ l =
-            list (Private.Store.Tree.of_node l) Private.Store.Path.empty
-          in
+          let+ l = list (Store.Tree.of_node l) Store.Path.empty in
           `Node l
   end
 

@@ -1,7 +1,7 @@
 open Lwt.Syntax
 open Lwt.Infix
 module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
-module Client = Irmin_client.Make (Store)
+module Client = Irmin_client_unix.Make (Store)
 module Error = Irmin_client.Error
 
 let main =

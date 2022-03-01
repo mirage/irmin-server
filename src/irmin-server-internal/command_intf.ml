@@ -226,6 +226,13 @@ module type S = sig
             Tree.t * Tree.Private.Store.path * Tree.Private.Store.contents
            and type Res.t = Tree.t
 
+      module Save :
+        CMD
+          with type Req.t = Tree.t
+           and type Res.t =
+            [ `Contents of Tree.Private.Store.contents_key
+            | `Node of Tree.Private.Store.node_key ]
+
       (** Add multiple trees/values to a tree *)
       module Batch_update :
         CMD
@@ -317,9 +324,13 @@ end
 module type Command = sig
   module type S = S
 
-  module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
+  module Make
+      (IO : Conn.IO)
+      (Codec : Conn.Codec.S)
+      (Store : Irmin.Generic_key.S) :
     S
       with module Store = Store
        and module Tree.Private.Store = Store
        and type Tree.Local.t = Store.tree
+       and module Conn.IO = IO
 end

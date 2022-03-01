@@ -1,6 +1,7 @@
 open Lwt.Syntax
 
 module Make
+    (IO : Conn.IO)
     (Codec : Conn.Codec.S)
     (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
@@ -8,7 +9,7 @@ module Make
                and type Local.t = Store.tree)
     (Commit : Commit.S with type hash = Store.hash and type tree = Tree.t) =
 struct
-  include Context.Make (Codec) (Store) (Tree)
+  include Context.Make (IO) (Codec) (Store) (Tree)
   module Return = Conn.Return
 
   module Empty = struct
@@ -27,6 +28,24 @@ struct
       let id = incr_id () in
       Hashtbl.replace ctx.trees id (empty ());
       Return.v conn Res.t (ID id)
+  end
+
+  module Save = struct
+    module Req = struct
+      type t = Tree.t [@@deriving irmin]
+    end
+
+    module Res = struct
+      type t = [`Contents of Store.contents_key | `Node of Store.node_key] [@@deriving irmin]
+    end
+
+    let name = "tree.save"
+
+    let run conn ctx _ tree =
+      let* _, tree = resolve_tree ctx tree in
+      let* hash = Store.Backend.Repo.batch ctx.repo (fun x y _ ->
+      Store.save_tree ctx.repo x y tree) in
+      Return.v conn Res.t hash
   end
 
   module Add = struct

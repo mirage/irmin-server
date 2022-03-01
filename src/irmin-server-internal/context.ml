@@ -2,6 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make
+    (IO : Conn.IO)
     (Codec : Conn.Codec.S)
     (St : Irmin.Generic_key.S)
     (Tree : Tree.S with module Private.Store = St and type Local.t = St.tree) =
@@ -12,7 +13,7 @@ struct
     let uptime { start_time; _ } = Unix.time () -. start_time
   end
 
-  module Conn = Conn.Make (Codec)
+  module Conn = Conn.Make (IO) (Codec)
 
   type context = {
     conn : Conn.t;
