@@ -7,7 +7,7 @@ homepage: "https://github.com/mirage/irmin-server"
 doc: "https://zshipko.github.io/irmin-server"
 bug-reports: "https://github.com/zshipko/irmin-server/issues"
 depends: [
-  "ocaml" {>= "4.08.0"}
+  "ocaml" {>= "4.08.0" & < "4.14.0"}
   "dune" {>= "2.0.0"}
   "irmin-client"
   "irmin-unix"
