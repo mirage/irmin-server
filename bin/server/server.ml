@@ -1,6 +1,8 @@
 open Lwt.Syntax
 open Irmin_server_internal
 
+let () = Irmin_unix.set_listen_dir_hook ()
+
 let setup_log style_renderer level =
   Fmt_tty.setup_std_outputs ?style_renderer ();
   Logs.set_level level;
