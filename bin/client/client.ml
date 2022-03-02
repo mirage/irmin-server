@@ -4,6 +4,16 @@ open Lwt.Infix
 open Import
 open Irmin_server_internal
 
+let setup_log style_renderer level =
+  Fmt_tty.setup_std_outputs ?style_renderer ();
+  Logs.set_level level;
+  Logs.set_reporter (Logs_fmt.reporter ());
+  ()
+
+let setup_log =
+  Cmdliner.Term.(
+    const setup_log $ Fmt_cli.style_renderer () $ Logs_cli.level ())
+
 let with_timer f =
   let t0 = Sys.time () in
   let+ a = f () in
@@ -277,7 +287,7 @@ let config =
   Term.(
     const create $ Cli.uri $ branch $ tls
     $ Irmin_unix.Resolver.Store.term ()
-    $ Cli.codec $ Cli.config_path $ Cli.setup_log)
+    $ Cli.codec $ Cli.config_path $ setup_log)
 
 let help =
   let help () =

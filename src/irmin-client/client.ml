@@ -177,9 +177,7 @@ struct
               | Ok `Continue -> loop ()
               | Ok `Stop -> Lwt.return_ok ()
               | Error e -> Lwt.return_error e)
-          | None ->
-              let* () = Lwt_unix.sleep 0.25 in
-              loop ()
+          | None -> loop ()
         in
         loop () >>= function
         | Ok () -> unwatch t
@@ -254,7 +252,7 @@ struct
            (tree, List.rev_append batch (List.rev l)))
 
     and wrap ?(batch = []) store tree =
-      let* tree in
+      tree >>= fun tree ->
       Lwt.return (Result.map (fun tree -> (store, tree, batch)) tree)
 
     and empty (t : store) : tree = (t, Tree.Local (`Tree []), [])

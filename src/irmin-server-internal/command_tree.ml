@@ -36,15 +36,18 @@ struct
     end
 
     module Res = struct
-      type t = [`Contents of Store.contents_key | `Node of Store.node_key] [@@deriving irmin]
+      type t = [ `Contents of Store.contents_key | `Node of Store.node_key ]
+      [@@deriving irmin]
     end
 
     let name = "tree.save"
 
     let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
-      let* hash = Store.Backend.Repo.batch ctx.repo (fun x y _ ->
-      Store.save_tree ctx.repo x y tree) in
+      let* hash =
+        Store.Backend.Repo.batch ctx.repo (fun x y _ ->
+            Store.save_tree ctx.repo x y tree)
+      in
       Return.v conn Res.t hash
   end
 

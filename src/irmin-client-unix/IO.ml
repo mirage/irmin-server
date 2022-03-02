@@ -3,6 +3,8 @@ type ic = Conduit_lwt_unix.ic
 type oc = Conduit_lwt_unix.oc
 type ctx = Conduit_lwt_unix.ctx
 
+exception Timeout = Lwt_unix.Timeout
+
 let default_ctx = Conduit_lwt_unix.default_ctx
 let is_closed (x : ic) = Lwt_io.is_closed x
 let write_int64_be = Lwt_io.BE.write_int64
@@ -19,3 +21,4 @@ let connect ~ctx (client : Irmin_client.addr) =
   Conduit_lwt_unix.connect ~ctx (client :> Conduit_lwt_unix.client)
 
 let close (c : ic * oc) = Conduit_lwt_server.close c
+let with_timeout = Lwt_unix.with_timeout

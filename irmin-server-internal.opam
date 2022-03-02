@@ -10,80 +10,19 @@ depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
   "optint" {>= "0.1.0"}
-  "irmin"
-  "irmin-pack" {>= "dev"}
-  "irmin-unix" {>= "dev"}
-  "irmin-tezos" {>= "dev"}
+  "irmin" {>= "3.1"}
+  "irmin-pack" {>= "3.1"}
   "uri"
+  "fmt"
   "checkseum" {>= "0.3.0"}
   "cmdliner" {>= "1.0.4"}
   "digestif" {>= "0.9.0"}
   "logs" {>= "0.7.0"}
   "lwt" {>= "5.4.0"}
-  "ppx_irmin" {>= "dev"}
-  "conduit-lwt-unix" {>= "5.0.0"}
+  "ppx_irmin" {>= "3.1"}
 ]
 build: [
   ["dune" "subst"] {pinned}
   ["dune" "build" "-p" name "-j" jobs]
   ["dune" "runtest" "-p" name] {with-test}
-]
-dev-repo: "git+ssh://github.com/zshipko/irmin-server"
-pin-depends: [
-  [
-    "ppx_irmin.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-git.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-fs.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-graphql.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-http.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-layers.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-pack.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-tezos.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-unix.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "irmin-test.dev"
-    "git+https://github.com/mirage/irmin#38697ae613b235959969b459ae917bb94a239ce0"
-  ]
-  [
-    "index.dev"
-    "git+https://github.com/mirage/index#dd9a501dc48d05c79f85049681f3b3bc079759aa"
-  ]
-  [
-    "repr.dev"
-    "git+https://github.com/mirage/repr#fb41348ef249e249bf127fe5467f9e9f865c1c33"
-  ]
-  [
-    "ppx_repr.dev"
-    "git+https://github.com/mirage/repr#fb41348ef249e249bf127fe5467f9e9f865c1c33"
-  ]
 ]
