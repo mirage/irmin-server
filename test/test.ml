@@ -1,8 +1,8 @@
 open Lwt.Syntax
 open Lwt.Infix
-open Irmin_server
-include Util
-module Info = Irmin_client_unix.Info (Rpc.Client.Info)
+open Irmin_client_unix
+open Util
+module Info = Info (Client.Info)
 
 let info = Info.v
 
@@ -20,14 +20,14 @@ let ty t =
     (fun a b -> Irmin.Type.(unstage (equal t)) a b)
 
 let ping client =
-  let open Rpc.Client in
+  let open Client in
   Logs.debug (fun l -> l "BEFORE PING");
   let+ r = ping client in
   Logs.debug (fun l -> l "AFTER PING");
   Alcotest.(check (result unit error)) "ping" (Ok ()) r
 
 let set client =
-  let open Rpc.Client in
+  let open Client in
   let info = info "test: set" in
   let* r = set ~info client [ "a"; "b"; "c" ] "123" in
   let () = Alcotest.(check (result unit error)) "set" (Ok ()) r in
@@ -35,12 +35,12 @@ let set client =
   Alcotest.(check (result (option string) error)) "get" (Ok (Some "123")) r2
 
 let get_missing client =
-  let open Rpc.Client in
+  let open Client in
   let+ r = find client [ "missing" ] in
   Alcotest.(check (result (option string) error)) "get_missing" (Ok None) r
 
 let tree client =
-  let open Rpc.Client in
+  let open Client in
   let tree = Tree.empty client in
   let* local = Tree.to_local tree >|= Error.unwrap "local" in
   Alcotest.(check (ty Tree.Local.t)) "empty tree" (Tree.Local.empty ()) local;
@@ -58,9 +58,9 @@ let tree client =
   let+ res = set_tree ~info:(info "set_tree") client [ "tree" ] tree in
   Alcotest.(check bool "set_tree") true (Result.is_ok res)
 
-let branch (client : Rpc.Client.t) =
-  let open Rpc.Client in
-  let module Store = Rpc.Server.Store in
+let branch (client : Client.t) =
+  let open Client in
+  let module Store = Server.Store in
   let* current = Branch.get_current client in
   Alcotest.(check (result string error))
     "current branch is main" (Ok Branch.main) current;
@@ -71,7 +71,7 @@ let branch (client : Rpc.Client.t) =
   let* current = Branch.get_current client in
   Alcotest.(check (result string error))
     "current branch is main again" (Ok Branch.main) current;
-  let* _ = Rpc.Client.set ~info:(info "test") client [ "test" ] "ok" in
+  let* _ = Client.set ~info:(info "test") client [ "test" ] "ok" in
   let* head = Branch.get client >|= Error.unwrap "get" in
   let head = Option.get head in
   let tree = Commit.tree client head in
@@ -99,7 +99,7 @@ let () =
   Lwt_main.run
     (let wake, uri = run_server () in
      let* () = Lwt_unix.sleep 1. in
-     let* client = Rpc.Client.connect ~uri () in
+     let* client = Client.connect ~uri () in
      Logs.debug (fun l -> l "Connected");
      let+ () = Alcotest_lwt.run "irmin-server" [ ("all", suite client all) ] in
      Lwt.wakeup wake ())

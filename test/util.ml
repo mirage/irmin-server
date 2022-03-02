@@ -1,11 +1,8 @@
 open Lwt.Infix
-
-module Rpc = struct
-  module Codec = Irmin_server_internal.Conn.Codec.Bin
-  module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
-  module Client = Irmin_client_unix.Make_ext (Codec) (Store)
-  module Server = Irmin_server.Make_ext (Codec) (Store)
-end
+module Codec = Irmin_server_internal.Conn.Codec.Bin
+module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
+module Client = Irmin_client_unix.Make_ext (Codec) (Store)
+module Server = Irmin_server.Make_ext (Codec) (Store)
 
 let test name f client _switch () =
   Logs.debug (fun l -> l "Running: %s" name);
@@ -17,7 +14,7 @@ let run_server () =
   let stop, wake = Lwt.wait () in
   Lwt.async (fun () ->
       let conf = Irmin_mem.config () in
-      Rpc.Server.v ~uri conf >>= Rpc.Server.serve ~stop);
+      Server.v ~uri conf >>= Server.serve ~stop);
   (wake, uri)
 
 let suite client all =
