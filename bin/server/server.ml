@@ -1,6 +1,16 @@
 open Lwt.Syntax
 open Irmin_server_internal
 
+let setup_log style_renderer level =
+  Fmt_tty.setup_std_outputs ?style_renderer ();
+  Logs.set_level level;
+  Logs.set_reporter (Logs_fmt.reporter ());
+  ()
+
+let setup_log =
+  Cmdliner.Term.(
+    const setup_log $ Fmt_cli.style_renderer () $ Logs_cli.level ())
+
 let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path
     (module Codec : Conn.Codec.S) =
   let store, config =
@@ -53,7 +63,7 @@ let main_term =
   Term.(
     const main $ readonly $ root $ Cli.uri $ tls
     $ Irmin_unix.Resolver.Store.term ()
-    $ Cli.codec $ Cli.config_path $ Cli.setup_log)
+    $ Cli.codec $ Cli.config_path $ setup_log)
 
 let () =
   let info = Term.info "irmin-server" in

@@ -70,20 +70,20 @@ module Make (I : IO) (T : Codec.S) = struct
       let send store t =
         Lwt.catch
           (fun () ->
-            Lwt_unix.with_timeout 3.0 (fun () ->
+            IO.with_timeout 3.0 (fun () ->
                 let s = fingerprint store in
                 let* () = IO.write_line t.oc s in
                 let+ line = IO.read_line t.ic in
                 assert (s = String.trim line)))
           (function
-            | Assert_failure _ | Lwt_unix.Timeout ->
+            | Assert_failure _ | IO.Timeout ->
                 Error.raise_error "unable to connect to server"
             | End_of_file -> Error.raise_error "invalid handshake"
             | x -> raise x)
 
       let check store t =
         let s = fingerprint store in
-        let* line = Lwt_unix.with_timeout 3.0 (fun () -> IO.read_line t.ic) in
+        let* line = IO.with_timeout 3.0 (fun () -> IO.read_line t.ic) in
         if String.trim line = s then
           let* () = IO.write_line t.oc s in
           Lwt.return_true

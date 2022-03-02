@@ -10,6 +10,8 @@ module type IO = sig
   type ic
   type oc
 
+  exception Timeout
+
   val is_closed : ic -> bool
   val write_int64_be : oc -> int64 -> unit Lwt.t
   val read_int64_be : ic -> int64 Lwt.t
@@ -20,6 +22,7 @@ module type IO = sig
   val read_line : ic -> string Lwt.t
   val write_char : oc -> char -> unit Lwt.t
   val read_char : ic -> char Lwt.t
+  val with_timeout : float -> (unit -> 'a Lwt.t) -> 'a Lwt.t
 end
 
 module type S = sig

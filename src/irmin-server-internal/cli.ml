@@ -14,15 +14,6 @@ let config_path : string option Cmdliner.Term.t =
   let doc = Arg.info ~docv:"PATH" ~doc:"Config path" [ "config" ] in
   Arg.(value & opt (some string) None & doc)
 
-let setup_log style_renderer level =
-  Fmt_tty.setup_std_outputs ?style_renderer ();
-  Logs.set_level level;
-  Logs.set_reporter (Logs_fmt.reporter ());
-  ()
-
-let setup_log =
-  Term.(const setup_log $ Fmt_cli.style_renderer () $ Logs_cli.level ())
-
 let codec =
   let open Conn.Codec in
   let doc = Arg.info ~doc:"Encoding to use for messages" [ "codec" ] in

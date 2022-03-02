@@ -7,7 +7,4 @@ val default_uri : Uri.t
 val config_path : string option Cmdliner.Term.t
 (** Command line argument to specify configuration path *)
 
-val setup_log : unit Cmdliner.Term.t
-(** Term to initialize logging *)
-
 val codec : (module Conn.Codec.S) Cmdliner.Term.t
