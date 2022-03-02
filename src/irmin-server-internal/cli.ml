@@ -15,7 +15,8 @@ let config_path : string option Cmdliner.Term.t =
   Arg.(value & opt (some string) None & doc)
 
 let codec =
-  let open Conn.Codec in
-  let doc = Arg.info ~doc:"Encoding to use for messages" [ "codec" ] in
-  let t = Arg.enum [ ("bin", (module Bin : S)); ("json", (module Json : S)) ] in
-  Arg.(value & opt t (module Bin) doc)
+  let doc =
+    Arg.info ~docv:"CODEC" ~doc:"Encoding to use for messages" [ "codec" ]
+  in
+  let t = Arg.enum [ ("bin", `Bin); ("json", `Json) ] in
+  Arg.(value & opt t `Bin doc)

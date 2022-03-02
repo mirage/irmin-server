@@ -7,4 +7,4 @@ val default_uri : Uri.t
 val config_path : string option Cmdliner.Term.t
 (** Command line argument to specify configuration path *)
 
-val codec : (module Conn.Codec.S) Cmdliner.Term.t
+val codec : [ `Bin | `Json ] Cmdliner.Term.t

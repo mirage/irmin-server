@@ -267,8 +267,14 @@ let freq =
   Arg.(value @@ opt float 5. doc)
 
 let config =
-  let create uri (branch : string option) tls (store, hash, contents)
-      (module Codec : Conn.Codec.S) config_path () =
+  let create uri (branch : string option) tls (store, hash, contents) codec
+      config_path () =
+    let codec =
+      match codec with
+      | `Bin -> (module Conn.Codec.Bin : Conn.Codec.S)
+      | `Json -> (module Conn.Codec.Json)
+    in
+    let (module Codec) = codec in
     let store, config =
       Irmin_unix.Resolver.load_config ?config_path ?store ?hash ?contents ()
     in
