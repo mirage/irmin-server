@@ -177,9 +177,7 @@ struct
               | Ok `Continue -> loop ()
               | Ok `Stop -> Lwt.return_ok ()
               | Error e -> Lwt.return_error e)
-          | None ->
-              let* () = Lwt_unix.sleep 0.25 in
-              loop ()
+          | None -> loop ()
         in
         loop () >>= function
         | Ok () -> unwatch t
