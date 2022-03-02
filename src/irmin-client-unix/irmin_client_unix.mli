@@ -1,6 +1,13 @@
 module Error = Irmin_client.Error
 module IO : Irmin_client.Client.IO
 
+module Info (I : Irmin.Info.S) : sig
+  include Irmin.Info.S with type t = I.t
+
+  val init : ?author:string -> ?message:string -> int64 -> t
+  val v : ?author:string -> ('b, Format.formatter, unit, f) format4 -> 'b
+end
+
 module Make_ext
     (Codec : Irmin_server_internal.Conn.Codec.S)
     (Store : Irmin.Generic_key.S) :

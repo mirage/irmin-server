@@ -22,6 +22,7 @@ struct
   module Hash = Store.Hash
   module Path = Store.Path
   module Metadata = Store.Metadata
+  module Info = Store.Info
   module IO = I
 
   module Private = struct
@@ -30,19 +31,6 @@ struct
   end
 
   module Schema = C.Store.Schema
-
-  module Info = struct
-    include C.Store.Schema.Info
-
-    let init = v
-
-    let v ?author fmt =
-      Fmt.kstr
-        (fun message () ->
-          let date = Int64.of_float (Unix.gettimeofday ()) in
-          init ?author ~message date)
-        fmt
-  end
 
   type hash = Store.hash
   type contents = Store.contents

@@ -2,6 +2,9 @@ open Lwt.Syntax
 open Lwt.Infix
 open Irmin_server
 include Util
+module Info = Irmin_client_unix.Info (Rpc.Client.Info)
+
+let info = Info.v
 
 let () =
   Logs.set_level (Some Logs.Debug);
@@ -25,7 +28,7 @@ let ping client =
 
 let set client =
   let open Rpc.Client in
-  let info = Info.v "test: set" in
+  let info = info "test: set" in
   let* r = set ~info client [ "a"; "b"; "c" ] "123" in
   let () = Alcotest.(check (result unit error)) "set" (Ok ()) r in
   let+ r2 = find client [ "a"; "b"; "c" ] in
@@ -48,11 +51,11 @@ let tree client =
     Tree.Local.(add (empty ()) [ "x" ] "foo" >>= fun x -> add x [ "y" ] "bar")
   in
   Alcotest.(check (ty Tree.Local.t)) "x, y" local' local;
-  let* res = set_tree ~info:(Info.v "set_tree") client [ "tree" ] tree in
+  let* res = set_tree ~info:(info "set_tree") client [ "tree" ] tree in
   Alcotest.(check bool "set_tree") true (Result.is_ok res);
   let* tree = find_tree client Path.empty >|= Error.unwrap "find_tree" in
   let tree = Option.get tree in
-  let+ res = set_tree ~info:(Info.v "set_tree") client [ "tree" ] tree in
+  let+ res = set_tree ~info:(info "set_tree") client [ "tree" ] tree in
   Alcotest.(check bool "set_tree") true (Result.is_ok res)
 
 let branch (client : Rpc.Client.t) =
@@ -68,13 +71,13 @@ let branch (client : Rpc.Client.t) =
   let* current = Branch.get_current client in
   Alcotest.(check (result string error))
     "current branch is main again" (Ok Branch.main) current;
-  let* _ = Rpc.Client.set ~info:(Info.v "test") client [ "test" ] "ok" in
+  let* _ = Rpc.Client.set ~info:(info "test") client [ "test" ] "ok" in
   let* head = Branch.get client >|= Error.unwrap "get" in
   let head = Option.get head in
   let tree = Commit.tree client head in
   let hash = Commit.key head in
   let* commit =
-    Commit.v client ~info:(Info.v "test") ~parents:[ hash ] tree
+    Commit.v client ~info:(info "test") ~parents:[ hash ] tree
     >|= Error.unwrap "Commit.create"
   in
   let* () = Branch.set client commit >|= Error.unwrap "set" in

@@ -3,6 +3,7 @@ open Lwt.Infix
 module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
 module Client = Irmin_client_unix.Make (Store)
 module Error = Irmin_client.Error
+module Info = Irmin_client_unix.Info (Client.Info)
 
 let main =
   let uri = Uri.of_string "tcp://localhost:9090" in
@@ -25,7 +26,7 @@ let main =
   assert exists;
 
   (* Commit the tree *)
-  let info = Client.Info.v "set_tree" in
+  let info = Info.v "set_tree" in
 
   (* Get the tree back, now instead of existing on the client-side, you get a
      key to the stored tree *)

@@ -10,7 +10,7 @@ struct
   module Server_info = struct
     type t = { start_time : float }
 
-    let uptime { start_time; _ } = Unix.time () -. start_time
+    let uptime { start_time; _ } = IO.time () -. start_time
   end
 
   module Conn = Conn.Make (IO) (Codec)

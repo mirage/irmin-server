@@ -108,6 +108,7 @@ let mem_tree client path =
 let set client path author message contents =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
+      let module Info = Irmin_client_unix.Info (Client.Info) in
       let path =
         Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
       in
@@ -115,17 +116,18 @@ let set client path author message contents =
         Irmin.Type.of_string Client.Contents.t contents
         |> Error.unwrap "contents"
       in
-      let info = Client.Info.v ~author "%s" message in
+      let info = Info.v ~author "%s" message in
       let+ () = Client.set client path ~info contents >|= Error.unwrap "set" in
       Logs.app (fun l -> l "OK"))
 
 let remove client path author message =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
+      let module Info = Irmin_client_unix.Info (Client.Info) in
       let path =
         Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
       in
-      let info = Client.Info.v ~author "%s" message in
+      let info = Info.v ~author "%s" message in
       let+ () = Client.remove client path ~info >|= Error.unwrap "remove" in
       Logs.app (fun l -> l "OK"))
 
@@ -156,6 +158,7 @@ let stats client =
 let replicate client author message =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
+      let module Info = Irmin_client_unix.Info (Client.Info) in
       let diff input =
         Irmin.Type.(
           of_json_string
@@ -177,7 +180,7 @@ let replicate client author message =
               | `Removed _ -> (k, None) :: acc)
             [] (diff input)
         in
-        let info = Client.Info.v ~author "%s" message in
+        let info = Info.v ~author "%s" message in
         let* tree =
           Client.find_tree client Client.Path.empty >|= Error.unwrap "find_tree"
         in

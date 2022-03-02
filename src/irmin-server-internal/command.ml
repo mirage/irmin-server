@@ -26,22 +26,6 @@ struct
 
     let t = Stats.t
 
-    let file f =
-      try float_of_int (Unix.stat f).st_size
-      with Unix.Unix_error (Unix.ENOENT, _, _) -> 0.
-
-    let dict root = file (Irmin_pack.Layout.dict ~root) /. 1024. /. 1024.
-    let pack root = file (Irmin_pack.Layout.pack ~root) /. 1024. /. 1024.
-
-    let index root =
-      let index_dir = Filename.concat root "index" in
-      let a = file (Filename.concat index_dir "data") in
-      let b = file (Filename.concat index_dir "log") in
-      let c = file (Filename.concat index_dir "log_async") in
-      (a +. b +. c) /. 1024. /. 1024.
-
-    let size root = dict root +. pack root +. index root
-
     let v ctx info : t Lwt.t =
       let pack = Irmin_pack.Stats.get () in
       let uptime = Server_info.uptime info in
@@ -56,7 +40,6 @@ struct
                 in
                 (Irmin.Type.to_string St.Branch.t b, hash))
       in
-      let root = Irmin_pack.Conf.root ctx.config in
       let cache_stats = Irmin_pack.Stats.get_cache_stats () in
       Lwt.return
         Stats.
@@ -66,7 +49,6 @@ struct
             finds = pack.finds;
             cache_misses = cache_stats.cache_misses;
             adds = pack.appended_hashes + pack.appended_offsets;
-            size = size root;
           }
 
     let to_json = Irmin.Type.to_json_string t

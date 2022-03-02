@@ -3,6 +3,7 @@ open Lwt.Infix
 module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
 module Client = Irmin_client_unix.Make (Store)
 module Error = Irmin_client.Error
+module Info = Irmin_client_unix.Info (Client.Info)
 
 let main =
   let uri = Uri.of_string "tcp://localhost:9090" in
@@ -15,7 +16,7 @@ let main =
   assert (current_branch = Client.Branch.main);
 
   (* Set a/b/c on [current_branch] *)
-  let info = Client.Info.v "set a/b/c" in
+  let info = Info.v "set a/b/c" in
   let* () =
     Client.set ~info client [ "a"; "b"; "c" ] "123" >|= Error.unwrap "Store.set"
   in

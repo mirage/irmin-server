@@ -22,3 +22,4 @@ let connect ~ctx (client : Irmin_client.addr) =
 
 let close (c : ic * oc) = Conduit_lwt_server.close c
 let with_timeout = Lwt_unix.with_timeout
+let time = Unix.time

@@ -23,6 +23,7 @@ module type IO = sig
   val write_char : oc -> char -> unit Lwt.t
   val read_char : ic -> char Lwt.t
   val with_timeout : float -> (unit -> 'a Lwt.t) -> 'a Lwt.t
+  val time : unit -> float
 end
 
 module type S = sig

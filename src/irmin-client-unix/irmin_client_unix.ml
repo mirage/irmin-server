@@ -2,6 +2,19 @@ open Irmin_server_internal
 module Error = Error
 module IO = IO
 
+module Info (I : Irmin.Info.S) = struct
+  include I
+
+  let init = v
+
+  let v ?author fmt =
+    Fmt.kstr
+      (fun message () ->
+        let date = Int64.of_float (Unix.gettimeofday ()) in
+        init ?author ~message date)
+      fmt
+end
+
 module Make_ext
     (Codec : Irmin_server_internal.Conn.Codec.S)
     (Store : Irmin.Generic_key.S) =

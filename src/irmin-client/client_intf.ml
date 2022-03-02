@@ -32,17 +32,10 @@ module type S = sig
   val slice_t : slice Irmin.Type.t
 
   module IO : IO
-
-  module Info : sig
-    include Irmin.Info.S
-
-    val init : ?author:string -> ?message:string -> int64 -> t
-    val v : ?author:string -> ('b, Format.formatter, unit, f) format4 -> 'b
-  end
-
   module Path : Irmin.Path.S with type t = path and type step = step
   module Hash : Irmin.Hash.S with type t = hash
   module Metadata : Irmin.Metadata.S with type t = metadata
+  module Info : Irmin.Info.S
 
   module Schema :
     Irmin.Schema.S

@@ -15,3 +15,4 @@ let read_line = Lwt_io.read_line
 let write_char = Lwt_io.write_char
 let read_char = Lwt_io.read_char
 let with_timeout = Lwt_unix.with_timeout
+let time = Unix.time
