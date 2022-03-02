@@ -9,8 +9,6 @@ module type Irmin_client = sig
 
   type addr = Client.addr
 
-  val config : Uri.t -> Irmin.config
-
   module Make_ext
       (IO : Client.IO)
       (Codec : Conn.Codec.S)
@@ -54,6 +52,9 @@ module type Irmin_client = sig
        and module IO = IO
 
   module Store : sig
+    val config :
+      ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
+
     module Make
         (IO : Client.IO)
         (Codec : Conn.Codec.S)

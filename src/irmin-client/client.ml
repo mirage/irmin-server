@@ -9,10 +9,25 @@ module Conf = struct
 
   let uri =
     Irmin.Backend.Conf.key ~spec "uri" uri (Uri.of_string "127.0.0.1:9181")
+
+  let batch_size = Irmin.Backend.Conf.key ~spec "client" Irmin.Type.int 32
+  let tls = Irmin.Backend.Conf.key ~spec "tls" Irmin.Type.bool false
+
+  let hostname =
+    Irmin.Backend.Conf.key ~spec "hostname" Irmin.Type.string "127.0.0.1"
 end
 
-let config uri =
-  Irmin.Backend.Conf.add (Irmin.Backend.Conf.empty Conf.spec) Conf.uri uri
+let config ?(batch_size = 32) ?(tls = false) ?hostname uri =
+  let default_host = Uri.host_with_default ~default:"127.0.0.1" uri in
+  let config =
+    Irmin.Backend.Conf.add (Irmin.Backend.Conf.empty Conf.spec) Conf.uri uri
+  in
+  let config = Irmin.Backend.Conf.add config Conf.batch_size batch_size in
+  let config =
+    Irmin.Backend.Conf.add config Conf.hostname
+      (Option.value ~default:default_host hostname)
+  in
+  Irmin.Backend.Conf.add config Conf.tls tls
 
 module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
 struct
@@ -45,7 +60,14 @@ struct
   let stats_t = Stats.t
   let slice_t = St.slice_t
 
-  type conf = { uri : Uri.t; client : addr; batch_size : int }
+  type conf = {
+    uri : Uri.t;
+    tls : bool;
+    hostname : string;
+    batch_size : int;
+    ctx : IO.ctx;
+  }
+
   type t = { conf : conf; mutable conn : Conn.t }
 
   let uri t = t.conf.uri
@@ -62,46 +84,38 @@ struct
 
   type tree = t * Private.Tree.t * batch
 
-  let conf ?(batch_size = 32) ?(tls = false) ~uri () =
+  let close t = IO.close (t.conn.ic, t.conn.oc)
+
+  let mk_client { uri; tls; hostname; _ } =
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
     let client =
       match String.lowercase_ascii scheme with
       | "unix" -> `Unix_domain_socket (`File (Uri.path uri))
       | "tcp" ->
-          let ip = Unix.gethostbyname addr in
           let port = Uri.port uri |> Option.value ~default:9181 in
-          let ip =
-            ip.h_addr_list.(0) |> Unix.string_of_inet_addr
-            |> Ipaddr.of_string_exn
-          in
+          let ip = Ipaddr.of_string_exn addr in
           if not tls then `TCP (`IP ip, `Port port)
-          else `TLS (`Hostname addr, `IP ip, `Port port)
+          else `TLS (`Hostname hostname, `IP ip, `Port port)
       | x -> invalid_arg ("Unknown client scheme: " ^ x)
     in
-    { client; batch_size; uri }
+    client
 
-  let close t = IO.close (t.conn.ic, t.conn.oc)
-
-  let connect' ?(ctx = Lazy.force IO.default_ctx) conf =
-    let* flow, ic, oc = IO.connect ~ctx conf.client in
+  let connect conf =
+    let client = mk_client conf in
+    let* flow, ic, oc = IO.connect ~ctx:conf.ctx client in
     let conn = Conn.v flow ic oc in
     let+ () = Conn.Handshake.V1.send (module Private.Store) conn in
     let t = { conf; conn } in
-    let () = Lwt_gc.finalise_or_exit (fun t -> close t) t in
     t
 
-  let connect ?ctx ?batch_size ?tls ~uri () =
-    let client = conf ?batch_size ?tls ~uri () in
-    connect' ?ctx client
-
-  let dup client = connect' client.conf
+  let dup client = connect client.conf
 
   let handle_disconnect t f =
     Lwt.catch f (function
       | End_of_file ->
           Logs.info (fun l -> l "Reconnecting to server");
-          let* conn = connect' t.conf in
+          let* conn = connect t.conf in
           t.conn <- conn.conn;
           f ()
       | exn -> raise exn)
@@ -719,9 +733,7 @@ struct
           else
             recv_branch_diff t >>= function
             | Some (key, diff) -> f key diff >>= fun () -> loop ()
-            | None ->
-                let* () = Lwt_unix.sleep 0.25 in
-                loop ()
+            | None -> loop ()
         in
         Lwt.async loop;
         Lwt.return t
@@ -737,9 +749,7 @@ struct
           else
             recv_branch_key_diff t >>= function
             | Some diff -> f diff >>= fun () -> loop ()
-            | None ->
-                let* () = Lwt_unix.sleep 0.25 in
-                loop ()
+            | None -> loop ()
         in
         Lwt.async loop;
         Lwt.return t
@@ -758,7 +768,13 @@ struct
 
       let v config =
         let uri = Irmin.Backend.Conf.get config Conf.uri in
-        connect ~uri ()
+        let tls = Irmin.Backend.Conf.get config Conf.tls in
+        let batch_size = Irmin.Backend.Conf.get config Conf.batch_size in
+        let hostname = Irmin.Backend.Conf.get config Conf.hostname in
+        let conf =
+          { uri; tls; batch_size; hostname; ctx = Lazy.force IO.default_ctx }
+        in
+        connect conf
 
       let close (t : t) = close t
       let contents_t (t : t) = t

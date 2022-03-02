@@ -57,9 +57,16 @@ module type S = sig
       option)
     list
 
-  val connect :
-    ?ctx:IO.ctx -> ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
-  (** Connect to the server specified by [uri] *)
+  type conf = {
+    uri : Uri.t;
+    tls : bool;
+    hostname : string;
+    batch_size : int;
+    ctx : IO.ctx;
+  }
+
+  val connect : conf -> t Lwt.t
+  (** Connect to the server *)
 
   val uri : t -> Uri.t
   (** Get the URI the client is connected to *)
@@ -310,7 +317,8 @@ module type Client = sig
 
   module type IO = IO
 
-  val config : Uri.t -> Irmin.config
+  val config :
+    ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
 
   module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
     S

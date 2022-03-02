@@ -47,8 +47,8 @@ let pack =
         ])
     (0, 0, 0.)
 
-let commit_diff (type a) (module Client : Irmin_client.S with type commit = a) x
-    =
+let commit_diff (type a)
+    (module Client : Irmin_client_unix.S with type commit = a) x =
   let pr t a =
     let info = Client.Commit.info a in
     let date = Client.Info.date info in
@@ -64,8 +64,8 @@ let commit_diff (type a) (module Client : Irmin_client.S with type commit = a) x
   | `Removed a -> pr "Removed" a
   | `Updated (_a, b) -> pr "Updated" b
 
-let last_updates (type a) (module Client : Irmin_client.S with type commit = a)
-    =
+let last_updates (type a)
+    (module Client : Irmin_client_unix.S with type commit = a) =
   Widget.v
     (fun last_updates ->
       let last_updates = List.map (commit_diff (module Client)) last_updates in
@@ -90,7 +90,7 @@ let main client freq =
   client >>= fun (S ((module Client), client)) ->
   let last_updates =
     last_updates
-      (module Client : Irmin_client.S with type commit = Client.commit)
+      (module Client : Irmin_client_unix.S with type commit = Client.commit)
   in
   let ui =
     let open Lwd_infix in

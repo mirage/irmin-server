@@ -20,7 +20,8 @@ let with_timer f =
   let t1 = Sys.time () -. t0 in
   (t1, a)
 
-let init ~uri ~branch ~tls (module Client : Irmin_client.S) : client Lwt.t =
+let init ~uri ~branch ~tls (module Client : Irmin_client_unix.S) : client Lwt.t
+    =
   let* x = Client.connect ~tls ~uri () in
   let+ () =
     match branch with
@@ -30,7 +31,7 @@ let init ~uri ~branch ~tls (module Client : Irmin_client.S) : client Lwt.t =
         >|= Error.unwrap "Branch.set_current"
     | None -> Lwt.return_unit
   in
-  S ((module Client : Irmin_client.S with type t = Client.t), x)
+  S ((module Client : Irmin_client_unix.S with type t = Client.t), x)
 
 let run f time iterations =
   let rec eval iterations =
