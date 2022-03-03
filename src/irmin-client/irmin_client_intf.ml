@@ -61,6 +61,9 @@ module type Irmin_client = sig
         (Store : Irmin.Generic_key.S) :
       Irmin.Generic_key.S
         with module Schema = Store.Schema
+         and type Backend.Remote.endpoint = unit
          and type commit_key = Store.commit_key
+         and type contents_key = Store.contents_key
+         and type node_key = Store.node_key
   end
 end
