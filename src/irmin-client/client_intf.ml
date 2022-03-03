@@ -68,6 +68,8 @@ module type S = sig
   val connect : conf -> t Lwt.t
   (** Connect to the server *)
 
+  val reconnect : t -> unit Lwt.t
+
   val uri : t -> Uri.t
   (** Get the URI the client is connected to *)
 

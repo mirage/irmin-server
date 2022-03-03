@@ -244,10 +244,9 @@ struct
       type res = bool [@@deriving irmin]
 
       let run conn ctx _ key =
-        let* x =
-          Repo.batch ctx.repo (fun _ _ commit -> Commit.mem commit key)
-        in
-        Return.v conn res_t x
+        let x = Repo.commit_t ctx.repo in
+        let* v = Commit.mem x key in
+        Return.v conn res_t v
     end
 
     module Find = struct
@@ -257,9 +256,8 @@ struct
       type res = value option [@@deriving irmin]
 
       let run conn ctx _ key =
-        let* v =
-          Repo.batch ctx.repo (fun _ _ commit -> Commit.find commit key)
-        in
+        let x = Repo.commit_t ctx.repo in
+        let* v = Commit.find x key in
         Return.v conn res_t v
     end
 
@@ -441,7 +439,12 @@ struct
         let* watch =
           Branch.watch b ?init (fun key diff ->
               let diff_t = Irmin.Diff.t Store.commit_key_t in
-              Conn.write conn (Irmin.Type.pair Store.Branch.t diff_t) (key, diff))
+              Lwt.catch
+                (fun () ->
+                  Conn.write conn
+                    (Irmin.Type.pair Store.Branch.t diff_t)
+                    (key, diff))
+                (fun _ -> Lwt.return_unit))
         in
         ctx.branch_watch <- Some watch;
         Return.v conn res_t ()
@@ -465,7 +468,9 @@ struct
         let* watch =
           Branch.watch_key b key ?init (fun diff ->
               let diff_t = Irmin.Diff.t Store.commit_key_t in
-              Conn.write conn diff_t diff)
+              Lwt.catch
+                (fun () -> Conn.write conn diff_t diff)
+                (fun _ -> Lwt.return_unit))
         in
         ctx.branch_watch <- Some watch;
         Return.v conn res_t ()

@@ -32,7 +32,7 @@ module Make (I : IO) (T : Codec.S) = struct
     Logs.debug (fun l -> l "Writing raw message: length=%d" len);
     let* x =
       IO.write_int64_be t.oc (Int64.of_int len) >>= fun () ->
-      if len = 0 then Lwt.return_unit else IO.write t.oc s
+      if len <= 0 then Lwt.return_unit else IO.write t.oc s
     in
     let+ () = IO.flush t.oc in
     x
@@ -41,20 +41,23 @@ module Make (I : IO) (T : Codec.S) = struct
     let s = T.encode ty x in
     write_raw t s
 
-  let read_raw ~buffer t =
-    let* n = IO.read_int64_be t.ic in
+  let read_raw t =
+    let* n =
+      Lwt.catch (fun () -> IO.read_int64_be t.ic) (fun _ -> Lwt.return 0L)
+    in
     Logs.debug (fun l -> l "Raw message length=%Ld" n);
     if n <= 0L then Lwt.return Bytes.empty
     else
       let n = Int64.to_int n in
       let buf =
-        if n > Bytes.length buffer then Bytes.create n else Bytes.sub buffer 0 n
+        if n >= Bytes.length t.buffer then Bytes.create n
+        else Bytes.sub t.buffer 0 n
       in
       let+ () = IO.read_into_exactly t.ic buf 0 n in
       buf
 
-  let read ~buffer t ty =
-    let+ buf = read_raw ~buffer t in
+  let read t ty =
+    let+ buf = read_raw t in
     T.decode ty (Bytes.unsafe_to_string buf)
     [@@inline]
 
@@ -111,10 +114,10 @@ module Make (I : IO) (T : Codec.S) = struct
 
     let is_error { status; _ } = status >= 1 [@@inline]
 
-    let get_error buffer t header =
+    let get_error t header =
       if is_error header then (
-        let* x = read ~buffer t Irmin.Type.string in
-        let x = Result.value ~default:"Unknown error" x in
+        let* x = read_raw t in
+        let x = Bytes.to_string x in
         Logs.debug (fun l -> l "Error response message: %s" x);
         Lwt.return_some x)
       else Lwt.return_none
@@ -148,7 +151,7 @@ module Make (I : IO) (T : Codec.S) = struct
 
     let err conn msg : 'a t Lwt.t =
       let* t = make 1 conn in
-      let+ () = write conn Irmin.Type.string ("ERROR " ^ msg) in
+      let+ () = write_raw conn ("ERROR " ^ msg) in
       t
       [@@inline]
 
@@ -167,15 +170,9 @@ module Make (I : IO) (T : Codec.S) = struct
     let result conn t x =
       match x with Ok x -> v conn t x | Error (`Msg msg) -> err conn msg
 
-    let finish _t = Lwt.pause ()
+    let finish _t = Lwt.return_unit
   end
 
-  let begin_response t n = Response.write_header t { status = n } [@@inline]
-  let ok t = begin_response t 1 [@@inline]
-
-  let err t msg =
-    let header = Response.v_header ~status:1 in
-    let msg = "ERROR " ^ msg in
-    let* () = Response.write_header t header in
-    write t Irmin.Type.string msg
+  let ok t = Return.ok t >>= Return.finish
+  let err t msg = Return.err t msg >>= Return.finish
 end

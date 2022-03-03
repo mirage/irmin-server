@@ -37,7 +37,7 @@ module type S = sig
   val is_closed : t -> bool
   (** Check if the underlying channel is closed *)
 
-  val read : buffer:bytes -> t -> 'a Irmin.Type.t -> 'a Error.result Lwt.t
+  val read : t -> 'a Irmin.Type.t -> 'a Error.result Lwt.t
   (** Read the next message *)
 
   val write : t -> 'a Irmin.Type.t -> 'a -> unit Lwt.t
@@ -72,7 +72,7 @@ module type S = sig
     val write_header : t -> header -> unit Lwt.t
     val read_header : t -> header Lwt.t
     val is_error : header -> bool
-    val get_error : bytes -> t -> header -> string option Lwt.t
+    val get_error : t -> header -> string option Lwt.t
   end
 
   module Return : sig

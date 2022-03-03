@@ -12,6 +12,9 @@ depends: [
   "irmin-server-internal"
   "conduit-lwt-unix"
   "alcotest-lwt" {with-test & >= "1.0.0"}
+  "irmin-unix" {with-test}
+  "irmin-test" {with-test}
+  "irmin-client-unix" {with-test}
 ]
 build: [
   ["dune" "subst"] {pinned}

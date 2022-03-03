@@ -282,7 +282,9 @@ struct
                 | `Added a -> `Added (convert_commit a)
                 | `Removed a -> `Removed (convert_commit a)
               in
-              Conn.write conn (Irmin.Diff.t Commit.t) diff)
+              Lwt.catch
+                (fun () -> Conn.write conn (Irmin.Diff.t Commit.t) diff)
+                (fun _ -> Lwt.return_unit))
         in
         ctx.watch <- Some watch;
         Return.v conn res_t ()

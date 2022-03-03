@@ -9,13 +9,14 @@ let test name f client _switch () =
   f client
 
 let run_server () =
-  let path = Unix.getcwd () in
-  let uri = Uri.of_string ("unix://" ^ Filename.concat path "test.socket") in
-  let stop, wake = Lwt.wait () in
-  Lwt.async (fun () ->
+  let uri = Uri.of_string "tcp://127.0.0.1:12345" in
+  match Lwt_unix.fork () with
+  | 0 ->
+      let () = Irmin.Backend.Watch.set_listen_dir_hook Irmin_watcher.hook in
       let conf = Irmin_mem.config () in
-      Server.v ~uri conf >>= Server.serve ~stop);
-  (wake, uri)
+      Lwt_main.run (Server.v ~uri conf >>= Server.serve);
+      (0, uri)
+  | n -> (n, uri)
 
 let suite client all =
   List.map

@@ -3,6 +3,8 @@ open Lwt.Syntax
 open Lwt.Infix
 include Client_intf
 
+exception Continue
+
 module Conf = struct
   let spec = Irmin.Backend.Conf.Spec.v "irmin-client"
   let uri = Irmin.Type.(map string) Uri.of_string Uri.to_string
@@ -68,7 +70,12 @@ struct
     ctx : IO.ctx;
   }
 
-  type t = { conf : conf; mutable conn : Conn.t }
+  type t = {
+    conf : conf;
+    mutable conn : Conn.t;
+    mutable closed : bool;
+    lock : Lwt_mutex.t;
+  }
 
   let uri t = t.conf.uri
 
@@ -84,7 +91,9 @@ struct
 
   type tree = t * Private.Tree.t * batch
 
-  let close t = IO.close (t.conn.ic, t.conn.oc)
+  let close t =
+    t.closed <- true;
+    IO.close (t.conn.ic, t.conn.oc)
 
   let mk_client { uri; tls; hostname; _ } =
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
@@ -101,25 +110,22 @@ struct
     in
     client
 
-  let connect conf =
+  let rec connect conf =
     let client = mk_client conf in
     let* flow, ic, oc = IO.connect ~ctx:conf.ctx client in
     let conn = Conn.v flow ic oc in
     let+ () = Conn.Handshake.V1.send (module Private.Store) conn in
-    let t = { conf; conn } in
+    let t = { conf; conn; closed = false; lock = Lwt_mutex.create () } in
     t
 
-  let dup client = connect client.conf
+  and reconnect t =
+    let* () = Lwt.catch (fun () -> close t) (fun _ -> Lwt.return_unit) in
+    let+ conn = connect t.conf in
+    t.conn <- conn.conn;
+    t.closed <- false
 
-  let handle_disconnect t f =
-    Lwt.catch f (function
-      | End_of_file ->
-          Logs.info (fun l -> l "Reconnecting to server");
-          let* conn = connect t.conf in
-          t.conn <- conn.conn;
-          f ()
-      | exn -> raise exn)
-    [@@inline]
+  let lock t f = Lwt_mutex.with_lock t.lock f [@@inline]
+  let dup client = connect client.conf
 
   let send_command_header t (module Cmd : C.CMD) =
     let header = Conn.Request.v_header ~command:Cmd.name in
@@ -127,58 +133,38 @@ struct
 
   let recv (t : t) name ty =
     let* res = Conn.Response.read_header t.conn in
-    Conn.Response.get_error t.conn.buffer t.conn res >>= function
+    Conn.Response.get_error t.conn res >>= function
     | Some err ->
         Logs.err (fun l -> l "Request error: command=%s, error=%s" name err);
         Lwt.return_error (`Msg err)
     | None ->
-        let+ x = Conn.read ~buffer:t.conn.buffer t.conn ty in
+        let+ x = Conn.read t.conn ty in
         Logs.debug (fun l -> l "Completed request: command=%s" name);
         x
 
   let request (t : t) (type x y)
       (module Cmd : C.CMD with type res = x and type req = y) (a : y) =
-    let name = Cmd.name in
-    Logs.debug (fun l -> l "Starting request: command=%s" name);
-    handle_disconnect t (fun () ->
-        let* () = send_command_header t (module Cmd) in
-        let* () = Conn.write t.conn Cmd.req_t a in
-        let* () = IO.flush t.conn.oc in
-        recv t name Cmd.res_t)
+    if t.closed then raise Irmin.Closed
+    else
+      let name = Cmd.name in
+      Logs.debug (fun l -> l "Starting request: command=%s" name);
+      lock t (fun () ->
+          let* () = send_command_header t (module Cmd) in
+          let* () = Conn.write t.conn Cmd.req_t a in
+          let* () = IO.flush t.conn.oc in
+          recv t name Cmd.res_t)
 
   let recv_commit_diff (t : t) =
-    Lwt.catch
-      (fun () ->
-        Conn.read ~buffer:t.conn.buffer t.conn (Irmin.Diff.t Commit.t)
-        >>= function
-        | Ok x -> Lwt.return_some x
-        | Error e ->
-            Logs.err (fun l -> l "Watch error: %s" (Error.to_string e));
-            Lwt.return_none)
-      (fun _ -> Lwt.return_none)
+    Conn.read t.conn (Irmin.Diff.t Commit.t) >|= Error.unwrap "recv_commit_diff"
 
   let recv_branch_diff (t : t) =
-    Lwt.catch
-      (fun () ->
-        Conn.read ~buffer:t.conn.buffer t.conn
-          (Irmin.Type.pair Store.Branch.t (Irmin.Diff.t Commit.key_t))
-        >>= function
-        | Ok x -> Lwt.return_some x
-        | Error e ->
-            Logs.err (fun l -> l "Watch error: %s" (Error.to_string e));
-            Lwt.return_none)
-      (fun _ -> Lwt.return_none)
+    Conn.read t.conn
+      (Irmin.Type.pair Store.Branch.t (Irmin.Diff.t Store.commit_key_t))
+    >|= Error.unwrap "recv_branch_diff"
 
   let recv_branch_key_diff (t : t) =
-    Lwt.catch
-      (fun () ->
-        Conn.read ~buffer:t.conn.buffer t.conn (Irmin.Diff.t Commit.key_t)
-        >>= function
-        | Ok x -> Lwt.return_some x
-        | Error e ->
-            Logs.err (fun l -> l "Watch error: %s" (Error.to_string e));
-            Lwt.return_none)
-      (fun _ -> Lwt.return_none)
+    Conn.read t.conn (Irmin.Diff.t Store.commit_key_t)
+    >|= Error.unwrap "recv_branch_key_diff"
 
   module Cache = struct
     module Contents = Irmin.Backend.Lru.Make (struct
@@ -206,7 +192,10 @@ struct
 
   type watch = t
 
-  let unwatch t = request t (module Commands.Unwatch) ()
+  let unwatch t =
+    let* () = Conn.write t.conn Commands.Unwatch.req_t () in
+    let+ () = close t in
+    Ok ()
 
   let watch f t =
     let* t = dup t in
@@ -214,11 +203,11 @@ struct
     | Error e -> Lwt.return_error e
     | Ok () ->
         let rec loop () =
-          if IO.is_closed t.conn.ic then Lwt.return_unit
-          else
-            recv_commit_diff t >>= function
-            | Some diff -> f diff >>= fun () -> loop ()
-            | None -> loop ()
+          Lwt.catch
+            (fun () ->
+              Lwt.catch (fun () -> recv_commit_diff t) (fun _ -> raise Continue)
+              >>= f >>= loop)
+            (function _ -> loop ())
         in
         Lwt.async loop;
         Lwt.return_ok t
@@ -729,11 +718,15 @@ struct
           request t (module Watch) init >|= Error.unwrap "Branch.watch"
         in
         let rec loop () =
-          if IO.is_closed t.conn.ic then Lwt.return_unit
+          if t.closed || Conn.is_closed t.conn then Lwt.return_unit
           else
-            recv_branch_diff t >>= function
-            | Some (key, diff) -> f key diff >>= fun () -> loop ()
-            | None -> loop ()
+            Lwt.catch
+              (fun () ->
+                Lwt.catch
+                  (fun () -> recv_branch_diff t)
+                  (fun _ -> raise Continue)
+                >>= fun (key, diff) -> f key diff >>= loop)
+              (function _ -> loop ())
         in
         Lwt.async loop;
         Lwt.return t
@@ -745,23 +738,28 @@ struct
           >|= Error.unwrap "Branch.watch_key"
         in
         let rec loop () =
-          if IO.is_closed t.conn.ic then Lwt.return_unit
+          if t.closed || Conn.is_closed t.conn then Lwt.return_unit
           else
-            recv_branch_key_diff t >>= function
-            | Some diff -> f diff >>= fun () -> loop ()
-            | None -> loop ()
+            Lwt.catch
+              (fun () ->
+                Lwt.catch
+                  (fun () -> recv_branch_key_diff t)
+                  (fun _ -> raise Continue)
+                >>= f >>= loop)
+              (function _ -> loop ())
         in
         Lwt.async loop;
         Lwt.return t
 
       let unwatch _t watch =
-        request watch (module Unwatch) () >|= Error.unwrap "Branch.unwatch"
+        let* () = Conn.write watch.conn Unwatch.req_t () in
+        close watch
 
       let clear t = request t (module Clear) () >|= Error.unwrap "Branch.clear"
       let close t = close t
     end
 
-    module Slice = St.Backend.Slice
+    module Slice = Irmin.Backend.Slice.Make (Contents) (Node) (Commit)
 
     module Repo = struct
       type nonrec t = t
@@ -788,4 +786,7 @@ struct
   end
 
   include Irmin.Of_backend (X)
+
+  let to_backend_node node = try to_backend_node node with exc -> raise exc
+  (* TODO: figure out how to handle this? *)
 end
