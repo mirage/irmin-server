@@ -234,7 +234,7 @@ struct
 
     module Contents_save = struct
       type req = St.contents [@@deriving irmin]
-      type res = St.Hash.t [@@deriving irmin]
+      type res = St.contents_key [@@deriving irmin]
 
       let name = "contents.save"
 
@@ -243,9 +243,7 @@ struct
           St.Backend.Repo.batch ctx.repo (fun t _ _ ->
               St.save_contents t contents)
         in
-        let* contents = St.Contents.of_key ctx.repo k >|= Option.get in
-        let hash = St.Contents.hash contents in
-        Return.v conn res_t hash
+        Return.v conn res_t k
     end
 
     module Contents_exists = struct
@@ -283,7 +281,9 @@ struct
                 | `Removed a -> `Removed (convert_commit a)
               in
               Lwt.catch
-                (fun () -> Conn.write conn (Irmin.Diff.t Commit.t) diff)
+                (fun () ->
+                  let* () = Conn.write conn (Irmin.Diff.t Commit.t) diff in
+                  IO.flush conn.oc)
                 (fun _ -> Lwt.return_unit))
         in
         ctx.watch <- Some watch;

@@ -27,6 +27,7 @@ module type S = sig
   type slice
   type metadata
   type stats = Stats.t
+  type contents_key
 
   val stats_t : stats Irmin.Type.t
   val slice_t : slice Irmin.Type.t
@@ -133,13 +134,15 @@ module type S = sig
   end
 
   module Contents : sig
+    type key = contents_key
+
     val of_hash : t -> hash -> contents option Error.result Lwt.t
     (** Find the contents associated with a hash *)
 
     val exists : t -> contents -> bool Error.result Lwt.t
     (** Check if [contents] exists in the store already *)
 
-    val save : t -> contents -> hash Error.result Lwt.t
+    val save : t -> contents -> contents_key Error.result Lwt.t
     (** Save value to store without associating it with a path *)
 
     include Irmin.Contents.S with type t = contents
@@ -334,6 +337,7 @@ module type Client = sig
        and module Schema = Store.Schema
        and type Private.Store.tree = Store.tree
        and type Commit.key = Store.commit_key
+       and type contents_key = Store.contents_key
        and module IO = I
 
   module Make_store

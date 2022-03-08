@@ -58,6 +58,7 @@ struct
   type slice = St.slice
   type stats = Stats.t
   type metadata = St.metadata
+  type contents_key = Store.contents_key
 
   let stats_t = Stats.t
   let slice_t = St.slice_t
@@ -125,7 +126,11 @@ struct
     t.closed <- false
 
   let lock t f = Lwt_mutex.with_lock t.lock f [@@inline]
-  let dup client = connect client.conf
+
+  let dup client =
+    let* c = connect client.conf in
+    if client.closed then c.closed <- true;
+    Lwt.return c
 
   let send_command_header t (module Cmd : C.CMD) =
     let header = Conn.Request.v_header ~command:Cmd.name in
@@ -230,6 +235,8 @@ struct
   module Contents = struct
     include St.Contents
 
+    type key = contents_key
+
     let of_hash t hash =
       if Cache.Contents.mem Cache.contents hash then
         Lwt.return_ok (Some (Cache.Contents.find Cache.contents hash))
@@ -247,11 +254,7 @@ struct
         | x -> Lwt.return (Result.map (fun y -> (hash, y)) x)
 
     let exists t contents = exists' t contents >|= Result.map snd
-
-    let save t contents =
-      let hash = hash contents in
-      if Cache.Contents.mem Cache.contents hash then Lwt.return_ok hash
-      else request t (module Commands.Contents_save) contents
+    let save t contents = request t (module Commands.Contents_save) contents
   end
 
   module Tree = struct

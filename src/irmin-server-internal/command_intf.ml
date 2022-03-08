@@ -218,7 +218,7 @@ module type S = sig
 
     (** Add contents to repo *)
     module Contents_save :
-      CMD with type req = Store.contents and type res = Store.hash
+      CMD with type req = Store.contents and type res = Store.contents_key
 
     (** Watch for changes *)
     module Watch : CMD with type req = unit and type res = unit

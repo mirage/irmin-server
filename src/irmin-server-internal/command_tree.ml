@@ -311,5 +311,6 @@ struct
       cmd (module Clear);
       cmd (module Hash);
       cmd (module Merge);
+      cmd (module Save);
     ]
 end

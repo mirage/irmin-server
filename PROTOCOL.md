@@ -18,6 +18,7 @@ A request is sent from the client to the server
 | Field               | Type                        |
 | ------------------- | --------------------------- |
 | command             | `\n` delimited string       |
+| '\n'                | Extra '\n' character        |
 | request             | Message                     |
 
 ## Response

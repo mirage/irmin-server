@@ -9,7 +9,9 @@ let test name f client _switch () =
   f client
 
 let run_server () =
-  let uri = Uri.of_string "tcp://127.0.0.1:12345" in
+  let dir = Unix.getcwd () in
+  let sock = Filename.concat dir "test.sock" in
+  let uri = Uri.of_string ("unix://" ^ sock) in
   match Lwt_unix.fork () with
   | 0 ->
       let () = Irmin.Backend.Watch.set_listen_dir_hook Irmin_watcher.hook in

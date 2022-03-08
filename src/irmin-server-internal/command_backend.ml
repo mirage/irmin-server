@@ -441,9 +441,12 @@ struct
               let diff_t = Irmin.Diff.t Store.commit_key_t in
               Lwt.catch
                 (fun () ->
-                  Conn.write conn
-                    (Irmin.Type.pair Store.Branch.t diff_t)
-                    (key, diff))
+                  let* () =
+                    Conn.write conn
+                      (Irmin.Type.pair Store.Branch.t diff_t)
+                      (key, diff)
+                  in
+                  IO.flush conn.oc)
                 (fun _ -> Lwt.return_unit))
         in
         ctx.branch_watch <- Some watch;
@@ -469,7 +472,9 @@ struct
           Branch.watch_key b key ?init (fun diff ->
               let diff_t = Irmin.Diff.t Store.commit_key_t in
               Lwt.catch
-                (fun () -> Conn.write conn diff_t diff)
+                (fun () ->
+                  let* () = Conn.write conn diff_t diff in
+                  IO.flush conn.oc)
                 (fun _ -> Lwt.return_unit))
         in
         ctx.branch_watch <- Some watch;
