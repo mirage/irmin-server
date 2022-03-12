@@ -37,19 +37,18 @@ let uptime = Widget.display "Uptime" "%.0fs" 0.0
 
 let pack =
   Widget.v
-    (fun (size, adds, finds, cache_misses) ->
+    (fun (adds, finds, cache_misses) ->
       Ui.vcat
         [
           W.printf ~attr:Notty.A.(st bold) "Pack:";
-          W.printf "Size: %fM" size;
           W.printf "Adds: %d" adds;
           W.printf "Finds: %d" finds;
           W.printf "Cache misses: %f" cache_misses;
         ])
-    (0., 0, 0, 0.)
+    (0, 0, 0.)
 
-let commit_diff (type a) (module Client : Irmin_client.S with type commit = a) x
-    =
+let commit_diff (type a)
+    (module Client : Irmin_client_unix.S with type commit = a) x =
   let pr t a =
     let info = Client.Commit.info a in
     let date = Client.Info.date info in
@@ -65,8 +64,8 @@ let commit_diff (type a) (module Client : Irmin_client.S with type commit = a) x
   | `Removed a -> pr "Removed" a
   | `Updated (_a, b) -> pr "Updated" b
 
-let last_updates (type a) (module Client : Irmin_client.S with type commit = a)
-    =
+let last_updates (type a)
+    (module Client : Irmin_client_unix.S with type commit = a) =
   Widget.v
     (fun last_updates ->
       let last_updates = List.map (commit_diff (module Client)) last_updates in
@@ -91,7 +90,7 @@ let main client freq =
   client >>= fun (S ((module Client), client)) ->
   let last_updates =
     last_updates
-      (module Client : Irmin_client.S with type commit = Client.commit)
+      (module Client : Irmin_client_unix.S with type commit = Client.commit)
   in
   let ui =
     let open Lwd_infix in
@@ -121,24 +120,22 @@ let main client freq =
     Lwt.async (fun () ->
         let* stats = Client.stats client >|= Error.unwrap "stats" in
         Widget.set_value uptime stats.uptime;
-        Widget.set_value pack
-          (stats.size, stats.adds, stats.finds.total, stats.cache_misses);
+        Widget.set_value pack (stats.adds, stats.finds.total, stats.cache_misses);
         Widget.set_value heads stats.branches;
         let+ () = Lwt_unix.sleep freq in
         tick client ())
   in
 
   let watch client () =
-    Lwt.async (fun () ->
-        let f x =
-          Widget.set_value last_updates (x :: Lwd.peek last_updates.value);
-          Lwt.return_ok `Continue
-        in
-        Client.watch f client >|= Error.unwrap "watch")
+    let f x =
+      Widget.set_value last_updates (x :: Lwd.peek last_updates.value);
+      Lwt.return_unit
+    in
+    Client.watch f client >|= Error.unwrap "watch"
   in
 
   let* wc = Client.dup client in
-  watch wc ();
+  let* _watch = watch wc () in
   tick client ();
   Nottui_lwt.run (W.scroll_area ui)
 

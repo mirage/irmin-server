@@ -10,7 +10,7 @@ struct
   module Server_info = struct
     type t = { start_time : float }
 
-    let uptime { start_time; _ } = Unix.time () -. start_time
+    let uptime { start_time; _ } = IO.time () -. start_time
   end
 
   module Conn = Conn.Make (IO) (Codec)
@@ -23,25 +23,19 @@ struct
     mutable store : St.t;
     trees : (int, St.tree) Hashtbl.t;
     mutable watch : St.watch option;
+    mutable branch_watch : St.Backend.Branch.watch option;
   }
 
   module type CMD = sig
-    module Req : sig
-      type t
+    type req
+    type res
 
-      val t : t Irmin.Type.t
-    end
-
-    module Res : sig
-      type t
-
-      val t : t Irmin.Type.t
-    end
-
+    val req_t : req Irmin.Type.t
+    val res_t : res Irmin.Type.t
     val name : string
 
     val run :
-      Conn.t -> context -> Server_info.t -> Req.t -> Res.t Conn.Return.t Lwt.t
+      Conn.t -> context -> Server_info.t -> req -> res Conn.Return.t Lwt.t
   end
 
   let cmd (module C : CMD) = (C.name, (module C : CMD))

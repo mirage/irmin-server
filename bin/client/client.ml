@@ -20,7 +20,8 @@ let with_timer f =
   let t1 = Sys.time () -. t0 in
   (t1, a)
 
-let init ~uri ~branch ~tls (module Client : Irmin_client.S) : client Lwt.t =
+let init ~uri ~branch ~tls (module Client : Irmin_client_unix.S) : client Lwt.t
+    =
   let* x = Client.connect ~tls ~uri () in
   let+ () =
     match branch with
@@ -30,7 +31,7 @@ let init ~uri ~branch ~tls (module Client : Irmin_client.S) : client Lwt.t =
         >|= Error.unwrap "Branch.set_current"
     | None -> Lwt.return_unit
   in
-  S ((module Client : Irmin_client.S with type t = Client.t), x)
+  S ((module Client : Irmin_client_unix.S with type t = Client.t), x)
 
 let run f time iterations =
   let rec eval iterations =
@@ -58,8 +59,8 @@ let list_server_commands () =
   in
   List.iter
     (fun (name, (module C : Cmd.CMD)) ->
-      Printf.printf "%s:\n\tInput: %s\n\tOutput: %s\n" name (str C.Req.t)
-        (str C.Res.t))
+      Printf.printf "%s:\n\tInput: %s\n\tOutput: %s\n" name (str C.req_t)
+        (str C.res_t))
     Cmd.commands
 
 let ping client =
@@ -75,7 +76,7 @@ let find client path =
       let path =
         Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
       in
-      let* result = Client.Store.find client path >|= Error.unwrap "find" in
+      let* result = Client.find client path >|= Error.unwrap "find" in
       match result with
       | Some data ->
           let* () =
@@ -93,7 +94,7 @@ let mem client path =
       let path =
         Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
       in
-      let* result = Client.Store.mem client path >|= Error.unwrap "mem" in
+      let* result = Client.mem client path >|= Error.unwrap "mem" in
       Lwt_io.printl (if result then "true" else "false"))
 
 let mem_tree client path =
@@ -102,14 +103,13 @@ let mem_tree client path =
       let path =
         Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
       in
-      let* result =
-        Client.Store.mem_tree client path >|= Error.unwrap "mem_tree"
-      in
+      let* result = Client.mem_tree client path >|= Error.unwrap "mem_tree" in
       Lwt_io.printl (if result then "true" else "false"))
 
 let set client path author message contents =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
+      let module Info = Irmin_client_unix.Info (Client.Info) in
       let path =
         Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
       in
@@ -117,22 +117,19 @@ let set client path author message contents =
         Irmin.Type.of_string Client.Contents.t contents
         |> Error.unwrap "contents"
       in
-      let info = Client.Info.v ~author "%s" message in
-      let+ () =
-        Client.Store.set client path ~info contents >|= Error.unwrap "set"
-      in
+      let info = Info.v ~author "%s" message in
+      let+ () = Client.set client path ~info contents >|= Error.unwrap "set" in
       Logs.app (fun l -> l "OK"))
 
 let remove client path author message =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
+      let module Info = Irmin_client_unix.Info (Client.Info) in
       let path =
         Irmin.Type.of_string Client.Path.t path |> Error.unwrap "path"
       in
-      let info = Client.Info.v ~author "%s" message in
-      let+ () =
-        Client.Store.remove client path ~info >|= Error.unwrap "remove"
-      in
+      let info = Info.v ~author "%s" message in
+      let+ () = Client.remove client path ~info >|= Error.unwrap "remove" in
       Logs.app (fun l -> l "OK"))
 
 let export client filename =
@@ -162,6 +159,7 @@ let stats client =
 let replicate client author message =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
+      let module Info = Irmin_client_unix.Info (Client.Info) in
       let diff input =
         Irmin.Type.(
           of_json_string
@@ -183,10 +181,9 @@ let replicate client author message =
               | `Removed _ -> (k, None) :: acc)
             [] (diff input)
         in
-        let info = Client.Info.v ~author "%s" message in
+        let info = Info.v ~author "%s" message in
         let* tree =
-          Client.Store.find_tree client Client.Path.empty
-          >|= Error.unwrap "find_tree"
+          Client.find_tree client Client.Path.empty >|= Error.unwrap "find_tree"
         in
         let tree =
           match tree with Some t -> t | None -> Client.Tree.empty client
@@ -195,7 +192,7 @@ let replicate client author message =
           Client.Tree.batch_update tree batch >|= Error.unwrap "build"
         in
         let* _ =
-          Client.Store.set_tree client ~info Client.Path.empty tree
+          Client.set_tree client ~info Client.Path.empty tree
           >|= Error.unwrap "set_tree"
         in
         loop ()
@@ -206,20 +203,24 @@ let watch client =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
       let pp = Irmin.Type.pp Client.Commit.t in
-      Client.watch
-        (fun x ->
-          match x with
-          | `Updated (a, b) ->
-              Logs.app (fun l -> l "Updated (%a, %a)" pp a pp b);
-              Lwt.return_ok `Continue
-          | `Added a ->
-              Logs.app (fun l -> l "Added %a" pp a);
-              Lwt.return_ok `Continue
-          | `Removed a ->
-              Logs.app (fun l -> l "Removed %a" pp a);
-              Lwt.return_ok `Continue)
-        client
-      >|= Error.unwrap "watch" )
+      let* _w =
+        Client.watch
+          (fun x ->
+            match x with
+            | `Updated (a, b) ->
+                Logs.app (fun l -> l "Updated (%a, %a)" pp a pp b);
+                Lwt.return_unit
+            | `Added a ->
+                Logs.app (fun l -> l "Added %a" pp a);
+                Lwt.return_unit
+            | `Removed a ->
+                Logs.app (fun l -> l "Removed %a" pp a);
+                Lwt.return_unit)
+          client
+        >|= Error.unwrap "watch"
+      in
+      let x, _ = Lwt.wait () in
+      x )
 
 let pr_str = Format.pp_print_string
 
@@ -266,8 +267,14 @@ let freq =
   Arg.(value @@ opt float 5. doc)
 
 let config =
-  let create uri (branch : string option) tls (store, hash, contents)
-      (module Codec : Conn.Codec.S) config_path () =
+  let create uri (branch : string option) tls (store, hash, contents) codec
+      config_path () =
+    let codec =
+      match codec with
+      | `Bin -> (module Conn.Codec.Bin : Conn.Codec.S)
+      | `Json -> (module Conn.Codec.Json)
+    in
+    let (module Codec) = codec in
     let store, config =
       Irmin_unix.Resolver.load_config ?config_path ?store ?hash ?contents ()
     in

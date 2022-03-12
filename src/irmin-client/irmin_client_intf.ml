@@ -50,4 +50,20 @@ module type Irmin_client = sig
        and module Schema = Store.Schema
        and type Private.Store.tree = Store.tree
        and module IO = IO
+
+  module Store : sig
+    val config :
+      ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
+
+    module Make
+        (IO : Client.IO)
+        (Codec : Conn.Codec.S)
+        (Store : Irmin.Generic_key.S) :
+      Irmin.Generic_key.S
+        with module Schema = Store.Schema
+         and type Backend.Remote.endpoint = unit
+         and type commit_key = Store.commit_key
+         and type contents_key = Store.contents_key
+         and type node_key = Store.node_key
+  end
 end

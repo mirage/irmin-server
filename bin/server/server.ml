@@ -1,6 +1,8 @@
 open Lwt.Syntax
 open Irmin_server_internal
 
+let () = Irmin_unix.set_listen_dir_hook ()
+
 let setup_log style_renderer level =
   Fmt_tty.setup_std_outputs ?style_renderer ();
   Logs.set_level level;
@@ -37,13 +39,20 @@ let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path
   Server.serve server
 
 let main readonly root uri tls (store, hash, contents) codec config_path () =
+  let codec =
+    match codec with
+    | `Bin -> (module Conn.Codec.Bin : Conn.Codec.S)
+    | `Json -> (module Conn.Codec.Json)
+  in
   Lwt_main.run
   @@ main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path codec
 
 open Cmdliner
 
 let root =
-  let doc = Arg.info ~doc:"Irmin store path" [ "r"; "root" ] in
+  let doc =
+    Arg.info ~docs:"" ~docv:"PATH" ~doc:"Irmin store path" [ "r"; "root" ]
+  in
   Arg.(value @@ opt (some string) None doc)
 
 let readonly =
@@ -56,7 +65,9 @@ let readonly =
   Arg.(value @@ flag doc)
 
 let tls =
-  let doc = Arg.info ~docv:"CERT_FILE,KEY_FILE" ~doc:"TLS config" [ "tls" ] in
+  let doc =
+    Arg.info ~docs:"" ~docv:"CERT_FILE,KEY_FILE" ~doc:"TLS config" [ "tls" ]
+  in
   Arg.(value @@ opt (some (pair string string)) None doc)
 
 let main_term =

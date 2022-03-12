@@ -27,22 +27,16 @@ module type S = sig
   type slice
   type metadata
   type stats = Stats.t
+  type contents_key
 
   val stats_t : stats Irmin.Type.t
   val slice_t : slice Irmin.Type.t
 
   module IO : IO
-
-  module Info : sig
-    include Irmin.Info.S
-
-    val init : ?author:string -> ?message:string -> int64 -> t
-    val v : ?author:string -> ('b, Format.formatter, unit, f) format4 -> 'b
-  end
-
   module Path : Irmin.Path.S with type t = path and type step = step
   module Hash : Irmin.Hash.S with type t = hash
   module Metadata : Irmin.Metadata.S with type t = metadata
+  module Info : Irmin.Info.S
 
   module Schema :
     Irmin.Schema.S
@@ -64,9 +58,18 @@ module type S = sig
       option)
     list
 
-  val connect :
-    ?ctx:IO.ctx -> ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
-  (** Connect to the server specified by [uri] *)
+  type conf = {
+    uri : Uri.t;
+    tls : bool;
+    hostname : string;
+    batch_size : int;
+    ctx : IO.ctx;
+  }
+
+  val connect : conf -> t Lwt.t
+  (** Connect to the server *)
+
+  val reconnect : t -> unit Lwt.t
 
   val uri : t -> Uri.t
   (** Get the URI the client is connected to *)
@@ -86,12 +89,12 @@ module type S = sig
   val export : ?depth:int -> t -> slice Error.result Lwt.t
   val import : t -> slice -> unit Error.result Lwt.t
 
+  type watch
+
   val watch :
-    (commit Irmin.Diff.t -> [ `Continue | `Stop ] Error.result Lwt.t) ->
-    t ->
-    unit Error.result Lwt.t
-  (** Start watching for updates, calling the provided callback for each update.
-      To continue watching return [Ok `Continue] and to stop return [Ok `Stop] *)
+    (commit Irmin.Diff.t -> unit Lwt.t) -> t -> watch Error.result Lwt.t
+
+  val unwatch : watch -> unit Error.result Lwt.t
 
   module Commit : sig
     type key
@@ -131,13 +134,15 @@ module type S = sig
   end
 
   module Contents : sig
+    type key = contents_key
+
     val of_hash : t -> hash -> contents option Error.result Lwt.t
     (** Find the contents associated with a hash *)
 
     val exists : t -> contents -> bool Error.result Lwt.t
     (** Check if [contents] exists in the store already *)
 
-    val save : t -> contents -> hash Error.result Lwt.t
+    val save : t -> contents -> contents_key Error.result Lwt.t
     (** Save value to store without associating it with a path *)
 
     include Irmin.Contents.S with type t = contents
@@ -261,56 +266,53 @@ module type S = sig
     type t = tree
   end
 
-  module Store : sig
-    val find : t -> path -> contents option Error.result Lwt.t
-    (** Find the value associated with a path, if it exists *)
+  val find : t -> path -> contents option Error.result Lwt.t
+  (** Find the value associated with a path, if it exists *)
 
-    val find_tree : t -> path -> Tree.t option Error.result Lwt.t
-    (** Find the tree associated with a path, if it exists *)
+  val find_tree : t -> path -> Tree.t option Error.result Lwt.t
+  (** Find the tree associated with a path, if it exists *)
 
-    val set : t -> info:Info.f -> path -> contents -> unit Error.result Lwt.t
-    (** Associate a new value with the given path *)
+  val set : t -> info:Info.f -> path -> contents -> unit Error.result Lwt.t
+  (** Associate a new value with the given path *)
 
-    val test_and_set :
-      t ->
-      info:Info.f ->
-      path ->
-      test:contents option ->
-      set:contents option ->
-      unit Error.result Lwt.t
-    (** Set a value only if the [test] parameter matches the existing value *)
+  val test_and_set :
+    t ->
+    info:Info.f ->
+    path ->
+    test:contents option ->
+    set:contents option ->
+    unit Error.result Lwt.t
+  (** Set a value only if the [test] parameter matches the existing value *)
 
-    val remove : t -> info:Info.f -> path -> unit Error.result Lwt.t
-    (** Remove a value from the store *)
+  val remove : t -> info:Info.f -> path -> unit Error.result Lwt.t
+  (** Remove a value from the store *)
 
-    val set_tree :
-      t -> info:Info.f -> path -> Tree.t -> Tree.t Error.result Lwt.t
-    (** Set a tree at the given path *)
+  val set_tree : t -> info:Info.f -> path -> Tree.t -> Tree.t Error.result Lwt.t
+  (** Set a tree at the given path *)
 
-    val test_and_set_tree :
-      t ->
-      info:Info.f ->
-      path ->
-      test:Tree.t option ->
-      set:Tree.t option ->
-      Tree.t option Error.result Lwt.t
-    (** Set a value only if the [test] parameter matches the existing value *)
+  val test_and_set_tree :
+    t ->
+    info:Info.f ->
+    path ->
+    test:Tree.t option ->
+    set:Tree.t option ->
+    Tree.t option Error.result Lwt.t
+  (** Set a value only if the [test] parameter matches the existing value *)
 
-    val mem : t -> path -> bool Error.result Lwt.t
-    (** Check if the given path has an associated value *)
+  val mem : t -> path -> bool Error.result Lwt.t
+  (** Check if the given path has an associated value *)
 
-    val mem_tree : t -> path -> bool Error.result Lwt.t
-    (** Check if the given path has an associated tree *)
+  val mem_tree : t -> path -> bool Error.result Lwt.t
+  (** Check if the given path has an associated tree *)
 
-    val merge : t -> info:Info.f -> branch -> unit Error.result Lwt.t
-    (** Merge the current branch with the provided branch *)
+  val merge : t -> info:Info.f -> branch -> unit Error.result Lwt.t
+  (** Merge the current branch with the provided branch *)
 
-    val merge_commit : t -> info:Info.f -> Commit.t -> unit Error.result Lwt.t
-    (** Merge the current branch with the provided commit *)
+  val merge_commit : t -> info:Info.f -> Commit.t -> unit Error.result Lwt.t
+  (** Merge the current branch with the provided commit *)
 
-    val last_modified : t -> path -> Commit.t list Error.result Lwt.t
-    (** Get a list of commits that modified the specified path *)
-  end
+  val last_modified : t -> path -> Commit.t list Error.result Lwt.t
+  (** Get a list of commits that modified the specified path *)
 end
 
 module type Client = sig
@@ -319,6 +321,9 @@ module type Client = sig
   type nonrec addr = addr
 
   module type IO = IO
+
+  val config :
+    ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
 
   module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
     S
@@ -332,5 +337,17 @@ module type Client = sig
        and module Schema = Store.Schema
        and type Private.Store.tree = Store.tree
        and type Commit.key = Store.commit_key
+       and type contents_key = Store.contents_key
        and module IO = I
+
+  module Make_store
+      (I : IO)
+      (Codec : Conn.Codec.S)
+      (Store : Irmin.Generic_key.S) :
+    Irmin.Generic_key.S
+      with module Schema = Store.Schema
+       and type Backend.Remote.endpoint = unit
+       and type commit_key = Store.commit_key
+       and type contents_key = Store.contents_key
+       and type node_key = Store.node_key
 end

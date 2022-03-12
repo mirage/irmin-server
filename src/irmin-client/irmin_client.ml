@@ -20,3 +20,9 @@ module Make (IO : Client.IO) (Store : Irmin.Generic_key.S) =
 
 module Make_json (IO : Client.IO) (Store : Irmin.Generic_key.S) =
   Make_ext (IO) (Conn.Codec.Json) (Store)
+
+module Store = struct
+  let config = Client.config
+
+  module Make = Client.Make_store
+end

@@ -18,6 +18,7 @@ A request is sent from the client to the server
 | Field               | Type                        |
 | ------------------- | --------------------------- |
 | command             | `\n` delimited string       |
+| '\n'                | Extra '\n' character        |
 | request             | Message                     |
 
 ## Response
@@ -43,9 +44,9 @@ A handshake is performed when a client connects to the server
 
 The following is sent as a request from the client to server **AND** the response from server to client
 
-| Field        | Type                     |
-| -------      | ------------------------ |
-| version hash | `\n` delimited string    |
+| Field        | Type                      |
+| -------      | ------------------------- |
+| version hash | `\n` delimited string     |
 
 `version hash` is the hex-encoded hash of the current protocol version (`V1`) using `Store.Hash`.
 

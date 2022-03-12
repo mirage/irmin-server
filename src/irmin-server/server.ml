@@ -69,13 +69,19 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
   let commands = Hashtbl.create (List.length Command.commands)
   let () = Hashtbl.replace_seq commands (List.to_seq Command.commands)
   let invalid_arguments a = Error.unwrap "Invalid arguments" a [@@inline]
-  let empty_buffer = Bytes.create 0
 
   let[@tailrec] rec loop repo clients conn client info : unit Lwt.t =
     if Conn.is_closed conn then
       let* () =
         match client.Command.watch with
         | Some w -> Store.unwatch w
+        | None -> Lwt.return_unit
+      in
+      let* () =
+        match client.Command.branch_watch with
+        | Some w ->
+            let b = Store.Backend.Repo.branch_t client.repo in
+            Store.Backend.Branch.unwatch b w
         | None -> Lwt.return_unit
       in
       let () = Hashtbl.remove clients client in
@@ -89,13 +95,12 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
           (* Get command *)
           match Hashtbl.find_opt commands command with
           | None ->
-              Logs.err (fun l -> l "Unknown command: %s" command);
-              Conn.err conn ("unknown command: " ^ command)
+              if String.length command = 0 then Lwt.return_unit
+              else
+                let () = Logs.err (fun l -> l "Unknown command: %s" command) in
+                Conn.err conn ("unknown command: " ^ command)
           | Some (module Cmd : Command.CMD) ->
-              let* req =
-                Conn.read ~buffer:empty_buffer conn Cmd.Req.t
-                >|= invalid_arguments
-              in
+              let* req = Conn.read conn Cmd.req_t >|= invalid_arguments in
               Logs.debug (fun l -> l "Command: %s" Cmd.name);
               let* res = Cmd.run conn client info req in
               Conn.Return.finish res)
@@ -110,12 +115,14 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
               let* () = Lwt_io.close conn.ic in
               Lwt.return_unit
           | exn ->
-              (* Unhandled exception *)
-              let s = Printexc.to_string exn in
-              Logs.err (fun l ->
-                  l "Exception: %s\n%s" s (Printexc.get_backtrace ()));
-              let* () = Conn.err conn s in
-              Lwt_unix.sleep 0.01)
+              if Conn.is_closed conn then Lwt.return_unit
+              else
+                (* Unhandled exception *)
+                let s = Printexc.to_string exn in
+                Logs.err (fun l ->
+                    l "Exception: %s\n%s" s (Printexc.get_backtrace ()));
+                let* () = Conn.err conn s in
+                Lwt_unix.sleep 0.01)
       >>= fun () -> loop repo clients conn client info
 
   let callback { repo; clients; info; config; _ } flow ic oc =
@@ -138,12 +145,22 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
       let* store = Store.of_branch repo branch in
       let trees = Hashtbl.create 8 in
       let client =
-        Command.{ conn; repo; branch; store; trees; watch = None; config }
+        Command.
+          {
+            conn;
+            repo;
+            branch;
+            store;
+            trees;
+            watch = None;
+            branch_watch = None;
+            config;
+          }
       in
       Hashtbl.replace clients client ();
       loop repo clients conn client info
 
-  let on_exn x = raise x
+  let on_exn x = Logs.err (fun l -> l "EXCEPTION: %s" (Printexc.to_string x))
 
   let serve ?stop t =
     let unlink () =
