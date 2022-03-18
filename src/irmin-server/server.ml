@@ -107,7 +107,8 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
         (function
           | Error.Error s ->
               (* Recover *)
-              Logs.debug (fun l -> l "Error response: %s" s);
+              let backtrace = Printexc.get_backtrace () in
+              Logs.debug (fun l -> l "Error response: %s\n%s" s backtrace);
               let* () = Conn.err conn s in
               Lwt_unix.sleep 0.01
           | End_of_file ->

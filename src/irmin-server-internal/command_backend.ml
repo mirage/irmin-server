@@ -98,19 +98,6 @@ struct
         Return.v conn res_t v
     end
 
-    module Clear = struct
-      let name = "x.contents.clear"
-
-      type req = unit [@@deriving irmin]
-      type res = unit [@@deriving irmin]
-
-      let run conn ctx _ () =
-        let* () =
-          Repo.batch ctx.repo (fun contents _ _ -> Contents.clear contents)
-        in
-        Return.v conn res_t ()
-    end
-
     module Merge = struct
       let name = "x.contents.merge"
 
@@ -195,17 +182,6 @@ struct
       let run conn ctx _ hash =
         let* v = Repo.batch ctx.repo (fun _ node _ -> Node.index node hash) in
         Return.v conn res_t v
-    end
-
-    module Clear = struct
-      let name = "x.node.clear"
-
-      type req = unit [@@deriving irmin]
-      type res = unit [@@deriving irmin]
-
-      let run conn ctx _ () =
-        let* () = Repo.batch ctx.repo (fun _ node _ -> Node.clear node) in
-        Return.v conn res_t ()
     end
 
     module Merge = struct
@@ -299,17 +275,6 @@ struct
           Repo.batch ctx.repo (fun _ _ commit -> Commit.index commit hash)
         in
         Return.v conn res_t v
-    end
-
-    module Clear = struct
-      let name = "x.commit.clear"
-
-      type req = unit [@@deriving irmin]
-      type res = unit [@@deriving irmin]
-
-      let run conn ctx _ () =
-        let* () = Repo.batch ctx.repo (fun _ _ commit -> Commit.clear commit) in
-        Return.v conn res_t ()
     end
 
     module Merge = struct
@@ -507,21 +472,18 @@ struct
       cmd (module Contents.Add);
       cmd (module Contents.Unsafe_add);
       cmd (module Contents.Index);
-      cmd (module Contents.Clear);
       cmd (module Contents.Merge);
       cmd (module Node.Mem);
       cmd (module Node.Find);
       cmd (module Node.Add);
       cmd (module Node.Unsafe_add);
       cmd (module Node.Index);
-      cmd (module Node.Clear);
       cmd (module Node.Merge);
       cmd (module Commit.Mem);
       cmd (module Commit.Find);
       cmd (module Commit.Add);
       cmd (module Commit.Unsafe_add);
       cmd (module Commit.Index);
-      cmd (module Commit.Clear);
       cmd (module Commit.Merge);
       cmd (module Branch.Mem);
       cmd (module Branch.Find);

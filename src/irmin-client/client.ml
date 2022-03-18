@@ -10,7 +10,8 @@ module Conf = struct
   let uri = Irmin.Type.(map string) Uri.of_string Uri.to_string
 
   let uri =
-    Irmin.Backend.Conf.key ~spec "uri" uri (Uri.of_string "127.0.0.1:9181")
+    Irmin.Backend.Conf.key ~spec "uri" uri
+      (Uri.of_string "tcp://127.0.0.1:9181")
 
   let batch_size = Irmin.Backend.Conf.key ~spec "client" Irmin.Type.int 32
   let tls = Irmin.Backend.Conf.key ~spec "tls" Irmin.Type.bool false
@@ -122,8 +123,7 @@ struct
   and reconnect t =
     let* () = Lwt.catch (fun () -> close t) (fun _ -> Lwt.return_unit) in
     let+ conn = connect t.conf in
-    t.conn <- conn.conn;
-    t.closed <- false
+    t.conn <- conn.conn
 
   let lock t f = Lwt_mutex.with_lock t.lock f [@@inline]
 
@@ -578,9 +578,6 @@ struct
       let index t hash =
         request t (module Index) hash >|= Error.unwrap "Contents.index"
 
-      let clear t =
-        request t (module Clear) () >|= Error.unwrap "Contents.clear"
-
       let batch t f = f t
       let close t = close t
 
@@ -622,7 +619,6 @@ struct
       let index t hash =
         request t (module Index) hash >|= Error.unwrap "Node.index"
 
-      let clear t = request t (module Clear) () >|= Error.unwrap "Node.clear"
       let batch t f = f t
       let close t = close t
 
@@ -668,7 +664,6 @@ struct
       let index t hash =
         request t (module Index) hash >|= Error.unwrap "Commit.index"
 
-      let clear t = request t (module Clear) () >|= Error.unwrap "Commit.clear"
       let batch t f = f t
       let close t = close t
 

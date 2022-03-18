@@ -128,9 +128,9 @@ module X = Irmin_mem.KV.Make (Irmin.Contents.String)
 module Store = Irmin_client_unix.Store.Make (X)
 
 let suite =
-  Irmin_test.Suite.create ~name:"Server" ~init ~clear_supported:true
+  Irmin_test.Suite.create ~name:"Server" ~init
     ~store:(module Store)
     ~config ~clean ()
 
 let () =
-  Irmin_test.Store.run "irmin-server" ~slow:false ~misc [ (`Quick, suite) ]
+  Irmin_test.Store.run "irmin-server" ~slow:true ~misc [ (`Quick, suite) ]
