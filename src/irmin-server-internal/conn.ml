@@ -16,43 +16,48 @@ module Codec = struct
   end
 end
 
-module Make (T : Codec.S) = struct
-  type nonrec t = t
+module Make (I : IO) (T : Codec.S) = struct
+  module IO = I
+
+  type t = { flow : IO.flow; ic : IO.ic; oc : IO.oc; buffer : bytes }
 
   let v ?(buffer_size = 4096) flow ic oc =
     { flow; ic; oc; buffer = Bytes.create buffer_size }
     [@@inline]
 
-  let is_closed { ic; _ } = Lwt_io.is_closed ic
+  let is_closed { ic; _ } = IO.is_closed ic
 
   let write_raw t s : unit Lwt.t =
     let len = String.length s in
     Logs.debug (fun l -> l "Writing raw message: length=%d" len);
     let* x =
-      Lwt_io.BE.write_int64 t.oc (Int64.of_int len) >>= fun () ->
-      if len = 0 then Lwt.return_unit else Lwt_io.write t.oc s
+      IO.write_int64_be t.oc (Int64.of_int len) >>= fun () ->
+      if len <= 0 then Lwt.return_unit else IO.write t.oc s
     in
-    let+ () = Lwt_io.flush t.oc in
+    let+ () = IO.flush t.oc in
     x
 
   let write t ty x : unit Lwt.t =
     let s = T.encode ty x in
     write_raw t s
 
-  let read_raw ~buffer t =
-    let* n = Lwt_io.BE.read_int64 t.ic in
+  let read_raw t =
+    let* n =
+      Lwt.catch (fun () -> IO.read_int64_be t.ic) (fun _ -> Lwt.return 0L)
+    in
     Logs.debug (fun l -> l "Raw message length=%Ld" n);
     if n <= 0L then Lwt.return Bytes.empty
     else
       let n = Int64.to_int n in
       let buf =
-        if n > Bytes.length buffer then Bytes.create n else Bytes.sub buffer 0 n
+        if n >= Bytes.length t.buffer then Bytes.create n
+        else Bytes.sub t.buffer 0 n
       in
-      let+ () = Lwt_io.read_into_exactly t.ic buf 0 n in
+      let+ () = IO.read_into_exactly t.ic buf 0 n in
       buf
 
-  let read ~buffer t ty =
-    let+ buf = read_raw ~buffer t in
+  let read t ty =
+    let+ buf = read_raw t in
     T.decode ty (Bytes.unsafe_to_string buf)
     [@@inline]
 
@@ -68,24 +73,22 @@ module Make (T : Codec.S) = struct
       let send store t =
         Lwt.catch
           (fun () ->
-            Lwt_unix.with_timeout 3.0 (fun () ->
+            IO.with_timeout 3.0 (fun () ->
                 let s = fingerprint store in
-                let* () = Lwt_io.write_line t.oc s in
-                let+ line = Lwt_io.read_line t.ic in
+                let* () = IO.write_line t.oc s in
+                let+ line = IO.read_line t.ic in
                 assert (s = String.trim line)))
           (function
-            | Assert_failure _ | Lwt_unix.Timeout ->
+            | Assert_failure _ | IO.Timeout ->
                 Error.raise_error "unable to connect to server"
             | End_of_file -> Error.raise_error "invalid handshake"
             | x -> raise x)
 
       let check store t =
         let s = fingerprint store in
-        let* line =
-          Lwt_unix.with_timeout 3.0 (fun () -> Lwt_io.read_line t.ic)
-        in
+        let* line = IO.with_timeout 3.0 (fun () -> IO.read_line t.ic) in
         if String.trim line = s then
-          let* () = Lwt_io.write_line t.oc s in
+          let* () = IO.write_line t.oc s in
           Lwt.return_true
         else Lwt.return_false
     end
@@ -98,12 +101,12 @@ module Make (T : Codec.S) = struct
 
     let write_header t { status; _ } =
       Logs.debug (fun l -> l "Writing response header: status=%d" status);
-      let+ x = Lwt_io.write_char t.oc (char_of_int status) in
+      let+ x = IO.write_char t.oc (char_of_int status) in
       x
 
     let read_header t =
       Logs.debug (fun l -> l "Starting response header read");
-      let+ status = Lwt_io.read_char t.ic in
+      let+ status = IO.read_char t.ic in
       let status = int_of_char status in
       Logs.debug (fun l -> l "Read response header: status=%d" status);
       { status }
@@ -111,10 +114,10 @@ module Make (T : Codec.S) = struct
 
     let is_error { status; _ } = status >= 1 [@@inline]
 
-    let get_error buffer t header =
+    let get_error t header =
       if is_error header then (
-        let* x = read ~buffer t Irmin.Type.string in
-        let x = Result.value ~default:"Unknown error" x in
+        let* x = read_raw t in
+        let x = Bytes.to_string x in
         Logs.debug (fun l -> l "Error response message: %s" x);
         Lwt.return_some x)
       else Lwt.return_none
@@ -127,10 +130,13 @@ module Make (T : Codec.S) = struct
 
     let write_header t { command } : unit Lwt.t =
       Logs.debug (fun l -> l "Writing request header: command=%s" command);
-      Lwt_io.write_line t.oc (String.lowercase_ascii command)
+      let* () = IO.write_line t.oc (String.lowercase_ascii command) in
+      IO.write_char t.oc '\n'
 
     let read_header t : header Lwt.t =
-      let+ command = Lwt_io.read_line t.ic >|= String.trim in
+      let* command = IO.read_line t.ic >|= String.trim in
+      let+ c = IO.read_char t.ic in
+      assert (c = '\n');
       let command = String.lowercase_ascii command in
       Logs.debug (fun l -> l "Request header read: command=%s" command);
       { command }
@@ -148,7 +154,7 @@ module Make (T : Codec.S) = struct
 
     let err conn msg : 'a t Lwt.t =
       let* t = make 1 conn in
-      let+ () = write conn Irmin.Type.string ("ERROR " ^ msg) in
+      let+ () = write_raw conn ("ERROR " ^ msg) in
       t
       [@@inline]
 
@@ -167,15 +173,9 @@ module Make (T : Codec.S) = struct
     let result conn t x =
       match x with Ok x -> v conn t x | Error (`Msg msg) -> err conn msg
 
-    let finish _t = Lwt.pause ()
+    let finish _t = Lwt.return_unit
   end
 
-  let begin_response t n = Response.write_header t { status = n } [@@inline]
-  let ok t = begin_response t 1 [@@inline]
-
-  let err t msg =
-    let header = Response.v_header ~status:1 in
-    let msg = "ERROR " ^ msg in
-    let* () = Response.write_header t header in
-    write t Irmin.Type.string msg
+  let ok t = Return.ok t >>= Return.finish
+  let err t msg = Return.err t msg >>= Return.finish
 end

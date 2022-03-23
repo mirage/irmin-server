@@ -1,4 +1,4 @@
 (library
  (name irmin_server)
  (public_name irmin-server)
- (libraries irmin-server-internal))
+ (libraries irmin-server-internal lwt.unix conduit-lwt-unix))

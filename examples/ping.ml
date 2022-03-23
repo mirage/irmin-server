@@ -1,6 +1,6 @@
 open Lwt.Syntax
 module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
-module Client = Irmin_client.Make (Store)
+module Client = Irmin_client_unix.Make (Store)
 
 let main =
   let uri = Uri.of_string "tcp://localhost:9090" in

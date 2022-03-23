@@ -1,3 +1,10 @@
 (test
  (name test)
- (libraries irmin-server irmin-client alcotest-lwt))
+ (package irmin-server)
+ (libraries
+  irmin.mem
+  irmin-server
+  irmin-client-unix
+  alcotest-lwt
+  irmin-test
+  irmin-watcher))

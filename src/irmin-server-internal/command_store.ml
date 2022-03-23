@@ -2,6 +2,7 @@ open Lwt.Syntax
 open Lwt.Infix
 
 module Make
+    (IO : Conn.IO)
     (Codec : Conn.Codec.S)
     (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
@@ -13,7 +14,7 @@ module Make
                  and type key = Store.commit_key
                  and module Info = Store.Info) =
 struct
-  include Context.Make (Codec) (Store) (Tree)
+  include Context.Make (IO) (Codec) (Store) (Tree)
   module Return = Conn.Return
 
   let convert_commit head =
@@ -26,29 +27,19 @@ struct
     Commit.v ~info ~parents ~key ~tree
 
   module Find = struct
-    module Req = struct
-      type t = Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Store.contents option [@@deriving irmin]
-    end
+    type req = Store.path [@@deriving irmin]
+    type res = Store.contents option [@@deriving irmin]
 
     let name = "store.find"
 
     let run conn ctx _ path =
       let* x = Store.find ctx.store path in
-      Return.v conn Res.t x
+      Return.v conn res_t x
   end
 
   module Set = struct
-    module Req = struct
-      type t = Store.path * Store.Info.t * Store.contents [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
+    type req = Store.path * Store.Info.t * Store.contents [@@deriving irmin]
+    type res = unit [@@deriving irmin]
 
     let name = "store.set"
 
@@ -58,17 +49,13 @@ struct
   end
 
   module Test_and_set = struct
-    module Req = struct
-      type t =
-        Store.path
-        * Store.Info.t
-        * (Store.contents option * Store.contents option)
-      [@@deriving irmin]
-    end
+    type req =
+      Store.path
+      * Store.Info.t
+      * (Store.contents option * Store.contents option)
+    [@@deriving irmin]
 
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
+    type res = unit [@@deriving irmin]
 
     let name = "store.test_and_set"
 
@@ -80,13 +67,8 @@ struct
   end
 
   module Remove = struct
-    module Req = struct
-      type t = Store.path * Store.Info.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
+    type req = Store.path * Store.Info.t [@@deriving irmin]
+    type res = unit [@@deriving irmin]
 
     let name = "store.remove"
 
@@ -96,13 +78,8 @@ struct
   end
 
   module Find_tree = struct
-    module Req = struct
-      type t = Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t option [@@deriving irmin]
-    end
+    type req = Store.path [@@deriving irmin]
+    type res = Tree.t option [@@deriving irmin]
 
     let name = "store.find_tree"
 
@@ -111,17 +88,12 @@ struct
       let x =
         Option.map (fun x -> Tree.Key (Store.Tree.key x |> Option.get)) x
       in
-      Return.v conn Res.t x
+      Return.v conn res_t x
   end
 
   module Set_tree = struct
-    module Req = struct
-      type t = Store.path * Store.Info.t * Tree.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Tree.t [@@deriving irmin]
-    end
+    type req = Store.path * Store.Info.t * Tree.t [@@deriving irmin]
+    type res = Tree.t [@@deriving irmin]
 
     let name = "store.set_tree"
 
@@ -131,22 +103,18 @@ struct
       let* tree = Store.get_tree ctx.store path in
       let key = Store.Tree.key tree in
       Option.iter (fun id -> Hashtbl.remove ctx.trees id) id;
-      Return.v conn Res.t (Tree.Key (Option.get key))
+      Return.v conn res_t (Tree.Key (Option.get key))
   end
 
   module Test_and_set_tree = struct
-    module Req = struct
-      type t = Store.path * Store.Info.t * (Tree.t option * Tree.t option)
-      [@@deriving irmin]
-    end
+    type req = Store.path * Store.Info.t * (Tree.t option * Tree.t option)
+    [@@deriving irmin]
 
-    module Res = struct
-      type t = Tree.t option [@@deriving irmin]
-    end
+    type res = Tree.t option [@@deriving irmin]
 
     let name = "store.test_and_set_tree"
 
-    let run conn ctx _ ((path, info, (test, set)) : Req.t) =
+    let run conn ctx _ ((path, info, (test, set)) : req) =
       let* test =
         match test with
         | Some test ->
@@ -167,52 +135,37 @@ struct
           ~test ~set
       in
       Option.iter (Hashtbl.remove ctx.trees) id;
-      Return.v conn Res.t
+      Return.v conn res_t
         (Option.map
            (fun tree -> Tree.Key (Store.Tree.key tree |> Option.get))
            set)
   end
 
   module Mem = struct
-    module Req = struct
-      type t = Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = bool [@@deriving irmin]
-    end
+    type req = Store.path [@@deriving irmin]
+    type res = bool [@@deriving irmin]
 
     let name = "store.mem"
 
     let run conn ctx _ path =
       let* res = Store.mem ctx.store path in
-      Return.v conn Res.t res
+      Return.v conn res_t res
   end
 
   module Mem_tree = struct
-    module Req = struct
-      type t = Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = bool [@@deriving irmin]
-    end
+    type req = Store.path [@@deriving irmin]
+    type res = bool [@@deriving irmin]
 
     let name = "store.mem_tree"
 
     let run conn ctx _ path =
       let* res = Store.mem_tree ctx.store path in
-      Return.v conn Res.t res
+      Return.v conn res_t res
   end
 
   module Merge = struct
-    module Req = struct
-      type t = Store.Info.t * Store.Branch.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
+    type req = Store.Info.t * Store.Branch.t [@@deriving irmin]
+    type res = unit [@@deriving irmin]
 
     let name = "store.merge"
 
@@ -221,23 +174,18 @@ struct
         Store.merge_with_branch ctx.store other ~info:(fun () -> info)
       in
       match merge with
-      | Ok () -> Return.v conn Res.t ()
+      | Ok () -> Return.v conn res_t ()
       | Error e ->
           Return.err conn (Irmin.Type.to_string Irmin.Merge.conflict_t e)
   end
 
   module Merge_commit = struct
-    module Req = struct
-      type t = Store.Info.t * Commit.t [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = unit [@@deriving irmin]
-    end
+    type req = Store.Info.t * Commit.t [@@deriving irmin]
+    type res = unit [@@deriving irmin]
 
     let name = "store.merge_commit"
 
-    let run conn ctx _ ((info, other) : Req.t) =
+    let run conn ctx _ ((info, other) : req) =
       let* commit =
         Store.Commit.of_key ctx.repo (Commit.key other) >|= Option.get
       in
@@ -245,19 +193,14 @@ struct
         Store.merge_with_commit ctx.store commit ~info:(fun () -> info)
       in
       match merge with
-      | Ok () -> Return.v conn Res.t ()
+      | Ok () -> Return.v conn res_t ()
       | Error e ->
           Return.err conn (Irmin.Type.to_string Irmin.Merge.conflict_t e)
   end
 
   module Last_modified = struct
-    module Req = struct
-      type t = Store.path [@@deriving irmin]
-    end
-
-    module Res = struct
-      type t = Commit.t list [@@deriving irmin]
-    end
+    type req = Store.path [@@deriving irmin]
+    type res = Commit.t list [@@deriving irmin]
 
     let name = "store.last_modified"
 
@@ -265,7 +208,7 @@ struct
       let* res =
         Store.last_modified ctx.store path >|= List.map convert_commit
       in
-      Return.v conn Res.t res
+      Return.v conn res_t res
   end
 
   let commands =

@@ -1,6 +1,6 @@
 (library
  (name irmin_server_internal)
  (public_name irmin-server-internal)
- (libraries irmin irmin-pack conduit-lwt-unix)
+ (libraries logs fmt irmin lwt cmdliner irmin-pack)
  (preprocess
   (pps ppx_irmin)))

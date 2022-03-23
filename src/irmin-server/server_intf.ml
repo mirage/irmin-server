@@ -25,5 +25,6 @@ end
 module type Server = sig
   module type S = S
 
-  module Make (C : Command.S) : S with module Store = C.Store
+  module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
+    S with module Store = Store and module Command.Conn.IO = IO
 end

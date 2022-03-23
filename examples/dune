@@ -1,20 +1,20 @@
 (executables
  (names server)
- (libraries irmin-server)
+ (libraries irmin.mem irmin-server)
  (modules server)
  (preprocess
   (pps ppx_irmin)))
 
 (executables
- (names ping tree branches)
- (libraries irmin-client)
- (modules ping tree branches)
+ (names ping tree branches store)
+ (libraries irmin.mem irmin-client-unix)
+ (modules ping tree branches store)
  (preprocess
   (pps ppx_irmin)))
 
 (alias
  (name examples)
- (deps server.exe ping.exe tree.exe branches.exe))
+ (deps server.exe ping.exe tree.exe branches.exe store.exe))
 
 (alias
  (name runtest)
