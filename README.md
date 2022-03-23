@@ -37,18 +37,18 @@ $ dune exec bin/client/client.exe -- --help
 For help with a specific command (for example, ping):
 
 ```shell
-$ dine exec bin/client/client.exe -- ping --help
+$ dune exec bin/client/client.exe -- ping --help
 ```
 
 ## OCaml client
 
 An OCaml client library is provided to interact with the server. Some examples can be
-found in the [examples/](/tree/master/examples) directory.
+found in the [examples/](/examples) directory.
 
 ### Docs
 
-See [src/irmin-client/client_intf.ml](/blob/master/src/irmin-client/client_intf.ml)
+See [src/irmin-client/client_intf.ml](/src/irmin-client/client_intf.ml)
 
 ## Protocol
 
-A specification of the wire protocol can be found in [PROTOCOL.md](/blob/master/PROTOCOL.md)
+A specification of the wire protocol can be found in [PROTOCOL.md](/PROTOCOL.md)
