@@ -296,48 +296,43 @@ let config =
     $ Irmin_unix.Resolver.Store.term ()
     $ Cli.codec $ Cli.config_path $ setup_log)
 
-let help =
-  let help () =
-    Printf.printf "See output of `%s --help` for usage\n" Sys.argv.(0)
-  in
-  (Term.(const help $ Term.pure ()), Term.info "irmin-client")
+let commands =
+  List.map
+    (fun (term, info) -> Cmd.v info term)
+    [
+      ( Term.(const list_server_commands $ const ()),
+        Cmd.info ~doc:"List all commands available on server" "list-commands" );
+      ( Term.(const ping $ config $ time $ iterations),
+        Cmd.info ~doc:"Ping the server" "ping" );
+      ( Term.(const find $ config $ path 0 $ time $ iterations),
+        Cmd.info ~doc:"Get the path associated with a value" "get" );
+      ( Term.(const find $ config $ path 0 $ time $ iterations),
+        Cmd.info ~doc:"Alias for 'get' command" "find" );
+      Term.
+        ( const set $ config $ path 0 $ author $ message $ value 1 $ time
+          $ iterations,
+          Cmd.info ~doc:"Set path/value" "set" );
+      Term.
+        ( const remove $ config $ path 0 $ author $ message $ time $ iterations,
+          Cmd.info ~doc:"Remove value associated with the given path" "remove"
+        );
+      ( Term.(const import $ config $ filename 0 $ time $ iterations),
+        Cmd.info ~doc:"Import from dump file" "import" );
+      ( Term.(const export $ config $ filename 0 $ time $ iterations),
+        Cmd.info ~doc:"Export to dump file" "export" );
+      ( Term.(const mem $ config $ path 0 $ time $ iterations),
+        Cmd.info ~doc:"Check if path is set" "mem" );
+      ( Term.(const mem_tree $ config $ path 0 $ time $ iterations),
+        Cmd.info ~doc:"Check if path is set to a tree value" "mem_tree" );
+      ( Term.(const stats $ config $ time $ iterations),
+        Cmd.info ~doc:"Server stats" "stats" );
+      (Term.(const watch $ config), Cmd.info ~doc:"Watch for updates" "watch");
+      ( Term.(const replicate $ config $ author $ message),
+        Cmd.info ~doc:"Replicate changes from irmin CLI" "replicate" );
+      ( Term.(const Dashboard.main $ config $ freq),
+        Cmd.info ~doc:"Run dashboard" "dashboard" );
+    ]
 
 let () =
-  Term.exit
-  @@ Term.eval_choice help
-       [
-         ( Term.(const list_server_commands $ pure ()),
-           Term.info ~doc:"List all commands available on server"
-             "list-commands" );
-         ( Term.(const ping $ config $ time $ iterations),
-           Term.info ~doc:"Ping the server" "ping" );
-         ( Term.(const find $ config $ path 0 $ time $ iterations),
-           Term.info ~doc:"Get the path associated with a value" "get" );
-         ( Term.(const find $ config $ path 0 $ time $ iterations),
-           Term.info ~doc:"Alias for 'get' command" "find" );
-         Term.
-           ( const set $ config $ path 0 $ author $ message $ value 1 $ time
-             $ iterations,
-             Term.info ~doc:"Set path/value" "set" );
-         Term.
-           ( const remove $ config $ path 0 $ author $ message $ time
-             $ iterations,
-             Term.info ~doc:"Remove value associated with the given path"
-               "remove" );
-         ( Term.(const import $ config $ filename 0 $ time $ iterations),
-           Term.info ~doc:"Import from dump file" "import" );
-         ( Term.(const export $ config $ filename 0 $ time $ iterations),
-           Term.info ~doc:"Export to dump file" "export" );
-         ( Term.(const mem $ config $ path 0 $ time $ iterations),
-           Term.info ~doc:"Check if path is set" "mem" );
-         ( Term.(const mem_tree $ config $ path 0 $ time $ iterations),
-           Term.info ~doc:"Check if path is set to a tree value" "mem_tree" );
-         ( Term.(const stats $ config $ time $ iterations),
-           Term.info ~doc:"Server stats" "stats" );
-         ( Term.(const watch $ config),
-           Term.info ~doc:"Watch for updates" "watch" );
-         ( Term.(const replicate $ config $ author $ message),
-           Term.info ~doc:"Replicate changes from irmin CLI" "replicate" );
-         ( Term.(const Dashboard.main $ config $ freq),
-           Term.info ~doc:"Run dashboard" "dashboard" );
-       ]
+  let info = Cmd.info "irmin-client" in
+  exit @@ Cmd.eval (Cmd.group info commands)

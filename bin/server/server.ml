@@ -77,5 +77,6 @@ let main_term =
     $ Cli.codec $ Cli.config_path $ setup_log)
 
 let () =
-  let info = Term.info "irmin-server" in
-  Term.exit @@ Term.eval (main_term, info)
+  let info = Cmd.info "irmin-server" in
+  let cmd = Cmd.v info main_term in
+  exit @@ Cmd.eval cmd
