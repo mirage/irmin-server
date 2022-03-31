@@ -339,6 +339,4 @@ let[@alert "-deprecated"] () =
            Term.info ~doc:"Watch for updates" "watch" );
          ( Term.(const replicate $ config $ author $ message),
            Term.info ~doc:"Replicate changes from irmin CLI" "replicate" );
-         ( Term.(const Dashboard.main $ config $ freq),
-           Term.info ~doc:"Run dashboard" "dashboard" );
        ]
