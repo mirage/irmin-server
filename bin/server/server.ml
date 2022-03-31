@@ -76,6 +76,6 @@ let main_term =
     $ Irmin_unix.Resolver.Store.term ()
     $ Cli.codec $ Cli.config_path $ setup_log)
 
-let () =
+let[@alert "-deprecated"] () =
   let info = Term.info "irmin-server" in
   Term.exit @@ Term.eval (main_term, info)

@@ -300,9 +300,10 @@ let help =
   let help () =
     Printf.printf "See output of `%s --help` for usage\n" Sys.argv.(0)
   in
-  (Term.(const help $ Term.pure ()), Term.info "irmin-client")
+  ( Term.(const help $ Term.const ()),
+    (Term.info "irmin-client" [@alert "-deprecated"]) )
 
-let () =
+let[@alert "-deprecated"] () =
   Term.exit
   @@ Term.eval_choice help
        [
