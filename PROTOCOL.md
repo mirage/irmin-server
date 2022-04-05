@@ -17,8 +17,7 @@ A request is sent from the client to the server
 
 | Field               | Type                        |
 | ------------------- | --------------------------- |
-| command             | `\n` delimited string       |
-| '\n'                | Extra '\n' character        |
+| command             | `\n\n` delimited string     |
 | request             | Message                     |
 
 ## Response
@@ -48,8 +47,9 @@ The following is sent as a request from the client to server **AND** the respons
 | -------      | ------------------------- |
 | version hash | `\n` delimited string     |
 
-`version hash` is the hex-encoded hash of the current protocol version (`V1`) using `Store.Hash`.
+`contents type hash` is the protocol version appended to the hex-encoded hash of the name of the store contents type using `Store.Hash`. The name of the content type is determined by `Irmin.Type.pp_ty`.
 
-For example, for a store with BLAKE2B hash the `contents type hash` is equal to `BLAKE2B("V1")`
+For example, for a store with BLAKE2B hash and string contents the `contents type hash` is equal to `V1 + BLAKE2B("Custom (string)")`
 
-This is used as a basic sanity check to ensure the client and server have the same hash implementation
+This is used as a basic sanity check to ensure the client and server have the same hash and contents.
+

@@ -115,9 +115,11 @@ struct
     let client = mk_client conf in
     let* flow, ic, oc = IO.connect ~ctx:conf.ctx client in
     let conn = Conn.v flow ic oc in
-    let+ () = Conn.Handshake.V1.send (module Private.Store) conn in
-    let t = { conf; conn; closed = false; lock = Lwt_mutex.create () } in
-    t
+    let+ ok = Conn.Handshake.V1.send (module Private.Store) conn in
+    if not ok then Error.raise_error "invalid handshake"
+    else
+      let t = { conf; conn; closed = false; lock = Lwt_mutex.create () } in
+      t
 
   and reconnect t =
     let* () = Lwt.catch (fun () -> close t) (fun _ -> Lwt.return_unit) in

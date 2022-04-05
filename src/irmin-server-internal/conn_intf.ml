@@ -52,7 +52,7 @@ module type S = sig
   module Handshake : sig
     module V1 : sig
       val version : string
-      val send : (module Irmin.Generic_key.S) -> t -> unit Lwt.t
+      val send : (module Irmin.Generic_key.S) -> t -> bool Lwt.t
       val check : (module Irmin.Generic_key.S) -> t -> bool Lwt.t
     end
   end
