@@ -10,7 +10,8 @@ module Conf = struct
   let uri = Irmin.Type.(map string) Uri.of_string Uri.to_string
 
   let uri =
-    Irmin.Backend.Conf.key ~spec "uri" uri (Uri.of_string "127.0.0.1:9181")
+    Irmin.Backend.Conf.key ~spec "uri" uri
+      (Uri.of_string "tcp://127.0.0.1:9181")
 
   let batch_size = Irmin.Backend.Conf.key ~spec "client" Irmin.Type.int 32
   let tls = Irmin.Backend.Conf.key ~spec "tls" Irmin.Type.bool false
