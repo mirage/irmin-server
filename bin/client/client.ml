@@ -156,7 +156,7 @@ let stats client =
       let* stats = Client.stats client >|= Error.unwrap "stats" in
       Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats))
 
-let replicate client author message =
+let replicate client author message prefix =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
       let module Info = Irmin_client_unix.Info (Client.Info) in
@@ -182,8 +182,13 @@ let replicate client author message =
             [] (diff input)
         in
         let info = Info.v ~author "%s" message in
+        let prefix =
+          match prefix with
+          | Some p -> Irmin.Type.of_string Client.Path.t p |> Result.get_ok
+          | None -> Client.Path.empty
+        in
         let* tree =
-          Client.find_tree client Client.Path.empty >|= Error.unwrap "find_tree"
+          Client.find_tree client prefix >|= Error.unwrap "find_tree"
         in
         let tree =
           match tree with Some t -> t | None -> Client.Tree.empty client
@@ -192,8 +197,7 @@ let replicate client author message =
           Client.Tree.batch_update tree batch >|= Error.unwrap "build"
         in
         let* _ =
-          Client.set_tree client ~info Client.Path.empty tree
-          >|= Error.unwrap "set_tree"
+          Client.set_tree client ~info prefix tree >|= Error.unwrap "set_tree"
         in
         loop ()
       in
@@ -227,6 +231,10 @@ let pr_str = Format.pp_print_string
 let path index =
   let doc = Arg.info ~docv:"PATH" ~doc:"Path to lookup or modify" [] in
   Arg.(required & pos index (some string) None & doc)
+
+let prefix =
+  let doc = Arg.info ~docv:"PATH" ~doc:"Optional prefix" [] in
+  Arg.(value & pos 0 (some string) None & doc)
 
 let filename index =
   let doc = Arg.info ~docv:"PATH" ~doc:"Filename" [] in
@@ -337,6 +345,6 @@ let[@alert "-deprecated"] () =
            Term.info ~doc:"Server stats" "stats" );
          ( Term.(const watch $ config),
            Term.info ~doc:"Watch for updates" "watch" );
-         ( Term.(const replicate $ config $ author $ message),
+         ( Term.(const replicate $ config $ author $ message $ prefix),
            Term.info ~doc:"Replicate changes from irmin CLI" "replicate" );
        ]
