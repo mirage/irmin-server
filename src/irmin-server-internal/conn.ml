@@ -67,8 +67,9 @@ module Make (I : IO) (T : Codec.S) = struct
 
       let fingerprint (module Store : Irmin.Generic_key.S) : string =
         let hex = Irmin.Type.to_string Store.Hash.t in
-        let hash = Store.Hash.hash (fun f -> f "V1") in
-        hex hash
+        let ty = Fmt.to_to_string Irmin.Type.pp_ty Store.Contents.t in
+        let hash = Store.Hash.hash (fun f -> f ty) in
+        version ^ hex hash
 
       let send store t =
         Lwt.catch
@@ -77,17 +78,20 @@ module Make (I : IO) (T : Codec.S) = struct
                 let s = fingerprint store in
                 let* () = IO.write_line t.oc s in
                 let+ line = IO.read_line t.ic in
-                assert (s = String.trim line)))
+                s = String.trim line))
           (function
-            | Assert_failure _ | IO.Timeout ->
-                Error.raise_error "unable to connect to server"
+            | IO.Timeout -> Error.raise_error "unable to connect to server"
             | End_of_file -> Error.raise_error "invalid handshake"
             | x -> raise x)
 
       let check store t =
         let s = fingerprint store in
-        let* line = IO.with_timeout 3.0 (fun () -> IO.read_line t.ic) in
-        if String.trim line = s then
+        let* line =
+          IO.with_timeout 3.0 (fun () ->
+              let+ f = IO.read_line t.ic in
+              String.trim f)
+        in
+        if String.equal line s then
           let* () = IO.write_line t.oc s in
           Lwt.return_true
         else Lwt.return_false

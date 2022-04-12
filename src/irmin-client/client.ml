@@ -10,7 +10,8 @@ module Conf = struct
   let uri = Irmin.Type.(map string) Uri.of_string Uri.to_string
 
   let uri =
-    Irmin.Backend.Conf.key ~spec "uri" uri (Uri.of_string "127.0.0.1:9181")
+    Irmin.Backend.Conf.key ~spec "uri" uri
+      (Uri.of_string "tcp://127.0.0.1:9181")
 
   let batch_size = Irmin.Backend.Conf.key ~spec "client" Irmin.Type.int 32
   let tls = Irmin.Backend.Conf.key ~spec "tls" Irmin.Type.bool false
@@ -115,9 +116,11 @@ struct
     let client = mk_client conf in
     let* flow, ic, oc = IO.connect ~ctx:conf.ctx client in
     let conn = Conn.v flow ic oc in
-    let+ () = Conn.Handshake.V1.send (module Private.Store) conn in
-    let t = { conf; conn; closed = false; lock = Lwt_mutex.create () } in
-    t
+    let+ ok = Conn.Handshake.V1.send (module Private.Store) conn in
+    if not ok then Error.raise_error "invalid handshake"
+    else
+      let t = { conf; conn; closed = false; lock = Lwt_mutex.create () } in
+      t
 
   and reconnect t =
     let* () = Lwt.catch (fun () -> close t) (fun _ -> Lwt.return_unit) in
