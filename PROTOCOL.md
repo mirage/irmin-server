@@ -17,8 +17,9 @@ A request is sent from the client to the server
 
 | Field               | Type                        |
 | ------------------- | --------------------------- |
-| command             | `\n\n` delimited string     |
-| request             | Message                     |
+| command name length | uint8                       |
+| command             | string                      |
+| request             | Encoded message             |
 
 ## Response
 
@@ -52,4 +53,3 @@ The following is sent as a request from the client to server **AND** the respons
 For example, for a store with BLAKE2B hash and string contents the `contents type hash` is equal to `V1 + BLAKE2B("Custom (string)")`
 
 This is used as a basic sanity check to ensure the client and server have the same hash and contents.
-

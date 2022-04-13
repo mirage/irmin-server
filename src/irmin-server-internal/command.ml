@@ -334,6 +334,7 @@ struct
     ]
     @ Store.commands @ Tree.commands @ Backend.commands
 
+  let () = List.iter (fun (k, _) -> assert (String.length k < 255)) commands
   let of_name name = List.assoc name commands
   let name (module Cmd : CMD) = Cmd.name
 end

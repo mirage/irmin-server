@@ -134,13 +134,16 @@ module Make (I : IO) (T : Codec.S) = struct
 
     let write_header t { command } : unit Lwt.t =
       Logs.debug (fun l -> l "Writing request header: command=%s" command);
-      let* () = IO.write_line t.oc (String.lowercase_ascii command) in
-      IO.write_char t.oc '\n'
+      let* () = IO.write_char t.oc (char_of_int (String.length command)) in
+      let* () = IO.write t.oc (String.lowercase_ascii command) in
+      IO.flush t.oc
 
     let read_header t : header Lwt.t =
-      let* command = IO.read_line t.ic >|= String.trim in
-      let+ c = IO.read_char t.ic in
-      assert (c = '\n');
+      let* length = IO.read_char t.ic >|= int_of_char in
+      let command = String.make length ' ' in
+      let+ () =
+        IO.read_into_exactly t.ic (Bytes.unsafe_of_string command) 0 length
+      in
       let command = String.lowercase_ascii command in
       Logs.debug (fun l -> l "Request header read: command=%s" command);
       { command }
