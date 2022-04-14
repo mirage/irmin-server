@@ -2,7 +2,7 @@
 
 ## Message
 
-Message `data` is encoded using either `Irmin.Type.to_bin_string` or `Irmin.Type.to_json_string`,
+Message `data` can be sent raw, or encoded using either `Irmin.Type.to_bin_string` or `Irmin.Type.to_json_string`,
 depending on which codec is selected at runtime.
 
 | Field  | Type                 |
@@ -19,7 +19,7 @@ A request is sent from the client to the server
 | ------------------- | --------------------------- |
 | command name length | uint8                       |
 | command             | string                      |
-| request             | Encoded message             |
+| request             | Message (encoded)           |
 
 ## Response
 
@@ -34,7 +34,7 @@ A successful response is marked by setting `status` to `0`.
 | Field           | Type                   |
 | --------------- | ---------------------- |
 | status          | uint8                  |
-| response        | Message                |
+| response        | Message (encoded)      |
 
 ## Handshake
 
@@ -46,9 +46,9 @@ The following is sent as a request from the client to server **AND** the respons
 
 | Field        | Type                      |
 | -------      | ------------------------- |
-| version hash | `\n` delimited string     |
+| fingerprint  | Message (raw)             |
 
-`contents type hash` is the protocol version appended to the hex-encoded hash of the name of the store contents type using `Store.Hash`. The name of the content type is determined by `Irmin.Type.pp_ty`.
+The `fingerprint` is the protocol version appended to the hex-encoded hash of the name of the store contents type using `Store.Hash`. The name of the content type is determined by `Irmin.Type.pp_ty`.
 
 For example, for a store with BLAKE2B hash and string contents the `contents type hash` is equal to `V1 + BLAKE2B("Custom (string)")`
 

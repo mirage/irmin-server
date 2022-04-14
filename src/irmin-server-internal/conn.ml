@@ -76,9 +76,9 @@ module Make (I : IO) (T : Codec.S) = struct
           (fun () ->
             IO.with_timeout 3.0 (fun () ->
                 let s = fingerprint store in
-                let* () = IO.write_line t.oc s in
-                let+ line = IO.read_line t.ic in
-                s = String.trim line))
+                let* () = write_raw t s in
+                let+ line = read_raw t in
+                s = String.trim (Bytes.unsafe_to_string line)))
           (function
             | IO.Timeout -> Error.raise_error "unable to connect to server"
             | End_of_file -> Error.raise_error "invalid handshake"
@@ -86,13 +86,9 @@ module Make (I : IO) (T : Codec.S) = struct
 
       let check store t =
         let s = fingerprint store in
-        let* line =
-          IO.with_timeout 3.0 (fun () ->
-              let+ f = IO.read_line t.ic in
-              String.trim f)
-        in
-        if String.equal line s then
-          let* () = IO.write_line t.oc s in
+        let* line = IO.with_timeout 3.0 (fun () -> read_raw t) in
+        if String.trim (Bytes.unsafe_to_string line) = s then
+          let* () = write_raw t s in
           Lwt.return_true
         else Lwt.return_false
     end

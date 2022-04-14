@@ -18,8 +18,6 @@ module type IO = sig
   val flush : oc -> unit Lwt.t
   val write : oc -> string -> unit Lwt.t
   val read_into_exactly : ic -> bytes -> int -> int -> unit Lwt.t
-  val write_line : oc -> string -> unit Lwt.t
-  val read_line : ic -> string Lwt.t
   val write_char : oc -> char -> unit Lwt.t
   val read_char : ic -> char Lwt.t
   val with_timeout : float -> (unit -> 'a Lwt.t) -> 'a Lwt.t
