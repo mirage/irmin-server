@@ -76,9 +76,9 @@ module Make (I : IO) (T : Codec.S) = struct
           (fun () ->
             IO.with_timeout 3.0 (fun () ->
                 let s = fingerprint store in
-                let* () = IO.write_line t.oc s in
-                let+ line = IO.read_line t.ic in
-                s = String.trim line))
+                let* () = write_raw t s in
+                let+ line = read_raw t in
+                s = String.trim (Bytes.unsafe_to_string line)))
           (function
             | IO.Timeout -> Error.raise_error "unable to connect to server"
             | End_of_file -> Error.raise_error "invalid handshake"
@@ -86,13 +86,9 @@ module Make (I : IO) (T : Codec.S) = struct
 
       let check store t =
         let s = fingerprint store in
-        let* line =
-          IO.with_timeout 3.0 (fun () ->
-              let+ f = IO.read_line t.ic in
-              String.trim f)
-        in
-        if String.equal line s then
-          let* () = IO.write_line t.oc s in
+        let* line = IO.with_timeout 3.0 (fun () -> read_raw t) in
+        if String.trim (Bytes.unsafe_to_string line) = s then
+          let* () = write_raw t s in
           Lwt.return_true
         else Lwt.return_false
     end
@@ -134,13 +130,16 @@ module Make (I : IO) (T : Codec.S) = struct
 
     let write_header t { command } : unit Lwt.t =
       Logs.debug (fun l -> l "Writing request header: command=%s" command);
-      let* () = IO.write_line t.oc (String.lowercase_ascii command) in
-      IO.write_char t.oc '\n'
+      let* () = IO.write_char t.oc (char_of_int (String.length command)) in
+      let* () = IO.write t.oc (String.lowercase_ascii command) in
+      IO.flush t.oc
 
     let read_header t : header Lwt.t =
-      let* command = IO.read_line t.ic >|= String.trim in
-      let+ c = IO.read_char t.ic in
-      assert (c = '\n');
+      let* length = IO.read_char t.ic >|= int_of_char in
+      let command = String.make length ' ' in
+      let+ () =
+        IO.read_into_exactly t.ic (Bytes.unsafe_of_string command) 0 length
+      in
       let command = String.lowercase_ascii command in
       Logs.debug (fun l -> l "Request header read: command=%s" command);
       { command }
