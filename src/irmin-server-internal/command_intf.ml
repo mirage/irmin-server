@@ -33,14 +33,6 @@ module type S = sig
   }
   (** [context] is passed to every command as the first argument *)
 
-  module Stats : sig
-    type t = Stats.t
-
-    val t : t Irmin.Type.t
-    val v : context -> Server_info.t -> t Lwt.t
-    val to_json : t -> string
-  end
-
   module type CMD = sig
     type req
     type res
@@ -151,9 +143,6 @@ module type S = sig
         module Unwatch : CMD with type req = unit and type res = unit
       end
     end
-
-    (** Get statistics from the server *)
-    module Stats : CMD with type req = unit and type res = Stats.t
 
     (** Check connectivity *)
     module Ping : CMD with type req = unit and type res = unit

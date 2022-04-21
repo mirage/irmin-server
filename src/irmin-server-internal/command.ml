@@ -21,51 +21,7 @@ struct
     in
     Commit.v ~info ~parents ~key ~tree
 
-  module Stats = struct
-    type t = Stats.t
-
-    let t = Stats.t
-
-    let v ctx info : t Lwt.t =
-      let pack = Irmin_pack.Stats.get () in
-      let uptime = Server_info.uptime info in
-      let* branches =
-        St.Branch.list ctx.repo
-        >>= Lwt_list.map_s (fun b ->
-                let+ head = St.Branch.find ctx.repo b in
-                let hash =
-                  Option.map
-                    (fun c -> Fmt.to_to_string St.Commit.pp_hash c)
-                    head
-                in
-                (Irmin.Type.to_string St.Branch.t b, hash))
-      in
-      let cache_stats = Irmin_pack.Stats.get_cache_stats () in
-      Lwt.return
-        Stats.
-          {
-            uptime;
-            branches;
-            finds = pack.finds;
-            cache_misses = cache_stats.cache_misses;
-            adds = pack.appended_hashes + pack.appended_offsets;
-          }
-
-    let to_json = Irmin.Type.to_json_string t
-  end
-
   module Commands = struct
-    module Stats = struct
-      let name = "stats"
-
-      type req = unit [@@deriving irmin]
-      type res = Stats.t [@@deriving irmin]
-
-      let run conn ctx info () =
-        let* stats = Stats.v ctx info in
-        Return.v conn res_t stats
-    end
-
     module Ping = struct
       let name = "ping"
 
@@ -315,7 +271,6 @@ struct
   let commands : (string * (module CMD)) list =
     let open Commands in
     [
-      cmd (module Stats);
       cmd (module Ping);
       cmd (module Set_current_branch);
       cmd (module Get_current_branch);

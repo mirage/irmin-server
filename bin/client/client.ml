@@ -150,12 +150,6 @@ let import client filename =
       let+ () = Client.import client slice >|= Error.unwrap "import" in
       Logs.app (fun l -> l "OK"))
 
-let stats client =
-  run (fun () ->
-      client >>= fun (S ((module Client), client)) ->
-      let* stats = Client.stats client >|= Error.unwrap "stats" in
-      Lwt_io.printl (Irmin.Type.to_json_string Client.stats_t stats))
-
 let replicate client author message prefix =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
@@ -341,8 +335,6 @@ let[@alert "-deprecated"] () =
            Term.info ~doc:"Check if path is set" "mem" );
          ( Term.(const mem_tree $ config $ path 0 $ time $ iterations),
            Term.info ~doc:"Check if path is set to a tree value" "mem_tree" );
-         ( Term.(const stats $ config $ time $ iterations),
-           Term.info ~doc:"Server stats" "stats" );
          ( Term.(const watch $ config),
            Term.info ~doc:"Watch for updates" "watch" );
          ( Term.(const replicate $ config $ author $ message $ prefix),
