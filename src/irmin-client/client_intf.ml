@@ -26,10 +26,8 @@ module type S = sig
   type step
   type slice
   type metadata
-  type stats = Stats.t
   type contents_key
 
-  val stats_t : stats Irmin.Type.t
   val slice_t : slice Irmin.Type.t
 
   module IO : IO
@@ -79,9 +77,6 @@ module type S = sig
 
   val dup : t -> t Lwt.t
   (** Duplicate a client. This will create a new connection with the same configuration *)
-
-  val stats : t -> stats Error.result Lwt.t
-  (** Get stats from the server *)
 
   val ping : t -> unit Error.result Lwt.t
   (** Ping the server *)

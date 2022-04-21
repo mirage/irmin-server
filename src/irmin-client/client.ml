@@ -57,11 +57,9 @@ struct
   type step = Store.step
   type commit = C.Commit.t
   type slice = St.slice
-  type stats = Stats.t
   type metadata = St.metadata
   type contents_key = Store.contents_key
 
-  let stats_t = Stats.t
   let slice_t = St.slice_t
 
   type conf = {
@@ -193,7 +191,6 @@ struct
     let contents : contents Contents.t = Contents.create 64
   end
 
-  let stats t = request t (module Commands.Stats) ()
   let ping t = request t (module Commands.Ping) ()
   let export ?depth t = request t (module Commands.Export) depth
   let import t slice = request t (module Commands.Import) slice
