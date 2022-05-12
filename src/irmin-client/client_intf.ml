@@ -3,7 +3,7 @@ open Irmin_server_internal
 type addr =
   [ `TLS of [ `Hostname of string ] * [ `IP of Ipaddr.t ] * [ `Port of int ]
   | `TCP of [ `IP of Ipaddr.t ] * [ `Port of int ]
-  | `Ws of ([ `IP of Ipaddr.t ] * [ `Port of int ] * string)
+  | `Ws of [ `IP of Ipaddr.t ] * [ `Port of int ] * string
   | `Unix_domain_socket of [ `File of string ] ]
 
 module type IO = sig

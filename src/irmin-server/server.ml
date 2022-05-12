@@ -160,23 +160,80 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
       Hashtbl.replace clients client ();
       loop repo clients conn client info
 
+  (* The websocket protocol reads fully formed protocol packets off of
+     one end of a pipe given to irmin-server-internal and converts the
+     packet into a single websocket message. On the server this means
+     being able to _read_ the server-constructed handshake and response
+     messages. Note, we reconstruct the packet as a string so the client
+     simply has to write the string it receives to a pipe. *)
+  module Protocol = struct
+    open Lwt.Infix
+
+    let read_exactly ~length ic =
+      let buff = Bytes.create length in
+      Lwt_io.read_into_exactly ic buff 0 length >|= fun () ->
+      Bytes.to_string buff
+
+    let read_handshake ic =
+      Lwt_io.BE.read_int64 ic >>= fun b_length ->
+      let length = Int64.to_int b_length in
+      read_exactly ~length ic >|= fun data ->
+      let buf = Buffer.create (8 + length) in
+      Buffer.add_int64_be buf b_length;
+      Buffer.add_string buf data;
+      Buffer.contents buf
+
+    let read_response ic =
+      Lwt_io.read_char ic >>= fun status ->
+      Lwt_io.BE.read_int64 ic >>= fun b_length ->
+      let length = Int64.to_int b_length in
+      read_exactly ~length ic >|= fun data ->
+      let buf = Buffer.create (1 + 8 + length) in
+      Buffer.add_char buf status;
+      Buffer.add_int64_be buf b_length;
+      Buffer.add_string buf data;
+      Buffer.contents buf
+  end
+
   let websocket_handler server client =
-    let flow = Obj.magic () in (* BAD! *)
-    let rec fill_ic channel client =
-      let* frame = Websocket_lwt_unix.Connected_client.recv client in
-      Lwt_io.write channel frame.content >>= fun () ->
-      fill_ic channel client
+    let flow = Obj.magic () in
+    (* BAD! *)
+    let rec fill_ic channel other_channel client =
+      if Lwt_io.is_closed other_channel then Lwt_io.close channel
+      else
+        Lwt.catch
+          (fun () ->
+            let* frame = Websocket_lwt_unix.Connected_client.recv client in
+            Logs.debug (fun f -> f "Server received: %s%!" frame.content);
+            Lwt_io.write channel frame.content >>= fun () ->
+            fill_ic channel other_channel client)
+          (function
+            | End_of_file ->
+                (* The websocket has been closed is the assumption here *)
+                Lwt_io.close channel >>= fun () -> Lwt_io.close other_channel
+            | exn -> Lwt.fail exn)
     in
-    let rec send_oc channel client =
-      Lwt_io.read channel >>= fun content ->
-      Logs.debug (fun f -> f "Server send: %s%!" content);
-      Websocket_lwt_unix.Connected_client.send client (Websocket.Frame.create ~content ()) >>= fun () ->
-      send_oc channel client
+    let rec send_oc handshake channel other_channel client =
+      if Lwt_io.is_closed other_channel then Lwt_io.close channel
+      else
+        (if handshake then Protocol.read_handshake channel
+        else Protocol.read_response channel)
+        >>= fun content ->
+        Logs.debug (fun f -> f "Server send: %s%!" content);
+        Lwt.catch
+          (fun () ->
+            Websocket_lwt_unix.Connected_client.send client
+              (Websocket.Frame.create ~content ())
+            >>= fun () -> send_oc false channel other_channel client)
+          (function
+            | End_of_file ->
+                Lwt_io.close channel >>= fun () -> Lwt_io.close other_channel
+            | exn -> Lwt.fail exn)
     in
     let input_ic, input_oc = Lwt_io.pipe () in
     let output_ic, output_oc = Lwt_io.pipe () in
-    Lwt.async (fun () -> fill_ic input_oc client);
-    Lwt.async (fun () -> send_oc output_ic client);
+    Lwt.async (fun () -> fill_ic input_oc input_ic client);
+    Lwt.async (fun () -> send_oc true output_ic output_oc client);
     callback server flow input_ic output_oc
 
   let on_exn x = Logs.err (fun l -> l "EXCEPTION: %s" (Printexc.to_string x))
@@ -198,13 +255,13 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
           exit 0)
     in
     let* () =
-    match Uri.scheme t.uri with
-    | Some "ws" | Some "wss" ->
-        Websocket_lwt_unix.establish_server ~ctx:t.ctx ~mode:t.server
-          (websocket_handler t)
-    | _ ->
-        Conduit_lwt_unix.serve ?stop ~ctx:t.ctx ~on_exn ~mode:t.server
-          (callback t)
+      match Uri.scheme t.uri with
+      | Some "ws" | Some "wss" ->
+          Websocket_lwt_unix.establish_server ~ctx:t.ctx ~mode:t.server
+            (websocket_handler t)
+      | _ ->
+          Conduit_lwt_unix.serve ?stop ~ctx:t.ctx ~on_exn ~mode:t.server
+            (callback t)
     in
     Lwt.wrap (fun () -> unlink ())
 end

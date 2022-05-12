@@ -8,8 +8,8 @@ let unwrap prefix = function
 
 let of_string s = `Msg s
 let to_string = function `Msg s -> s
-
-let () =
-  Printexc.register_printer (function
-    | Error msg -> Some msg
-    | exn -> raise exn)
+(*
+   let () =
+     Printexc.register_printer (function
+       | Error msg -> Some msg
+       | exn -> raise exn) *)

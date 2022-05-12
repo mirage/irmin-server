@@ -76,7 +76,6 @@ module Make (I : IO) (T : Codec.S) = struct
           (fun () ->
             IO.with_timeout 3.0 (fun () ->
                 let s = fingerprint store in
-                print_endline "HANDSHAKE";
                 let* () = write_raw t s in
                 let+ line = read_raw t in
                 s = String.trim (Bytes.unsafe_to_string line)))
@@ -87,7 +86,10 @@ module Make (I : IO) (T : Codec.S) = struct
 
       let check store t =
         let s = fingerprint store in
-        let* line = IO.with_timeout 3.0 (fun () -> read_raw t) in
+        let* line =
+          Logs.debug (fun f -> f "Checking fingerprint!");
+          IO.with_timeout 3.0 (fun () -> read_raw t)
+        in
         if String.trim (Bytes.unsafe_to_string line) = s then
           let* () = write_raw t s in
           Lwt.return_true

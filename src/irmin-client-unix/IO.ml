@@ -15,33 +15,83 @@ let read_into_exactly = Lwt_io.read_into_exactly
 let write_char = Lwt_io.write_char
 let read_char = Lwt_io.read_char
 
+(* The websocket protocol reads fully formed protocol packets off of
+   one end of a pipe given to irmin-server-internal and converts the
+   packet into a single websocket message. On the client this means
+   being able to _read_ the client-constructed handshake and request
+   messages. Note, we reconstruct the packet as a string so the server
+   simply has to write the string it receives to a pipe. *)
+module Protocol = struct
+  open Lwt.Infix
+
+  let read_exactly ~length ic =
+    let buff = Bytes.create length in
+    read_into_exactly ic buff 0 length >|= fun () -> Bytes.to_string buff
+
+  let read_handshake ic =
+    Lwt_io.BE.read_int64 ic >>= fun b_length ->
+    let length = Int64.to_int b_length in
+    read_exactly ~length ic >|= fun data ->
+    let buf = Buffer.create (8 + length) in
+    Buffer.add_int64_be buf b_length;
+    Buffer.add_string buf data;
+    Buffer.contents buf
+
+  let read_request ic =
+    Lwt_io.read_char ic >>= fun cmd_length ->
+    let cl = int_of_char cmd_length in
+    read_exactly ~length:cl ic >>= fun cmd ->
+    read_int64_be ic >>= fun b_length ->
+    let length = Int64.to_int b_length in
+    read_exactly ~length ic >|= fun data ->
+    let buf = Buffer.create (1 + cl + 8 + length) in
+    Buffer.add_char buf cmd_length;
+    Buffer.add_string buf cmd;
+    Buffer.add_int64_be buf b_length;
+    Buffer.add_string buf data;
+    Buffer.contents buf
+end
+
 let websocket_to_flow client =
   let open Lwt.Infix in
-  let flow = Obj.magic () in (* BAD! *)
+  let flow = Obj.magic () in
+  (* BAD! *)
   let rec fill_ic channel client =
-    Websocket_lwt_unix.read client >>= fun frame ->
-    Lwt_io.write channel frame.content >>= fun () ->
-    fill_ic channel client
+    (* There's no way to test if the connected client is still alive
+       so we catch the End_of_file exception and presume it means the
+       connection is now over. *)
+    Lwt.catch
+      (fun () ->
+        Websocket_lwt_unix.read client >>= fun frame ->
+        Logs.debug (fun f -> f "Client recv: %s%!" frame.content);
+        Lwt_io.write channel frame.content >>= fun () -> fill_ic channel client)
+      (function End_of_file -> Lwt_io.close channel | exn -> Lwt.fail exn)
   in
-  let rec send_oc channel client =
-    Lwt_io.read channel >>= fun content ->
+  let rec send_oc handshake channel client =
+    (if handshake then Protocol.read_handshake channel
+    else Protocol.read_request channel)
+    >>= fun content ->
     Logs.debug (fun f -> f "Client send: %s%!" content);
-    Websocket_lwt_unix.write client (Websocket.Frame.create ~content ()) >>= fun () ->
-    send_oc channel client
+    Lwt.catch
+      (fun () ->
+        Websocket_lwt_unix.write client (Websocket.Frame.create ~content ())
+        >>= fun () -> send_oc false channel client)
+      (function End_of_file -> Lwt_io.close channel | exn -> Lwt.fail exn)
   in
   let input_ic, input_oc = Lwt_io.pipe () in
   let output_ic, output_oc = Lwt_io.pipe () in
   Lwt.async (fun () -> fill_ic input_oc client);
-  Lwt.async (fun () -> send_oc output_ic client);
-  flow, input_ic, output_oc
+  Lwt.async (fun () -> send_oc true output_ic client);
+  (flow, input_ic, output_oc)
 
-let connect ~ctx (client : Irmin_client.addr) = match client with
-  | `TLS _ | `TCP _
-  | `Unix_domain_socket _ as client -> Conduit_lwt_unix.connect ~ctx (client :> Conduit_lwt_unix.client)
+let connect ~ctx (client : Irmin_client.addr) =
+  match client with
+  | (`TLS _ | `TCP _ | `Unix_domain_socket _) as client ->
+      Conduit_lwt_unix.connect ~ctx (client :> Conduit_lwt_unix.client)
   | `Ws (host, port, uri) ->
-    let open Lwt.Infix in 
-    Websocket_lwt_unix.connect ~ctx (`TCP (host, port)) (Uri.of_string uri) >|= fun ws ->
-    websocket_to_flow ws
+      let open Lwt.Infix in
+      Websocket_lwt_unix.connect ~ctx (`TCP (host, port)) (Uri.of_string uri)
+      >|= fun ws -> websocket_to_flow ws
 
 let close (c : ic * oc) = Conduit_lwt_server.close c
 let with_timeout = Lwt_unix.with_timeout
