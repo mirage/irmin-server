@@ -11,3 +11,5 @@ _results
 *.log
 *.dump
 _opam
+irmin
+.vscode

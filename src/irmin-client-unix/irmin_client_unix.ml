@@ -26,12 +26,13 @@ end
 let normalize_uri ?hostname uri =
   let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
   let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
+  let scheme_lower = String.lowercase_ascii scheme in
   let uri =
-    if String.lowercase_ascii scheme = "tcp" then
+    if scheme_lower = "tcp" || scheme_lower = "ws" || scheme_lower = "wss" then
       let ip = Unix.gethostbyname addr in
       let port = Uri.port uri |> Option.value ~default:9181 in
       let ip = ip.h_addr_list.(0) |> Unix.string_of_inet_addr in
-      Uri.make ~scheme:"tcp" ~port ~host:ip ()
+      Uri.make ~scheme:scheme_lower ~port ~host:ip ()
     else uri
   in
   (uri, Option.value ~default:addr hostname)

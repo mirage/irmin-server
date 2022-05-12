@@ -43,7 +43,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
           in
           ( Lazy.force Conduit_lwt_unix.default_ctx,
             `Unix_domain_socket (`File file) )
-      | "tcp" -> (
+      | "tcp" | "ws" | "wss" -> (
           let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
           let ip = Unix.gethostbyname addr in
           let addr = ip.h_addr_list.(0) |> Unix.string_of_inet_addr in
@@ -160,6 +160,27 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
       Hashtbl.replace clients client ();
       loop repo clients conn client info
 
+  let websocket_handler server client =
+    let flow = Obj.magic () in (* BAD! *)
+    let rec fill_ic channel client =
+      let* frame = Websocket_lwt_unix.Connected_client.recv client in
+      Printf.printf "SERVER SEND: %s%!" frame.content;
+      Lwt_io.write channel frame.content >>= fun () ->
+      fill_ic channel client
+    in
+    let rec send_oc channel client =
+      Printf.printf "SERVER SEND: %!";
+      Lwt_io.read channel >>= fun content ->
+      Printf.printf "SERVER SEND: %s%!" content;
+      Websocket_lwt_unix.Connected_client.send client (Websocket.Frame.create ~content ()) >>= fun () ->
+      send_oc channel client
+    in
+    let input_ic, input_oc = Lwt_io.pipe () in
+    let output_ic, output_oc = Lwt_io.pipe () in
+    Lwt.async (fun () -> fill_ic input_oc client);
+    Lwt.async (fun () -> send_oc output_ic client);
+    callback server flow input_ic output_oc
+
   let on_exn x = Logs.err (fun l -> l "EXCEPTION: %s" (Printexc.to_string x))
 
   let serve ?stop t =
@@ -179,8 +200,13 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
           exit 0)
     in
     let* () =
-      Conduit_lwt_unix.serve ?stop ~ctx:t.ctx ~on_exn ~mode:t.server
-        (callback t)
+    match Uri.scheme t.uri with
+    | Some "ws" | Some "wss" ->
+        Websocket_lwt_unix.establish_server ~ctx:t.ctx ~mode:t.server
+          (websocket_handler t)
+    | _ ->
+        Conduit_lwt_unix.serve ?stop ~ctx:t.ctx ~on_exn ~mode:t.server
+          (callback t)
     in
     Lwt.wrap (fun () -> unlink ())
 end
