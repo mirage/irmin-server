@@ -125,9 +125,9 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
                 Lwt_unix.sleep 0.01)
       >>= fun () -> loop repo clients conn client info
 
-  let callback { repo; clients; info; config; _ } flow ic oc =
+  let callback { repo; clients; info; config; _ } ic oc =
     (* Handshake check *)
-    let conn = Conn.v flow ic oc in
+    let conn = Conn.v ic oc in
     let* check =
       Lwt.catch
         (fun () -> Conn.Handshake.V1.check (module Store) conn)
@@ -196,8 +196,6 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
   end
 
   let websocket_handler server client =
-    let flow = Obj.magic () in
-    (* BAD! *)
     let rec fill_ic channel other_channel client =
       if Lwt_io.is_closed other_channel then Lwt_io.close channel
       else
@@ -234,7 +232,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
     let output_ic, output_oc = Lwt_io.pipe () in
     Lwt.async (fun () -> fill_ic input_oc input_ic client);
     Lwt.async (fun () -> send_oc true output_ic output_oc client);
-    callback server flow input_ic output_oc
+    callback server input_ic output_oc
 
   let on_exn x = Logs.err (fun l -> l "EXCEPTION: %s" (Printexc.to_string x))
 
@@ -261,7 +259,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
             (websocket_handler t)
       | _ ->
           Conduit_lwt_unix.serve ?stop ~ctx:t.ctx ~on_exn ~mode:t.server
-            (callback t)
+            (fun _ ic oc -> callback t ic oc)
     in
     Lwt.wrap (fun () -> unlink ())
 end

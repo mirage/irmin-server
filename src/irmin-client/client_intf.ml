@@ -12,7 +12,7 @@ module type IO = sig
   type ctx
 
   val default_ctx : ctx lazy_t
-  val connect : ctx:ctx -> addr -> (flow * ic * oc) Lwt.t
+  val connect : ctx:ctx -> addr -> (ic * oc) Lwt.t
   val close : ic * oc -> unit Lwt.t
 end
 

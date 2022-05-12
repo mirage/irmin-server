@@ -54,8 +54,6 @@ end
 
 let websocket_to_flow client =
   let open Lwt.Infix in
-  let flow = Obj.magic () in
-  (* BAD! *)
   let rec fill_ic channel client =
     (* There's no way to test if the connected client is still alive
        so we catch the End_of_file exception and presume it means the
@@ -82,14 +80,15 @@ let websocket_to_flow client =
   let output_ic, output_oc = Lwt_io.pipe () in
   Lwt.async (fun () -> fill_ic input_oc client);
   Lwt.async (fun () -> send_oc true output_ic client);
-  (flow, input_ic, output_oc)
+  (input_ic, output_oc)
 
 let connect ~ctx (client : Irmin_client.addr) =
+  let open Lwt.Infix in
   match client with
   | (`TLS _ | `TCP _ | `Unix_domain_socket _) as client ->
       Conduit_lwt_unix.connect ~ctx (client :> Conduit_lwt_unix.client)
+      >|= fun (_, ic, oc) -> (ic, oc)
   | `Ws (host, port, uri) ->
-      let open Lwt.Infix in
       Websocket_lwt_unix.connect ~ctx (`TCP (host, port)) (Uri.of_string uri)
       >|= fun ws -> websocket_to_flow ws
 

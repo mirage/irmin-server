@@ -19,10 +19,10 @@ end
 module Make (I : IO) (T : Codec.S) = struct
   module IO = I
 
-  type t = { flow : IO.flow; ic : IO.ic; oc : IO.oc; buffer : bytes }
+  type t = { ic : IO.ic; oc : IO.oc; buffer : bytes }
 
-  let v ?(buffer_size = 4096) flow ic oc =
-    { flow; ic; oc; buffer = Bytes.create buffer_size }
+  let v ?(buffer_size = 4096) ic oc =
+    { ic; oc; buffer = Bytes.create buffer_size }
     [@@inline]
 
   let is_closed { ic; _ } = IO.is_closed ic
@@ -86,10 +86,7 @@ module Make (I : IO) (T : Codec.S) = struct
 
       let check store t =
         let s = fingerprint store in
-        let* line =
-          Logs.debug (fun f -> f "Checking fingerprint!");
-          IO.with_timeout 3.0 (fun () -> read_raw t)
-        in
+        let* line = IO.with_timeout 3.0 (fun () -> read_raw t) in
         if String.trim (Bytes.unsafe_to_string line) = s then
           let* () = write_raw t s in
           Lwt.return_true

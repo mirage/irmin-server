@@ -117,8 +117,8 @@ struct
 
   let rec connect conf =
     let client = mk_client conf in
-    let* flow, ic, oc = IO.connect ~ctx:conf.ctx client in
-    let conn = Conn.v flow ic oc in
+    let* ic, oc = IO.connect ~ctx:conf.ctx client in
+    let conn = Conn.v ic oc in
     let+ ok = Conn.Handshake.V1.send (module Private.Store) conn in
     if not ok then Error.raise_error "invalid handshake"
     else
