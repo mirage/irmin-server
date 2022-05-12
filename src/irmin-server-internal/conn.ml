@@ -76,6 +76,7 @@ module Make (I : IO) (T : Codec.S) = struct
           (fun () ->
             IO.with_timeout 3.0 (fun () ->
                 let s = fingerprint store in
+                print_endline "HANDSHAKE";
                 let* () = write_raw t s in
                 let+ line = read_raw t in
                 s = String.trim (Bytes.unsafe_to_string line)))

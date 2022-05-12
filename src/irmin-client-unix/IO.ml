@@ -19,16 +19,13 @@ let websocket_to_flow client =
   let open Lwt.Infix in
   let flow = Obj.magic () in (* BAD! *)
   let rec fill_ic channel client =
-    Printf.printf "CLIENT FILLING%!";
     Websocket_lwt_unix.read client >>= fun frame ->
-    Printf.printf "CLIENT FILL: %s%!" frame.content;
     Lwt_io.write channel frame.content >>= fun () ->
     fill_ic channel client
   in
   let rec send_oc channel client =
-    Printf.printf "CLIENT SENDING%!";
     Lwt_io.read channel >>= fun content ->
-    Printf.printf "CLIENT SEND: %s%!" content;
+    Logs.debug (fun f -> f "Client send: %s%!" content);
     Websocket_lwt_unix.write client (Websocket.Frame.create ~content ()) >>= fun () ->
     send_oc channel client
   in

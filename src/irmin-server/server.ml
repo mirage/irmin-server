@@ -164,14 +164,12 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
     let flow = Obj.magic () in (* BAD! *)
     let rec fill_ic channel client =
       let* frame = Websocket_lwt_unix.Connected_client.recv client in
-      Printf.printf "SERVER SEND: %s%!" frame.content;
       Lwt_io.write channel frame.content >>= fun () ->
       fill_ic channel client
     in
     let rec send_oc channel client =
-      Printf.printf "SERVER SEND: %!";
       Lwt_io.read channel >>= fun content ->
-      Printf.printf "SERVER SEND: %s%!" content;
+      Logs.debug (fun f -> f "Server send: %s%!" content);
       Websocket_lwt_unix.Connected_client.send client (Websocket.Frame.create ~content ()) >>= fun () ->
       send_oc channel client
     in
