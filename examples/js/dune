@@ -1,0 +1,5 @@
+(executable
+ (name ping_js)
+ (modes js)
+ (modules ping_js)
+ (libraries irmin.mem digestif.ocaml irmin_client_jsoo))

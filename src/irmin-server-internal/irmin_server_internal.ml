@@ -3,3 +3,4 @@ module Command = Command
 module Cli = Cli
 module Conn = Conn
 module Tree = Tree
+module Ws = Ws

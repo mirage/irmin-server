@@ -61,15 +61,17 @@ let websocket_to_flow client =
     Lwt.catch
       (fun () ->
         Websocket_lwt_unix.read client >>= fun frame ->
-        Logs.debug (fun f -> f "Client recv: %s%!" frame.content);
-        Lwt_io.write channel frame.content >>= fun () -> fill_ic channel client)
+        let content = Irmin_server_internal.Ws.utf8_to_utf16 frame.content in
+        Logs.debug (fun f -> f "<<< Client received frame");
+        Lwt_io.write channel content >>= fun () -> fill_ic channel client)
       (function End_of_file -> Lwt_io.close channel | exn -> Lwt.fail exn)
   in
   let rec send_oc handshake channel client =
     (if handshake then Protocol.read_handshake channel
     else Protocol.read_request channel)
     >>= fun content ->
-    Logs.debug (fun f -> f "Client send: %s%!" content);
+    let content = Irmin_server_internal.Ws.utf16_to_utf8 content in
+    Logs.debug (fun f -> f ">>> Client sent frame");
     Lwt.catch
       (fun () ->
         Websocket_lwt_unix.write client (Websocket.Frame.create ~content ())
@@ -88,9 +90,10 @@ let connect ~ctx (client : Irmin_client.addr) =
   | (`TLS _ | `TCP _ | `Unix_domain_socket _) as client ->
       Conduit_lwt_unix.connect ~ctx (client :> Conduit_lwt_unix.client)
       >|= fun (_, ic, oc) -> (ic, oc)
-  | `Ws (host, port, uri) ->
+  | `Ws (Some (host, port), uri) ->
       Websocket_lwt_unix.connect ~ctx (`TCP (host, port)) (Uri.of_string uri)
       >|= fun ws -> websocket_to_flow ws
+  | `Ws _ -> failwith "AHHHH"
 
 let close (c : ic * oc) = Conduit_lwt_server.close c
 let with_timeout = Lwt_unix.with_timeout

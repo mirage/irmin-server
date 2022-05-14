@@ -202,9 +202,12 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
         Lwt.catch
           (fun () ->
             let* frame = Websocket_lwt_unix.Connected_client.recv client in
-            Logs.debug (fun f -> f "Server received: %s%!" frame.content);
-            Lwt_io.write channel frame.content >>= fun () ->
-            fill_ic channel other_channel client)
+            if frame.opcode <> Text then fill_ic channel other_channel client
+            else
+              let content = Ws.utf8_to_utf16 frame.content in
+              Logs.debug (fun f -> f "<<< Server received frame");
+              Lwt_io.write channel content >>= fun () ->
+              fill_ic channel other_channel client)
           (function
             | End_of_file ->
                 (* The websocket has been closed is the assumption here *)
@@ -217,7 +220,8 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
         (if handshake then Protocol.read_handshake channel
         else Protocol.read_response channel)
         >>= fun content ->
-        Logs.debug (fun f -> f "Server send: %s%!" content);
+        let content = Ws.utf16_to_utf8 content in
+        Logs.debug (fun f -> f ">>> Server sent frame");
         Lwt.catch
           (fun () ->
             Websocket_lwt_unix.Connected_client.send client
@@ -255,7 +259,8 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
     let* () =
       match Uri.scheme t.uri with
       | Some "ws" | Some "wss" ->
-          Websocket_lwt_unix.establish_server ~ctx:t.ctx ~mode:t.server
+          Websocket_lwt_unix.establish_standard_server ~ctx:t.ctx ~mode:t.server
+            ~check_request:(fun _ -> true)
             (websocket_handler t)
       | _ ->
           Conduit_lwt_unix.serve ?stop ~ctx:t.ctx ~on_exn ~mode:t.server

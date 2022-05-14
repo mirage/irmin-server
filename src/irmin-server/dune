@@ -4,6 +4,8 @@
  (libraries
   irmin-server-internal
   lwt.unix
+  uutf
   conduit-lwt-unix
   websocket-lwt-unix
+  digestif.ocaml
   irmin-pack))

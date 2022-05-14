@@ -106,11 +106,15 @@ struct
           let ip = Ipaddr.of_string_exn addr in
           if not tls then `TCP (`IP ip, `Port port)
           else `TLS (`Hostname hostname, `IP ip, `Port port)
-      | "ws" | "wss" ->
+      | "ws" | "wss" -> (
           let port = Uri.port uri |> Option.value ~default:9181 in
-          let ip = Ipaddr.of_string_exn addr in
-          if not tls then `Ws (`IP ip, `Port port, "")
-          else `TLS (`Hostname hostname, `IP ip, `Port port)
+          match Ipaddr.of_string addr with
+          | Ok ip ->
+              if not tls then `Ws (Some (`IP ip, `Port port), Uri.to_string uri)
+              else `TLS (`Hostname hostname, `IP ip, `Port port)
+          | _ ->
+              print_endline (Uri.to_string uri);
+              `Ws (None, Uri.to_string uri))
       | x -> invalid_arg ("Unknown client scheme: " ^ x)
     in
     client
