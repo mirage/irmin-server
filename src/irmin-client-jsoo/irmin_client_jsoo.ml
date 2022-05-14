@@ -38,6 +38,11 @@ module Buff = struct
     waiters : unit Lwt.u Lwt_dllist.t;
   }
 
+  let dump { buf; off; len; _ } =
+    print_endline @@ Bigstringaf.to_string buf;
+    print_endline @@ string_of_int off;
+    print_endline @@ string_of_int len
+
   let of_bigstring ~off ~len buf =
     assert (off >= 0);
     assert (Bigstringaf.length buf >= len - off);
@@ -67,7 +72,7 @@ module Buff = struct
     if trailing_space t < to_copy then
       if writable_space t >= to_copy then compress t else grow t to_copy
 
-  let write_pos t = t.off + t.len
+  let write_pos t = t.len
 
   let wakeup t =
     if Lwt_dllist.is_empty t.waiters then ()
@@ -100,10 +105,10 @@ module Buff = struct
   let read_int64_be t =
     let get_int64 t =
       let i = Bigstringaf.get_int64_be t.buf t.off in
-      t.off <- 8;
+      t.off <- t.off + 8;
       Lwt.return i
     in
-    if unread_data t < 8 || Lwt_dllist.is_empty t.waiters then
+    if unread_data t < 8 || not (Lwt_dllist.is_empty t.waiters) then
       let p, r = Lwt.wait () in
       let _node = Lwt_dllist.add_r r t.waiters in
       p >>= fun () -> get_int64 t
@@ -112,10 +117,10 @@ module Buff = struct
   let read_char t =
     let get_char t =
       let i = Bigstringaf.get t.buf t.off in
-      t.off <- 1;
+      t.off <- t.off + 1;
       Lwt.return i
     in
-    if unread_data t < 1 || Lwt_dllist.is_empty t.waiters then
+    if unread_data t < 1 || not (Lwt_dllist.is_empty t.waiters) then
       let p, r = Lwt.wait () in
       let _node = Lwt_dllist.add_r r t.waiters in
       p >>= fun () -> get_char t
@@ -124,10 +129,10 @@ module Buff = struct
   let read_into_exactly ~off ~len ~buf:t bs =
     let read t =
       Bigstringaf.blit_to_bytes t.buf ~src_off:t.off bs ~dst_off:off ~len;
-      t.off <- len;
+      t.off <- t.off + len;
       Lwt.return ()
     in
-    if unread_data t < len || false then
+    if unread_data t < len || not (Lwt_dllist.is_empty t.waiters) then
       let p, r = Lwt.wait () in
       let _node = Lwt_dllist.add_r r t.waiters in
       p >>= fun () -> read t
@@ -214,7 +219,7 @@ module IO = struct
     let fill_ic channel msg =
       let msg = Ev.as_type msg |> Message.Ev.data |> Jstr.to_string in
       let msg = Irmin_server_internal.Ws.utf8_to_utf16 msg in
-      Logs.debug (fun f -> f "Client received frame");
+      Logs.debug (fun f -> f "<<< Client received frame");
       Lwt.async (fun () -> write channel msg)
     in
     let rec send_oc handshake channel ws =

@@ -93,7 +93,7 @@ let connect ~ctx (client : Irmin_client.addr) =
   | `Ws (Some (host, port), uri) ->
       Websocket_lwt_unix.connect ~ctx (`TCP (host, port)) (Uri.of_string uri)
       >|= fun ws -> websocket_to_flow ws
-  | `Ws _ -> failwith "AHHHH"
+  | `Ws _ -> failwith "The Unix client requires a IP address and port number"
 
 let close (c : ic * oc) = Conduit_lwt_server.close c
 let with_timeout = Lwt_unix.with_timeout
