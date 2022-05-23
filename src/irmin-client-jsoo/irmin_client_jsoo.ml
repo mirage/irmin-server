@@ -212,13 +212,17 @@ module IO = struct
       Buffer.contents buf
   end
 
+  let decode_msg msg = Base64.decode_exn msg
+
+  let encode_msg msg = Base64.encode_exn msg
+
   let websocket_to_flow ws =
     let open Lwt.Infix in
     let open Brr in
     let open Brr_io in
     let fill_ic channel msg =
       let msg = Ev.as_type msg |> Message.Ev.data |> Jstr.to_string in
-      let msg = Irmin_server_internal.Ws.utf8_to_utf16 msg in
+      let msg = decode_msg msg in
       Logs.debug (fun f -> f "<<< Client received frame");
       Lwt.async (fun () -> write channel msg)
     in
@@ -226,7 +230,7 @@ module IO = struct
       (if handshake then Protocol.read_handshake channel
       else Protocol.read_request channel)
       >>= fun content ->
-      let content = Irmin_server_internal.Ws.utf16_to_utf8 content in
+      let content = encode_msg content in
       Logs.debug (fun f -> f ">>> Client sent frame");
       Websocket.send_string ws (Jstr.v content);
       send_oc false channel ws
@@ -283,4 +287,18 @@ end
 
 module Make_json (Store : Irmin.Generic_key.S) = struct
   include Make_ext (Conn.Codec.Json) (Store)
+end
+
+module Store = struct
+  let config ?batch_size ?tls ?hostname uri =
+    let uri, addr = normalize_uri ?hostname uri in
+    Irmin_client.Store.config ?batch_size ?tls
+      ~hostname:(Option.value ~default:addr hostname)
+      uri
+
+  module Make (Store : Irmin.Generic_key.S) =
+    Irmin_client.Store.Make (IO) (Conn.Codec.Bin) (Store)
+
+  module Make_json (Store : Irmin.Generic_key.S) =
+    Irmin_client.Store.Make (IO) (Conn.Codec.Json) (Store)
 end

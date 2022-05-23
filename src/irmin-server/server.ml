@@ -204,7 +204,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
             let* frame = Websocket_lwt_unix.Connected_client.recv client in
             if frame.opcode <> Text then fill_ic channel other_channel client
             else
-              let content = Ws.utf8_to_utf16 frame.content in
+              let content = Base64.decode_exn frame.content in
               Logs.debug (fun f -> f "<<< Server received frame");
               Lwt_io.write channel content >>= fun () ->
               fill_ic channel other_channel client)
@@ -220,7 +220,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
         (if handshake then Protocol.read_handshake channel
         else Protocol.read_response channel)
         >>= fun content ->
-        let content = Ws.utf16_to_utf8 content in
+        let content = Base64.encode_exn content in
         Logs.debug (fun f -> f ">>> Server sent frame");
         Lwt.catch
           (fun () ->

@@ -1,4 +1,3 @@
 (library
  (name irmin_client_jsoo)
- ; (public_name )
  (libraries irmin-client uutf js_of_ocaml-lwt lwt-dllist brr))

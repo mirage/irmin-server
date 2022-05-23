@@ -1,0 +1,39 @@
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  outline: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #f4f4f4;
+  font-family:Verdana, Geneva, Tahoma, sans-serif
+}
+
+header {
+  width: 100%;
+  padding: 20px;
+  text-align: center;
+  background-color: #333;
+  color: #fff
+}
+
+.buttons,
+.result {
+  display: flex;
+  margin: 20px auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.buttons button {
+  background-color: #333;
+  color: #f4f4f4;
+  padding: 7px 10px;
+  border: 0;
+  outline: 0;
+  margin: 0 10px;
+  cursor: pointer;
+}

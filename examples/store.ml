@@ -3,7 +3,13 @@ module S = Irmin_mem.KV.Make (Irmin.Contents.String)
 module Store = Irmin_client_unix.Store.Make (S)
 
 let main =
-  let uri = Uri.of_string "tcp://localhost:9090" in
+  let tcp = Uri.of_string "tcp://localhost:9090" in
+  let uri =
+    try
+      if Sys.argv.(1) = "ws" then Uri.of_string "ws://localhost:9090/ws"
+      else tcp
+    with _ -> tcp
+  in
   let config = Irmin_client_unix.Store.config uri in
   let* repo = Store.Repo.v config in
   let* t = Store.main repo in

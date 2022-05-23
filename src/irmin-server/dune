@@ -5,6 +5,7 @@
   irmin-server-internal
   lwt.unix
   uutf
+  base64
   conduit-lwt-unix
   websocket-lwt-unix
   digestif.ocaml

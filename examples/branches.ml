@@ -5,14 +5,26 @@ module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
 module Client = Make (Store)
 module Info = Info (Client.Info)
 
+let () =
+  Logs.set_level (Some Debug);
+  Logs.set_reporter (Logs_fmt.reporter ());
+  ()
+
 let main =
-  let uri = Uri.of_string "tcp://localhost:9090" in
+  let tcp = Uri.of_string "tcp://localhost:9090" in
+  let uri =
+    try
+      if Sys.argv.(1) = "ws" then Uri.of_string "ws://localhost:9090/ws"
+      else tcp
+    with _ -> tcp
+  in
   let* client = Client.connect ~uri () in
 
   (* Get current branch name *)
   let* current_branch =
     Client.Branch.get_current client >|= Error.unwrap "Branch.get_current"
   in
+  print_endline current_branch;
   assert (current_branch = Client.Branch.main);
 
   (* Set a/b/c on [current_branch] *)
