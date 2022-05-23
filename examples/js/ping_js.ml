@@ -16,6 +16,7 @@ let display_text result =
   | None -> ()
 
 let ping () =
+  display_text "";
   let uri = Uri.of_string "ws://localhost:9090/ws" in
   let* client = Client.connect ~uri () in
   let+ res = Client.ping client in
@@ -24,25 +25,18 @@ let ping () =
   | Error e -> Printf.printf "ERROR: %s\n" (Irmin_client.Error.to_string e)
 
 let send_data () =
+  display_text "";
   let uri = Uri.of_string "ws://localhost:9090/ws" in
   let config = Irmin_client_jsoo.Store.config uri in
   let* repo = Store.Repo.v config in
   let* t = Store.main repo in
-  (* let* w = Store.watch t (fun _ -> (fun _ -> Lwt.return ()) (print_endline "UPDATED")) in *)
   let* () = Store.set_exn t ~info:Store.Info.none [ "a"; "b"; "c" ] "123" in
   let+ x = Store.get t [ "a"; "b"; "c" ] in
-  print_endline x;
-  (* let* () = Store.unwatch w in *)
   display_text x
 
 let () =
   let open Brr in
   let ping_btn = (Document.find_el_by_id G.document) (Jstr.v "ping") in
-  match ping_btn with
-  | Some el -> 
-    Ev.listen Ev.click (fun _ -> Lwt.async ping) (El.as_target el)
-  | None -> ();
-  let senddata_btn =  (Document.find_el_by_id G.document) (Jstr.v "senddata") in
-  match senddata_btn with
-  | Some elem ->  Ev.listen Ev.click (fun _ -> Lwt.async send_data) (El.as_target elem)
-  | None -> ()
+  (Option.iter (fun el -> Ev.listen Ev.click (fun _ -> Lwt.async ping) (El.as_target el)) ping_btn);
+  let senddata_btn = (Document.find_el_by_id G.document) (Jstr.v "senddata") in
+  (Option.iter (fun elem -> Ev.listen Ev.click (fun _ -> Lwt.async send_data) (El.as_target elem)) senddata_btn)
