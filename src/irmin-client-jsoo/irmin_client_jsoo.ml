@@ -181,7 +181,7 @@ module IO = struct
      being able to _read_ the client-constructed handshake and request
      messages. Note, we reconstruct the packet as a string so the server
      simply has to write the string it receives to a pipe. *)
-  module Protocol = struct
+  module Websocket_protocol = struct
     open Lwt.Infix
 
     let read_exactly ~length ic =
@@ -213,7 +213,6 @@ module IO = struct
   end
 
   let decode_msg msg = Base64.decode_exn msg
-
   let encode_msg msg = Base64.encode_exn msg
 
   let websocket_to_flow ws =
@@ -227,8 +226,8 @@ module IO = struct
       Lwt.async (fun () -> write channel msg)
     in
     let rec send_oc handshake channel ws =
-      (if handshake then Protocol.read_handshake channel
-      else Protocol.read_request channel)
+      (if handshake then Websocket_protocol.read_handshake channel
+      else Websocket_protocol.read_request channel)
       >>= fun content ->
       let content = encode_msg content in
       Logs.debug (fun f -> f ">>> Client sent frame");
@@ -253,7 +252,7 @@ module IO = struct
           (Websocket.as_target ws);
         p >|= fun () -> websocket_to_flow ws
     | `Ws _ | `TLS _ | `TCP _ | `Unix_domain_socket _ ->
-        failwith "Unsupported Protocol"
+        failwith "Unsupported Websocket Protocol"
 
   let close (ic, oc) =
     ic.closed <- true;

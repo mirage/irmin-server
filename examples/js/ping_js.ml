@@ -3,16 +3,12 @@ module S = Irmin_mem.KV.Make (Irmin.Contents.String)
 module Client = Irmin_client_jsoo.Make (S)
 module Store = Irmin_client_jsoo.Store.Make (S)
 
-let () =
-  Logs.set_level (Some Debug);
-  Logs.set_reporter (Logs_fmt.reporter ());
-  ()
-
-let display_text result = 
+let display_text result =
   let open Brr in
-  let result_element =  (Document.find_el_by_id G.document) (Jstr.v "result") in
+  let result_element = (Document.find_el_by_id G.document) (Jstr.v "result") in
   match result_element with
-  | Some elem -> El.set_prop (El.Prop.jstr (Jstr.v "innerHTML")) (Jstr.v result) elem
+  | Some elem ->
+      El.set_prop (El.Prop.jstr (Jstr.v "innerHTML")) (Jstr.v result) elem
   | None -> ()
 
 let ping () =
@@ -37,6 +33,11 @@ let send_data () =
 let () =
   let open Brr in
   let ping_btn = (Document.find_el_by_id G.document) (Jstr.v "ping") in
-  (Option.iter (fun el -> Ev.listen Ev.click (fun _ -> Lwt.async ping) (El.as_target el)) ping_btn);
+  Option.iter
+    (fun el -> Ev.listen Ev.click (fun _ -> Lwt.async ping) (El.as_target el))
+    ping_btn;
   let senddata_btn = (Document.find_el_by_id G.document) (Jstr.v "senddata") in
-  (Option.iter (fun elem -> Ev.listen Ev.click (fun _ -> Lwt.async send_data) (El.as_target elem)) senddata_btn)
+  Option.iter
+    (fun elem ->
+      Ev.listen Ev.click (fun _ -> Lwt.async send_data) (El.as_target elem))
+    senddata_btn

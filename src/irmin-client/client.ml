@@ -112,9 +112,7 @@ struct
           | Ok ip ->
               if not tls then `Ws (Some (`IP ip, `Port port), Uri.to_string uri)
               else `TLS (`Hostname hostname, `IP ip, `Port port)
-          | _ ->
-              print_endline (Uri.to_string uri);
-              `Ws (None, Uri.to_string uri))
+          | _ -> `Ws (None, Uri.to_string uri))
       | x -> invalid_arg ("Unknown client scheme: " ^ x)
     in
     client

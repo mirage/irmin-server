@@ -81,9 +81,7 @@ module Make (I : IO) (T : Codec.S) = struct
                 s = String.trim (Bytes.unsafe_to_string line)))
           (function
             | IO.Timeout -> Error.raise_error "unable to connect to server"
-            | End_of_file ->
-                print_endline "EOFOFOFOFOFOF";
-                Error.raise_error "invalid handshake"
+            | End_of_file -> Error.raise_error "invalid handshake"
             | x -> raise x)
 
       let check store t =

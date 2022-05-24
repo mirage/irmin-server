@@ -9,7 +9,7 @@ let main =
   let tcp = Uri.of_string "tcp://localhost:9090" in
   let uri =
     try
-      if Sys.argv.(1) = "ws" then Uri.of_string "ws://localhost:9090/ws"
+      if Sys.argv.(1) = "ws://localhost:9090/ws" then Uri.of_string Sys.argv.(1)
       else tcp
     with _ -> tcp
   in

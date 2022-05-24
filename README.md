@@ -51,7 +51,7 @@ $ dune exec bin/client/client.exe -- ping --help
 To run an example thats ping the server:
 
 ```shell
-$ dune exec ./examples/ping.exe ws
+$ dune exec ./examples/ping.exe ws://localhost:9090/ws
 ```
 
 ## Browser
