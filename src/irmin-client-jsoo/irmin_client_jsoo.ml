@@ -212,16 +212,13 @@ module IO = struct
       Buffer.contents buf
   end
 
-  let decode_msg msg = Base64.decode_exn msg
-  let encode_msg msg = Base64.encode_exn msg
-
   let websocket_to_flow ws =
     let open Lwt.Infix in
     let open Brr in
     let open Brr_io in
     let fill_ic channel msg =
       let msg = Ev.as_type msg |> Message.Ev.data |> Jstr.to_string in
-      let msg = decode_msg msg in
+      let msg = Ws_conversion.decode_msg msg in
       Logs.debug (fun f -> f "<<< Client received frame");
       Lwt.async (fun () -> write channel msg)
     in
@@ -229,7 +226,7 @@ module IO = struct
       (if handshake then Websocket_protocol.read_handshake channel
       else Websocket_protocol.read_request channel)
       >>= fun content ->
-      let content = encode_msg content in
+      let content = Ws_conversion.encode_msg content in
       Logs.debug (fun f -> f ">>> Client sent frame");
       Websocket.send_string ws (Jstr.v content);
       send_oc false channel ws

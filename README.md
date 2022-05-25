@@ -22,7 +22,7 @@ $ dune exec bin/server/server.exe -- --help
 To run the server:
 
 ```shell
-$ dune exec ./examples/server.exe ws
+$ dune exec ./examples/server.exe ws://localhost:9090/ws
 ```
 
 `irmin-server` can also be executed using `Docker`:
@@ -62,7 +62,7 @@ $ dune exec ./examples/ping.exe ws://localhost:9090/ws
 To run the server:
 
 ```shell
-$ dune exec ./examples/server.exe ws
+$ dune exec ./examples/server.exe ws://localhost:9090/ws
 ```
 
 ### Client

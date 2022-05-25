@@ -13,8 +13,8 @@ depends: [
   "irmin-unix" {>= "3.1"}
 ]
 pin-depends: [ 
-  [ "ocaml-graphql-server" "git+https://github.com/andreas/ocaml-graphql-server/commit/520ccd4013943ee0b2557aa66367b83aaa67084c" ]
-  ["irmin-unix" "git+https://github.com/patricoferris/irmin/commit/83f5a5401bb3273a84959e5e427e6af884c00a6a"]
+  [ "ocaml-graphql-server.dev" "git+https://github.com/andreas/ocaml-graphql-server/commit/520ccd4013943ee0b2557aa66367b83aaa67084c" ]
+  ["irmin-unix.dev" "git+https://github.com/patricoferris/irmin/commit/83f5a5401bb3273a84959e5e427e6af884c00a6a"]
 ]
 build: [
   ["dune" "subst"] {pinned}
