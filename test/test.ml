@@ -12,14 +12,55 @@ let () =
   Logs.set_level (Some Logs.Error);
   Logs.set_reporter (Logs_fmt.reporter ())
 
-let pid, uri = run_server ()
-let () = at_exit (fun () -> Unix.kill pid Sys.sigint)
+module type R = sig
+  val pid : int
+  val uri : Uri.t
+  val kind : string
+end
 
-let client =
-  Lwt_main.run
-    (let* () = Lwt_unix.sleep 3. in
-     Client.connect ~uri ())
+module Make (R : R) = struct
+  let () = at_exit (fun () -> Unix.kill R.pid Sys.sigint)
+  let client = Lwt_main.run (Client.connect ~uri:R.uri ())
+  let config = Irmin_client_unix.Store.config R.uri
+  let client () = Client.dup client
 
+  let clean () =
+    let* client = client () in
+    Client.Branch.remove client "main" >|= Error.unwrap "remove"
+
+  let init () =
+    let* client = client () in
+    Client.Branch.remove client "main" >|= Error.unwrap "remove"
+
+  module X = Irmin_mem.KV.Make (Irmin.Contents.String)
+  module Store = Irmin_client_unix.Store.Make (X)
+
+  let suite =
+    Irmin_test.Suite.create ~name:(R.kind ^ " Server") ~init
+      ~clear_supported:true
+      ~store:(module Store)
+      ~config ~clean ()
+end
+
+let pid, uri = run_server `Unix_domain
+
+module Unix_socket = Make (struct
+  let pid = pid
+  let uri = uri
+  let kind = "Unix domain"
+end)
+
+module Tcp_socket = Make (struct
+  let pid, uri = run_server `Tcp
+  let kind = "TCP"
+end)
+
+module Websocket = Make (struct
+  let pid, uri = run_server `Websocket
+  let kind = "Websocket"
+end)
+
+let client = Lwt_main.run (Client.connect ~uri ())
 let client () = Client.dup client
 
 let error =
@@ -114,23 +155,11 @@ let misc =
   ]
 
 let misc = [ ("misc", misc) ]
-let config = Irmin_client_unix.Store.config uri
-
-let clean () =
-  let* client = client () in
-  Client.Branch.remove client "main" >|= Error.unwrap "remove"
-
-let init () =
-  let* client = client () in
-  Client.Branch.remove client "main" >|= Error.unwrap "remove"
-
-module X = Irmin_mem.KV.Make (Irmin.Contents.String)
-module Store = Irmin_client_unix.Store.Make (X)
-
-let suite =
-  Irmin_test.Suite.create ~name:"Server" ~init ~clear_supported:true
-    ~store:(module Store)
-    ~config ~clean ()
 
 let () =
-  Irmin_test.Store.run "irmin-server" ~slow:false ~misc [ (`Quick, suite) ]
+  Irmin_test.Store.run "irmin-server" ~slow:false ~misc
+    [
+      (`Quick, Unix_socket.suite);
+      (`Quick, Tcp_socket.suite);
+      (`Quick, Websocket.suite);
+    ]
