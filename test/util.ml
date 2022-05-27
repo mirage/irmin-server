@@ -9,24 +9,24 @@ let test name f client _switch () =
   f client
 
 let run_server s =
-  let uri =
+  let kind, uri =
     match s with
-    | `Websocket -> Uri.of_string "ws://localhost:90991"
+    | `Websocket -> ("Websocket", Uri.of_string "ws://localhost:90991")
     | `Unix_domain ->
         let dir = Unix.getcwd () in
         let sock = Filename.concat dir "test.sock" in
-        Uri.of_string ("unix://" ^ sock)
-    | `Tcp -> Uri.of_string "tcp://localhost:90992"
+        ("Unix_domain", Uri.of_string ("unix://" ^ sock))
+    | `Tcp -> ("Tcp", Uri.of_string "tcp://localhost:90992")
   in
   match Lwt_unix.fork () with
   | 0 ->
       let () = Irmin.Backend.Watch.set_listen_dir_hook Irmin_watcher.hook in
       let conf = Irmin_mem.config () in
       Lwt_main.run (Server.v ~uri conf >>= Server.serve);
-      (0, uri)
+      (kind, 0, uri)
   | n ->
       Unix.sleep 3;
-      (n, uri)
+      (kind, n, uri)
 
 let suite client all =
   List.map

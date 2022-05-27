@@ -36,28 +36,25 @@ module Make (R : R) = struct
   module Store = Irmin_client_unix.Store.Make (X)
 
   let suite =
-    Irmin_test.Suite.create ~name:(R.kind ^ " Server") ~init
-      ~clear_supported:true
+    Irmin_test.Suite.create ~name:R.kind ~init ~clear_supported:true
       ~store:(module Store)
       ~config ~clean ()
 end
 
-let pid, uri = run_server `Unix_domain
+let kind, pid, uri = run_server `Unix_domain
 
 module Unix_socket = Make (struct
   let pid = pid
   let uri = uri
-  let kind = "Unix domain"
+  let kind = kind
 end)
 
 module Tcp_socket = Make (struct
-  let pid, uri = run_server `Tcp
-  let kind = "TCP"
+  let kind, pid, uri = run_server `Tcp
 end)
 
 module Websocket = Make (struct
-  let pid, uri = run_server `Websocket
-  let kind = "Websocket"
+  let kind, pid, uri = run_server `Websocket
 end)
 
 let client = Lwt_main.run (Client.connect ~uri ())
@@ -158,9 +155,18 @@ let misc = [ ("misc", misc) ]
 
 let () =
   let slow = Sys.getenv_opt "SLOW" |> Option.is_some in
-  Irmin_test.Store.run "irmin-server" ~slow ~misc
-    [
-      (`Quick, Unix_socket.suite);
-      (`Quick, Tcp_socket.suite);
-      (`Quick, Websocket.suite);
-    ]
+  let only = Sys.getenv_opt "ONLY" in
+  let tests =
+    match only with
+    | Some "ws" -> [ (`Quick, Websocket.suite) ]
+    | Some "tcp" -> [ (`Quick, Tcp_socket.suite) ]
+    | Some "unix" -> [ (`Quick, Unix_socket.suite) ]
+    | Some s -> failwith ("Invalid selection: " ^ s)
+    | None ->
+        [
+          (`Quick, Unix_socket.suite);
+          (`Quick, Tcp_socket.suite);
+          (`Quick, Websocket.suite);
+        ]
+  in
+  Irmin_test.Store.run "irmin-server" ~slow ~misc tests
