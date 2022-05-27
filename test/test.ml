@@ -157,7 +157,8 @@ let misc =
 let misc = [ ("misc", misc) ]
 
 let () =
-  Irmin_test.Store.run "irmin-server" ~slow:false ~misc
+  let slow = Sys.getenv_opt "SLOW" |> Option.is_some in
+  Irmin_test.Store.run "irmin-server" ~slow ~misc
     [
       (`Quick, Unix_socket.suite);
       (`Quick, Tcp_socket.suite);
