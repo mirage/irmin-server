@@ -5,5 +5,5 @@
  (libraries irmin.mem digestif.ocaml irmin_client_jsoo utils))
 
 (alias
-  (name app)
-  (deps ping_js.bc.js index.html style.css))
+ (name app)
+ (deps ping_js.bc.js index.html style.css))
