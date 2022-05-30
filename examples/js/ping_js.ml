@@ -13,16 +13,16 @@ let display_text result =
 
 let ping () =
   display_text "";
-  let uri = Uri.of_string "ws://localhost:9090/ws" in
+  let uri = Utils.Util.server_uri in
   let* client = Client.connect ~uri () in
   let+ res = Client.ping client in
   match res with
   | Ok () -> display_text "OK"
-  | Error e -> Printf.printf "ERROR: %s\n" (Irmin_client.Error.to_string e)
+  | Error e -> display_text (Irmin_client.Error.to_string e)
 
 let send_data () =
   display_text "";
-  let uri = Uri.of_string "ws://localhost:9090/ws" in
+  let uri = Utils.Util.server_uri in
   let config = Irmin_client_jsoo.Store.config uri in
   let* repo = Store.Repo.v config in
   let* t = Store.main repo in

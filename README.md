@@ -67,14 +67,15 @@ $ dune exec ./examples/server.exe ws://localhost:9090/ws
 
 ### Client
 
-`irmin-client-jsoo` is a browser application that can be used to send commands to `irmin-server` via WebSocket
+`irmin-client-jsoo` is a browser application that can be used to send commands to `irmin-server` via WebSocket    
+`cd` into examples/js
 
 ```shell
 $ dune build
 ```
 
 To run an example thats ping the server from the browser:
-Open the file `examples/js/ping_js.ml` in the browser
+Open the file `_build/default/examples/js/index.html` in the browser
 
 ## OCaml client
 
