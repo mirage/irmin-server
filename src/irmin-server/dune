@@ -1,4 +1,11 @@
 (library
  (name irmin_server)
  (public_name irmin-server)
- (libraries irmin-server-internal lwt.unix conduit-lwt-unix irmin-pack))
+ (libraries
+  irmin-server-internal
+  lwt.unix
+  base64
+  conduit-lwt-unix
+  websocket-lwt-unix
+  digestif.ocaml
+  irmin-pack))

@@ -3,7 +3,7 @@ module S = Irmin_mem.KV.Make (Irmin.Contents.String)
 module Store = Irmin_client_unix.Store.Make (S)
 
 let main =
-  let uri = Uri.of_string "tcp://localhost:9090" in
+  let uri = Utils.Util.get_url in
   let config = Irmin_client_unix.Store.config uri in
   let* repo = Store.Repo.v config in
   let* t = Store.main repo in

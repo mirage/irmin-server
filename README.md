@@ -18,6 +18,13 @@ For more information:
 $ dune exec bin/server/server.exe -- --help
 ```
 
+`irmin-server` accept `WebSocket` connection.
+To run the server:
+
+```shell
+$ dune exec ./examples/server.exe ws://localhost:9090/ws
+```
+
 `irmin-server` can also be executed using `Docker`:
 
 ```shell
@@ -39,6 +46,36 @@ For help with a specific command (for example, ping):
 ```shell
 $ dune exec bin/client/client.exe -- ping --help
 ```
+
+`irmin-client` can also send commands to `irmin-server` via WebSocket.
+To run an example thats ping the server:
+
+```shell
+$ dune exec ./examples/ping.exe ws://localhost:9090/ws
+```
+
+## Browser
+
+### Server
+
+`irmin-server` accept `WebSocket` connection which makes communication from a browser possible.
+To run the server:
+
+```shell
+$ dune exec ./examples/server.exe ws://localhost:9090/ws
+```
+
+### Client
+
+`irmin-client-jsoo` is a browser application that can be used to send commands to `irmin-server` via WebSocket    
+`cd` into examples/js
+
+```shell
+$ dune build
+```
+
+To run an example thats ping the server from the browser:
+Open the file `_build/default/examples/js/index.html` in the browser
 
 ## OCaml client
 

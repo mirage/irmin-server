@@ -11,3 +11,4 @@ _results
 *.log
 *.dump
 _opam
+.vscode

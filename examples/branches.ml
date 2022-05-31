@@ -6,7 +6,7 @@ module Client = Make (Store)
 module Info = Info (Client.Info)
 
 let main =
-  let uri = Uri.of_string "tcp://localhost:9090" in
+  let uri = Utils.Util.get_url in
   let* client = Client.connect ~uri () in
 
   (* Get current branch name *)

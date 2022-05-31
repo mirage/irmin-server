@@ -1,13 +1,13 @@
 (executables
  (names server)
- (libraries irmin.mem irmin-server)
+ (libraries irmin.mem irmin-server fmt.tty utils)
  (modules server)
  (preprocess
   (pps ppx_irmin)))
 
 (executables
  (names ping tree branches store)
- (libraries irmin.mem irmin-client-unix)
+ (libraries irmin.mem irmin-client-unix fmt.tty utils)
  (modules ping tree branches store)
  (preprocess
   (pps ppx_irmin)))

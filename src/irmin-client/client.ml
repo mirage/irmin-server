@@ -106,14 +106,21 @@ struct
           let ip = Ipaddr.of_string_exn addr in
           if not tls then `TCP (`IP ip, `Port port)
           else `TLS (`Hostname hostname, `IP ip, `Port port)
+      | "ws" | "wss" -> (
+          let port = Uri.port uri |> Option.value ~default:9181 in
+          match Ipaddr.of_string addr with
+          | Ok ip ->
+              if not tls then `Ws (Some (`IP ip, `Port port), Uri.to_string uri)
+              else `TLS (`Hostname hostname, `IP ip, `Port port)
+          | _ -> `Ws (None, Uri.to_string uri))
       | x -> invalid_arg ("Unknown client scheme: " ^ x)
     in
     client
 
   let rec connect conf =
     let client = mk_client conf in
-    let* flow, ic, oc = IO.connect ~ctx:conf.ctx client in
-    let conn = Conn.v flow ic oc in
+    let* ic, oc = IO.connect ~ctx:conf.ctx client in
+    let conn = Conn.v ic oc in
     let+ ok = Conn.Handshake.V1.send (module Private.Store) conn in
     if not ok then Error.raise_error "invalid handshake"
     else

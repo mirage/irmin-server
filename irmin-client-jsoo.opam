@@ -1,5 +1,5 @@
 opam-version: "2.0"
-synopsis: "A client for irmin-server"
+synopsis: "A websocket client for irmin-server"
 maintainer: "Zach Shipko <zachshipko@gmail.com>"
 authors: "Zach Shipko <zachshipko@gmail.com>"
 license: "ISC"
@@ -10,9 +10,8 @@ depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
   "irmin-server-internal" {= version}
-  "conduit-lwt-unix"
-  "websocket-lwt-unix"
-  "base64"
+  "js_of_ocaml-lwt"
+  "brr"
 ]
 build: [
   ["dune" "subst"] {pinned}

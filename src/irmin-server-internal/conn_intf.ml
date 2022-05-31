@@ -27,9 +27,9 @@ end
 module type S = sig
   module IO : IO
 
-  type t = { flow : IO.flow; ic : IO.ic; oc : IO.oc; buffer : bytes }
+  type t = { ic : IO.ic; oc : IO.oc; buffer : bytes }
 
-  val v : ?buffer_size:int -> IO.flow -> IO.ic -> IO.oc -> t
+  val v : ?buffer_size:int -> IO.ic -> IO.oc -> t
   (** Create a new connection using [flow], [ic] and [oc] *)
 
   val is_closed : t -> bool

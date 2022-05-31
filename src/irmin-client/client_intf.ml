@@ -3,6 +3,7 @@ open Irmin_server_internal
 type addr =
   [ `TLS of [ `Hostname of string ] * [ `IP of Ipaddr.t ] * [ `Port of int ]
   | `TCP of [ `IP of Ipaddr.t ] * [ `Port of int ]
+  | `Ws of ([ `IP of Ipaddr.t ] * [ `Port of int ]) option * string
   | `Unix_domain_socket of [ `File of string ] ]
 
 module type IO = sig
@@ -11,7 +12,7 @@ module type IO = sig
   type ctx
 
   val default_ctx : ctx lazy_t
-  val connect : ctx:ctx -> addr -> (flow * ic * oc) Lwt.t
+  val connect : ctx:ctx -> addr -> (ic * oc) Lwt.t
   val close : ic * oc -> unit Lwt.t
 end
 
