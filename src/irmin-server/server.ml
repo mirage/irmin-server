@@ -166,7 +166,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
      being able to _read_ the server-constructed handshake and response
      messages. Note, we reconstruct the packet as a string so the client
      simply has to write the string it receives to a pipe. *)
-  module Protocol = struct
+  module Websocket_protocol = struct
     open Lwt.Infix
 
     let read_exactly ~length ic =
@@ -217,8 +217,8 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
     let rec send_oc handshake channel other_channel client =
       if Lwt_io.is_closed other_channel then Lwt_io.close channel
       else
-        (if handshake then Protocol.read_handshake channel
-        else Protocol.read_response channel)
+        (if handshake then Websocket_protocol.read_handshake channel
+        else Websocket_protocol.read_response channel)
         >>= fun content ->
         let content = Ws_conversion.encode_msg content in
         Logs.debug (fun f -> f ">>> Server sent frame");

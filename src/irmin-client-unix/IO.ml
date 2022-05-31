@@ -21,7 +21,7 @@ let read_char = Lwt_io.read_char
    being able to _read_ the client-constructed handshake and request
    messages. Note, we reconstruct the packet as a string so the server
    simply has to write the string it receives to a pipe. *)
-module Protocol = struct
+module Websocket_protocol = struct
   open Lwt.Infix
 
   let read_exactly ~length ic =
@@ -69,8 +69,8 @@ let websocket_to_flow client =
       (function End_of_file -> Lwt_io.close channel | exn -> Lwt.fail exn)
   in
   let rec send_oc handshake channel client =
-    (if handshake then Protocol.read_handshake channel
-    else Protocol.read_request channel)
+    (if handshake then Websocket_protocol.read_handshake channel
+    else Websocket_protocol.read_request channel)
     >>= fun content ->
     let content = Irmin_server_internal.Ws_conversion.encode_msg content in
     Logs.debug (fun f -> f ">>> Client sent frame");

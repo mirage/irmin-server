@@ -23,6 +23,9 @@ end
 
 module type S = sig
   include Irmin_client.S
+
+  val connect :
+    ?ctx:IO.ctx -> ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
 end
 
 (* Buff is trying to be a single buffer that the Websocket shim can read
@@ -37,11 +40,6 @@ module Buff = struct
     mutable len : int;
     waiters : unit Lwt.u Lwt_dllist.t;
   }
-
-  let dump { buf; off; len; _ } =
-    print_endline @@ Bigstringaf.to_string buf;
-    print_endline @@ string_of_int off;
-    print_endline @@ string_of_int len
 
   let of_bigstring ~off ~len buf =
     assert (off >= 0);
@@ -137,11 +135,6 @@ module Buff = struct
       let _node = Lwt_dllist.add_r r t.waiters in
       p >>= fun () -> read t
     else read t
-
-  let shift t n =
-    assert (t.len >= n);
-    t.off <- t.off + n;
-    t.len <- t.len - n
 end
 
 module IO = struct
