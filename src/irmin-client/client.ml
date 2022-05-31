@@ -168,14 +168,17 @@ struct
           recv t name Cmd.res_t)
 
   let recv_commit_diff (t : t) =
+    let* _status = Conn.Response.read_header t.conn in
     Conn.read t.conn (Irmin.Diff.t Commit.t) >|= Error.unwrap "recv_commit_diff"
 
   let recv_branch_diff (t : t) =
+    let* _status = Conn.Response.read_header t.conn in
     Conn.read t.conn
       (Irmin.Type.pair Store.Branch.t (Irmin.Diff.t Store.commit_key_t))
     >|= Error.unwrap "recv_branch_diff"
 
   let recv_branch_key_diff (t : t) =
+    let* _status = Conn.Response.read_header t.conn in
     Conn.read t.conn (Irmin.Diff.t Store.commit_key_t)
     >|= Error.unwrap "recv_branch_key_diff"
 
