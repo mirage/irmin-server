@@ -379,6 +379,8 @@ struct
       if List.length batch > t.conf.batch_size then build t ~tree batch
       else Lwt.return_ok (t, tree, batch)
 
+    let flush (t, tree, batch) = build t ~tree batch
+
     let add_tree ((t, tree, batch) : tree) path tr =
       let batch = Batch.add_tree batch path tr in
       if List.length batch > t.conf.batch_size then build t ~tree batch

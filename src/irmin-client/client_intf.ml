@@ -183,6 +183,9 @@ module type S = sig
     val clear : tree -> unit Error.result Lwt.t
     (** Clear caches on the server for a given tree *)
 
+    val flush : tree -> tree Error.result Lwt.t
+    (** Apply batch updates, ignoring the configured `batch_size` *)
+
     val key : tree -> key Error.result Lwt.t
     (** Get key of tree *)
 
