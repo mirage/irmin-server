@@ -441,6 +441,7 @@ struct
               let diff_t = Irmin.Diff.t Store.commit_key_t in
               Lwt.catch
                 (fun () ->
+                  let* () = Conn.Response.write_header conn { status = 0 } in
                   let* () =
                     Conn.write conn
                       (Irmin.Type.pair Store.Branch.t diff_t)
@@ -473,6 +474,7 @@ struct
               let diff_t = Irmin.Diff.t Store.commit_key_t in
               Lwt.catch
                 (fun () ->
+                  let* () = Conn.Response.write_header conn { status = 0 } in
                   let* () = Conn.write conn diff_t diff in
                   IO.flush conn.oc)
                 (fun _ -> Lwt.return_unit))
