@@ -61,22 +61,19 @@ let websocket_to_flow client =
     Lwt.catch
       (fun () ->
         Websocket_lwt_unix.read client >>= fun frame ->
-        let content =
-          Irmin_server_internal.Ws_conversion.decode_msg frame.content
-        in
         Logs.debug (fun f -> f "<<< Client received frame");
-        Lwt_io.write channel content >>= fun () -> fill_ic channel client)
+        Lwt_io.write channel frame.content >>= fun () -> fill_ic channel client)
       (function End_of_file -> Lwt_io.close channel | exn -> Lwt.fail exn)
   in
   let rec send_oc handshake channel client =
     (if handshake then Websocket_protocol.read_handshake channel
     else Websocket_protocol.read_request channel)
     >>= fun content ->
-    let content = Irmin_server_internal.Ws_conversion.encode_msg content in
     Logs.debug (fun f -> f ">>> Client sent frame");
     Lwt.catch
       (fun () ->
-        Websocket_lwt_unix.write client (Websocket.Frame.create ~content ())
+        Websocket_lwt_unix.write client
+          (Websocket.Frame.create ~opcode:Binary ~content ())
         >>= fun () -> send_oc false channel client)
       (function End_of_file -> Lwt_io.close channel | exn -> Lwt.fail exn)
   in

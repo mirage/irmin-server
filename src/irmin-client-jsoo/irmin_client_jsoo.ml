@@ -210,8 +210,11 @@ module IO = struct
     let open Brr in
     let open Brr_io in
     let fill_ic channel msg =
-      let msg = Ev.as_type msg |> Message.Ev.data |> Jstr.to_string in
-      let msg = Ws_conversion.decode_msg msg in
+      let msg =
+        Ev.as_type msg |> Message.Ev.data |> Tarray.Buffer.of_jv
+        |> Tarray.of_buffer Tarray.Uint8
+      in
+      let msg = Tarray.to_string msg in
       Logs.debug (fun f -> f "<<< Client received frame");
       Lwt.async (fun () -> write channel msg)
     in
@@ -219,9 +222,14 @@ module IO = struct
       (if handshake then Websocket_protocol.read_handshake channel
       else Websocket_protocol.read_request channel)
       >>= fun content ->
-      let content = Ws_conversion.encode_msg content in
       Logs.debug (fun f -> f ">>> Client sent frame");
-      Websocket.send_string ws (Jstr.v content);
+      let len = String.length content in
+      let content = Bigstringaf.of_string ~off:0 ~len content in
+      let content =
+        Js_of_ocaml.Typed_array.Bigstring.to_arrayBuffer content
+        |> Jv.repr |> Tarray.Buffer.of_jv
+      in
+      Websocket.send_array_buffer ws content;
       send_oc false channel ws
     in
     let c1 = { closed = false; buff = Buff.create 4096 } in
@@ -236,6 +244,9 @@ module IO = struct
     | `Ws (None, s) ->
         let open Brr_io in
         let ws = Websocket.create @@ Jstr.v s in
+        let () =
+          Websocket.set_binary_type ws Websocket.Binary_type.arraybuffer
+        in
         let p, r = Lwt.wait () in
         Brr.Ev.listen Brr.Ev.open'
           (fun _ -> Lwt.wakeup_later r ())
