@@ -4,7 +4,6 @@
  (libraries
   irmin-server-internal
   lwt.unix
-  base64
   conduit-lwt-unix
   websocket-lwt-unix
   digestif.ocaml
