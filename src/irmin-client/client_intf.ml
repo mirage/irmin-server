@@ -19,19 +19,8 @@ end
 module type S = sig
   include Irmin.Generic_key.S
 
-  (*module Batch : sig
-      module Tree :
-        Irmin_server_internal.Tree.S
-          with type concrete = Tree.concrete
-           and type kinded_key = Tree.kinded_key
-
-      type t =
-        (path
-        * [ `Contents of [ `Hash of hash | `Value of contents ] * metadata option
-          | `Tree of tree ]
-          option)
-        list
-    end*)
+  val connect :
+    ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> repo Lwt.t
 
   val reconnect : repo -> unit Lwt.t
 
@@ -47,8 +36,44 @@ module type S = sig
   val ping : repo -> unit Error.result Lwt.t
   (** Ping the server *)
 
-  (*val export : ?depth:int -> repo -> slice Error.result Lwt.t
-    val import : repo -> slice -> unit Error.result Lwt.t*)
+  val export : ?depth:int -> repo -> slice Error.result Lwt.t
+  val import : repo -> slice -> unit Error.result Lwt.t
+  val current_branch : t -> branch Error.result Lwt.t
+
+  module Batch : sig
+    module Tree : sig
+      include
+        Irmin_server_internal.Tree.S
+          with type concrete = Tree.concrete
+           and type kinded_key = Tree.kinded_key
+
+      val empty : repo -> t Error.result Lwt.t
+
+      val save :
+        repo ->
+        t ->
+        [ `Contents of contents_key | `Node of node_key ] Error.result Lwt.t
+
+      val to_local : repo -> t -> tree Error.result Lwt.t
+      val of_local : tree -> t Lwt.t
+    end
+
+    type batch_contents =
+      [ `Hash of hash | `Value of contents ] * metadata option
+
+    type t =
+      (path * [ `Contents of batch_contents | `Tree of Tree.t ] option) list
+
+    val apply : repo -> tree -> t -> Tree.t Error.result Lwt.t
+    val find : t -> path -> batch_contents option
+    val find_tree : t -> path -> Tree.t option
+    val mem : t -> path -> bool
+    val mem_tree : t -> path -> bool
+    val remove : t -> path -> t
+    val add : t -> path -> ?metadata:metadata -> contents -> t
+    val add_hash : t -> path -> ?metadata:metadata -> hash -> t
+    val add_tree : t -> path -> Tree.t -> t
+  end
 
   (*module Commit : sig
       type key

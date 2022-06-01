@@ -162,58 +162,6 @@ module type S = sig
     (** Import repo *)
     module Import : CMD with type req = Store.slice and type res = unit
 
-    (* Branch *)
-
-    (** Get latest commit for a branch *)
-    module Branch_head :
-      CMD with type req = Store.branch option and type res = Commit.t option
-
-    (** Set the latest commit for a branch *)
-    module Branch_set_head :
-      CMD with type req = Store.branch option * Commit.t and type res = unit
-
-    (** Remove a branch *)
-    module Branch_remove : CMD with type req = Store.branch and type res = unit
-
-    (* Commit *)
-
-    (** Create a new commit *)
-    module Commit_v :
-      CMD
-        with type req = Store.Info.t * Store.commit_key list * Tree.t
-         and type res = Commit.t
-
-    (** Find a commit by key *)
-    module Commit_of_key :
-      CMD with type req = Store.commit_key and type res = Commit.t option
-
-    (** Convert from commit key to commit hash *)
-    module Commit_hash_of_key :
-      CMD with type req = Store.commit_key and type res = Store.Hash.t option
-
-    (** Find a commit by hash *)
-    module Commit_of_hash :
-      CMD with type req = Store.hash and type res = Commit.t option
-
-    (* Contents *)
-
-    (** Find contents by key *)
-    module Contents_of_hash :
-      CMD with type req = Store.hash and type res = Store.contents option
-
-    (** Check if contents that match the provided hash can be found in the store *)
-    module Contents_exists : CMD with type req = Store.hash and type res = bool
-
-    (** Add contents to repo *)
-    module Contents_save :
-      CMD with type req = Store.contents and type res = Store.contents_key
-
-    (** Watch for changes *)
-    module Watch : CMD with type req = unit and type res = unit
-
-    (** Remove watcher from client *)
-    module Unwatch : CMD with type req = unit and type res = unit
-
     (* Tree *)
     module Tree : sig
       type t = Tree.t

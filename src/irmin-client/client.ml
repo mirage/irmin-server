@@ -32,7 +32,7 @@ let config ?(batch_size = 32) ?(tls = false) ?hostname uri =
   in
   Irmin.Backend.Conf.add config Conf.tls tls
 
-module Make_client (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
+module Client (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
 struct
   module C = Command.Make (I) (Codec) (Store)
   open C
@@ -54,20 +54,6 @@ struct
   }
 
   (*let uri t = t.conf.uri*)
-
-  (*module Batch = struct
-      module Tree = C.Tree
-
-      type t =
-        (Store.path
-        * [ `Contents of
-            [ `Hash of Store.Hash.t | `Value of Store.contents ]
-            * Store.metadata option
-          | `Tree of Tree.t ]
-          option)
-        list
-      [@@deriving irmin]
-    end*)
 
   let close t =
     t.closed <- true;
@@ -95,28 +81,7 @@ struct
     in
     client
 
-  (*let rec connect conf =
-    let client = mk_client conf in
-    let* ic, oc = IO.connect ~ctx:conf.ctx client in
-    let conn = Conn.v ic oc in
-    let+ ok = Conn.Handshake.V1.send (module Store) conn in
-    if not ok then Error.raise_error "invalid handshake"
-    else
-      let t = { conf; conn; closed = false; lock = Lwt_mutex.create () } in
-      t*)
-
-  (*and reconnect t =
-    let* () = Lwt.catch (fun () -> close t) (fun _ -> Lwt.return_unit) in
-    let+ conn = connect t.conf in
-    t.conn <- conn.conn;
-    t.closed <- false*)
-
   let lock t f = Lwt_mutex.with_lock t.lock f [@@inline]
-
-  (*let dup client =
-    let* c = connect client.conf in
-    if client.closed then c.closed <- true;
-    Lwt.return c*)
 
   let send_command_header t (module Cmd : C.CMD) =
     let header = Conn.Request.v_header ~command:Cmd.name in
@@ -144,10 +109,6 @@ struct
           let* () = Conn.write t.conn Cmd.req_t a in
           let* () = IO.flush t.conn.oc in
           recv t name Cmd.res_t)
-
-  (*let recv_commit_diff (t : t) =
-    let* _status = Conn.Response.read_header t.conn in
-    Conn.read t.conn (Irmin.Diff.t Commit.t) >|= Error.unwrap "recv_commit_diff"*)
 
   let recv_branch_diff (t : t) =
     let* _status = Conn.Response.read_header t.conn in
@@ -177,25 +138,6 @@ struct
 
       let commit : Store.commit Commit.t = Commit.create 64
       let contents : Store.contents Contents.t = Contents.create 64
-    end
-
-    let ping t = request t (module Commands.Ping) ()*)
-  (*let export ?depth t = request t (module Commands.Export) depth
-    let import t slice = request t (module Commands.Import) slice*)
-
-  (*module Branch = struct
-      include Store.Branch
-
-      let set_current t (branch : Store.branch) =
-        request t (module Commands.Set_current_branch) branch
-
-      let get_current t = request t (module Commands.Get_current_branch) ()
-      let get ?branch t = request t (module Commands.Branch_head) branch
-
-      let set ?branch t commit =
-        request t (module Commands.Branch_set_head) (branch, commit)
-
-      let remove t branch = request t (module Commands.Branch_remove) branch
     end*)
 
   (*module Contents = struct
@@ -252,55 +194,6 @@ struct
         Lwt.return (Result.map (fun tree -> (store, tree, batch)) tree)
 
       and empty (t : store) : tree = (t, Tree.Concrete (`Tree []), [])
-
-      module Batch = struct
-        let path_equal = Irmin.Type.(unstage (equal Path.t))
-
-        let find b k =
-          let l =
-            List.filter_map
-              (fun (a, b) ->
-                match b with
-                | Some (`Contents _ as x) when path_equal k a -> Some x
-                | _ -> None)
-              b
-          in
-          match l with [] -> None | h :: _ -> Some h
-
-        let find_tree b k =
-          let l =
-            List.filter_map
-              (fun (a, b) ->
-                match b with
-                | Some (`Tree _ as x) when path_equal k a -> Some x
-                | _ -> None)
-              b
-          in
-          match l with [] -> None | h :: _ -> Some h
-
-        let mem b k =
-          List.exists
-            (fun (a, b) ->
-              match b with Some (`Contents _) -> path_equal k a | _ -> false)
-            b
-
-        let mem_tree b k =
-          List.exists
-            (fun (a, b) ->
-              match b with Some (`Tree _) -> path_equal k a | _ -> false)
-            b
-
-        let remove b k = (k, None) :: b
-
-        let add batch path ?metadata value =
-          (path, Some (`Contents (`Value value, metadata))) :: batch
-
-        let add_hash batch path ?metadata hash =
-          (path, Some (`Contents (`Hash hash, metadata))) :: batch
-
-        let add_tree batch path (_, tree, batch') =
-          ((path, Some (`Tree tree)) :: batch') @ batch
-      end
 
       let split t = t
       let v t ?(batch = []) tr = (t, tr, batch)
@@ -393,28 +286,6 @@ struct
 
         type t = Store.tree
       end
-
-      let to_local (t, tree, batch) =
-        let* tree = build t ~tree batch in
-        match tree with
-        | Error e -> Lwt.return_error e
-        | Ok (_, tree, _) -> (
-            let+ res = request t (module Commands.Tree.To_local) tree in
-            match res with
-            | Ok x ->
-                let x = Store.Tree.of_concrete x in
-                Ok (x : Private.Store.tree)
-            | Error e -> Error e)
-
-      let of_local t x =
-        let+ x = Store.Tree.to_concrete x in
-        (t, Private.Tree.Concrete x, [])
-
-      let save (t, tree, batch) =
-        let* tree = build t ~tree batch in
-        match tree with
-        | Error e -> Lwt.return_error e
-        | Ok (_, tree, _) -> request t (module Commands.Tree.Save) tree
 
       let hash (t, tree, batch) =
         let* tree = build t ~tree batch in
@@ -510,37 +381,40 @@ struct
     end*)
 end
 
-module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
+module Make (IO : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
 struct
   module St = Store
-  module Client = Make_client (I) (Codec) (Store)
-  module Command = Command.Make (I) (Codec) (Store)
-  module IO = I
-  open Command
-  open Client
+  module Client = Client (IO) (Codec) (Store)
+  module Command = Command.Make (IO) (Codec) (Store)
+  module Conn = Command.Conn
+  module Commands = Command.Commands
+
+  let request = Client.request
 
   let rec connect conf =
-    let client = mk_client conf in
+    let client = Client.mk_client conf in
     let* ic, oc = IO.connect ~ctx:conf.ctx client in
     let conn = Conn.v ic oc in
     let+ ok = Conn.Handshake.V1.send (module Store) conn in
     if not ok then Error.raise_error "invalid handshake"
     else
-      let t = { conf; conn; closed = false; lock = Lwt_mutex.create () } in
+      let t =
+        Client.{ conf; conn; closed = false; lock = Lwt_mutex.create () }
+      in
       t
 
   and reconnect t =
-    let* () = Lwt.catch (fun () -> close t) (fun _ -> Lwt.return_unit) in
-    let+ conn = connect t.conf in
+    let* () = Lwt.catch (fun () -> Client.close t) (fun _ -> Lwt.return_unit) in
+    let+ conn = connect t.Client.conf in
     t.conn <- conn.conn;
     t.closed <- false
 
   let dup client =
-    let* c = connect client.conf in
+    let* c = connect client.Client.conf in
     if client.closed then c.closed <- true;
     Lwt.return c
 
-  let uri t = t.conf.uri
+  let uri t = t.Client.conf.uri
 
   module X = struct
     open Lwt.Infix
@@ -548,7 +422,7 @@ struct
     module Hash = St.Hash
 
     module Contents = struct
-      type nonrec 'a t = t
+      type nonrec 'a t = Client.t
 
       open Commands.Backend.Contents
       module Key = St.Backend.Contents.Key
@@ -575,7 +449,7 @@ struct
         request t (module Index) hash >|= Error.unwrap "Contents.index"
 
       let batch t f = f t
-      let close t = close t
+      let close t = Client.close t
 
       let merge t =
         let f ~old a b =
@@ -590,7 +464,7 @@ struct
     end
 
     module Node = struct
-      type nonrec 'a t = t
+      type nonrec 'a t = Client.t
 
       open Commands.Backend.Node
       module Key = St.Backend.Node.Key
@@ -616,7 +490,7 @@ struct
         request t (module Index) hash >|= Error.unwrap "Node.index"
 
       let batch t f = f t
-      let close t = close t
+      let close t = Client.close t
 
       let merge t =
         let f ~old a b =
@@ -632,7 +506,7 @@ struct
     module Node_portable = St.Backend.Node_portable
 
     module Commit = struct
-      type nonrec 'a t = t
+      type nonrec 'a t = Client.t
 
       open Commands.Backend.Commit
       module Key = St.Backend.Commit.Key
@@ -661,7 +535,7 @@ struct
         request t (module Index) hash >|= Error.unwrap "Commit.index"
 
       let batch t f = f t
-      let close t = close t
+      let close t = Client.close t
 
       let merge t ~info =
         let f ~old a b =
@@ -678,7 +552,7 @@ struct
     module Commit_portable = St.Backend.Commit_portable
 
     module Branch = struct
-      type nonrec t = t
+      type nonrec t = Client.t
 
       open Commands.Backend.Branch
       module Key = St.Backend.Branch.Key
@@ -717,7 +591,7 @@ struct
             Lwt.catch
               (fun () ->
                 Lwt.catch
-                  (fun () -> recv_branch_diff t)
+                  (fun () -> Client.recv_branch_diff t)
                   (fun _ -> raise Continue)
                 >>= fun (key, diff) -> f key diff >>= loop)
               (function _ -> loop ())
@@ -737,7 +611,7 @@ struct
             Lwt.catch
               (fun () ->
                 Lwt.catch
-                  (fun () -> recv_branch_key_diff t)
+                  (fun () -> Client.recv_branch_key_diff t)
                   (fun _ -> raise Continue)
                 >>= f >>= loop)
               (function _ -> loop ())
@@ -746,17 +620,17 @@ struct
         Lwt.return t
 
       let unwatch _t watch =
-        let* () = Conn.write watch.conn Unwatch.req_t () in
-        close watch
+        let* () = Conn.write watch.Client.conn Unwatch.req_t () in
+        Client.close watch
 
       let clear t = request t (module Clear) () >|= Error.unwrap "Branch.clear"
-      let close t = close t
+      let close t = Client.close t
     end
 
-    module Slice = Irmin.Backend.Slice.Make (Contents) (Node) (Commit)
+    module Slice = Store.Backend.Slice
 
     module Repo = struct
-      type nonrec t = t
+      type nonrec t = Client.t
 
       let v config =
         let uri = Irmin.Backend.Conf.get config Conf.uri in
@@ -764,11 +638,12 @@ struct
         let batch_size = Irmin.Backend.Conf.get config Conf.batch_size in
         let hostname = Irmin.Backend.Conf.get config Conf.hostname in
         let conf =
-          { uri; tls; batch_size; hostname; ctx = Lazy.force IO.default_ctx }
+          Client.
+            { uri; tls; batch_size; hostname; ctx = Lazy.force IO.default_ctx }
         in
         connect conf
 
-      let close (t : t) = close t
+      let close (t : t) = Client.close t
       let contents_t (t : t) = t
       let node_t (t : t) = t
       let commit_t (t : t) = t
@@ -782,8 +657,113 @@ struct
   include Irmin.Of_backend (X)
 
   let ping t = request t (module Commands.Ping) ()
+  let export ?depth t = request t (module Commands.Export) depth
+  let import t slice = request t (module Commands.Import) slice
+  let close t = Client.close t
 
-  let close t =
-    t.closed <- true;
-    IO.close (t.conn.ic, t.conn.oc)
+  let connect ?batch_size ?tls ?hostname uri =
+    let conf = config ?batch_size ?tls ?hostname uri in
+    Repo.v conf
+
+  let current_branch (t : t) =
+    request (repo t) (module Commands.Get_current_branch) ()
+
+  module Batch = struct
+    module Tree' = Tree
+
+    module Tree = struct
+      include Command.Tree
+
+      let empty (t : repo) = request t (module Commands.Tree.Empty) ()
+
+      let to_local t tree =
+        let+ res = request t (module Commands.Tree.To_local) tree in
+        match res with
+        | Ok x ->
+            let x = Tree.of_concrete x in
+            Ok (x : tree)
+        | Error e -> Error e
+
+      let of_local x =
+        let+ x = Tree.to_concrete x in
+        Concrete x
+
+      let save t tree = request t (module Commands.Tree.Save) tree
+    end
+
+    type batch_contents =
+      [ `Hash of Store.Hash.t | `Value of Store.contents ]
+      * Store.metadata option
+
+    type t =
+      (Store.path * [ `Contents of batch_contents | `Tree of Tree.t ] option)
+      list
+    [@@deriving irmin]
+
+    let apply (t : repo) (tree : tree) (batch : t) =
+      let* tree = Tree'.to_concrete tree in
+      request t (module Commands.Tree.Batch_update) (Tree.Concrete tree, batch)
+
+    let path_equal = Irmin.Type.(unstage (equal Path.t))
+
+    let find (b : t) k =
+      let l =
+        List.filter_map
+          (fun (a, b) ->
+            match b with
+            | Some (`Contents x) when path_equal k a -> Some x
+            | _ -> None)
+          b
+      in
+      match l with [] -> None | h :: _ -> Some h
+
+    let find_tree (b : t) k =
+      let l =
+        List.filter_map
+          (fun (a, b) ->
+            match b with
+            | Some (`Tree x) when path_equal k a -> Some x
+            | _ -> None)
+          b
+      in
+      match l with [] -> None | h :: _ -> Some h
+
+    let mem b k =
+      List.exists
+        (fun (a, b) ->
+          match b with Some (`Contents _) -> path_equal k a | _ -> false)
+        b
+
+    let mem_tree b k =
+      List.exists
+        (fun (a, b) ->
+          match b with Some (`Tree _) -> path_equal k a | _ -> false)
+        b
+
+    let remove b k = (k, None) :: b
+
+    let add batch path ?metadata value =
+      (path, Some (`Contents (`Value value, metadata))) :: batch
+
+    let add_hash batch path ?metadata hash =
+      (path, Some (`Contents (`Hash hash, metadata))) :: batch
+
+    let add_tree (batch : t) (path : path) (tree : Tree.t) : t =
+      (path, Some (`Tree tree)) :: batch
+  end
+
+  (* Overrides *)
+  let main repo =
+    let* () =
+      request repo (module Commands.Set_current_branch) Store.Branch.main
+      >|= Error.unwrap "Store.main"
+    in
+    main repo
+
+  let of_branch repo branch =
+    let* () =
+      request repo (module Commands.Set_current_branch) branch
+      >|= Error.unwrap "Store.of_branch"
+    in
+    of_branch repo branch
 end
