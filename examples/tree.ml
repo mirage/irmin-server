@@ -7,22 +7,21 @@ module Info = Info (Client.Info)
 
 let main =
   let uri = Utils.Util.get_url in
-  let* client = Client.connect ~uri () in
+  let* repo = Client.Repo.v (Irmin_client.config uri) in
+  let* client = Client.main repo in
 
   (* Create an empty tree. This tree will remain on the client-side until
      committed to the store. *)
-  let tree = Client.Tree.empty client in
+  let tree = Client.Tree.empty () in
 
   (* If needed, [Client.Tree.cleanup] can be used to manually garbage collect
      a tree *)
 
   (* Set foo => bar *)
-  let* tree =
-    Client.Tree.add tree [ "foo" ] "bar" >|= Error.unwrap "Tree.add"
-  in
+  let* tree = Client.Tree.add tree [ "foo" ] "bar" in
 
   (* Check that the tree has been updated *)
-  let* exists = Client.Tree.mem tree [ "foo" ] >|= Error.unwrap "Tree.mem" in
+  let* exists = Client.Tree.mem tree [ "foo" ] in
   assert exists;
 
   (* Commit the tree *)
@@ -30,18 +29,10 @@ let main =
 
   (* Get the tree back, now instead of existing on the client-side, you get a
      key to the stored tree *)
-  let* tree =
-    Client.set_tree client ~info [] tree >|= Error.unwrap "Store.set_tree"
-  in
-  let _, t, _ = Client.Tree.split tree in
-  let () =
-    match t with
-    | Client.Private.Tree.Key _ -> assert true
-    | ID _ | Local _ -> assert false
-  in
+  let* _ = Client.set_tree client ~info [] tree >|= Result.get_ok in
 
   (* Check to make sure the store contains foo => bar *)
-  let+ value = Client.find client [ "foo" ] >|= Error.unwrap "Tree.find" in
+  let+ value = Client.find client [ "foo" ] in
   let value = Option.get value in
   assert (value = "bar")
 

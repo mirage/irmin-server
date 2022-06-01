@@ -4,7 +4,8 @@ module Client = Irmin_client_unix.Make (Store)
 
 let main =
   let uri = Utils.Util.get_url in
-  let* client = Client.connect ~uri () in
+  let config = Irmin_client_unix.config uri in
+  let* client = Client.Repo.v config in
   let+ res = Client.ping client in
   match res with
   | Ok () -> print_endline "OK"

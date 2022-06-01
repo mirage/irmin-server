@@ -6,7 +6,9 @@ module type S = sig
 
   (** [Tree] wraps [Store.Tree] to avoid encoding/decoding trees more than needed *)
   module Tree :
-    Tree.S with module Private.Store = Store and type Local.t = Store.tree
+    Tree.S
+      with type kinded_key = Store.Tree.kinded_key
+       and type concrete = Store.Tree.concrete
 
   (** Commits *)
   module Commit :
@@ -212,6 +214,94 @@ module type S = sig
     (** Remove watcher from client *)
     module Unwatch : CMD with type req = unit and type res = unit
 
+    (* Tree *)
+    module Tree : sig
+      type t = Tree.t
+
+      (** Create an empty tree *)
+      module Empty : CMD with type req = unit and type res = Tree.t
+
+      (** Add a value to a tree *)
+      module Add :
+        CMD
+          with type req = Tree.t * Store.path * Store.contents
+           and type res = Tree.t
+
+      module Save :
+        CMD
+          with type req = Tree.t
+           and type res =
+            [ `Contents of Store.contents_key | `Node of Store.node_key ]
+
+      (** Add multiple trees/values to a tree *)
+      module Batch_update :
+        CMD
+          with type req =
+            Tree.t
+            * (Store.path
+              * [ `Contents of
+                  [ `Hash of Store.hash | `Value of Store.contents ]
+                  * Store.metadata option
+                | `Tree of Tree.t ]
+                option)
+              list
+           and type res = Tree.t
+
+      (** Add a tree to a tree *)
+      module Add_tree :
+        CMD with type req = Tree.t * Store.path * Tree.t and type res = Tree.t
+
+      (** Remove path from a tree *)
+      module Remove :
+        CMD with type req = Tree.t * Store.path and type res = Tree.t
+
+      (** Find a value from a tree *)
+      module Find :
+        CMD
+          with type req = Tree.t * Store.path
+           and type res = Store.contents option
+
+      (** Find a tree from a tree *)
+      module Find_tree :
+        CMD with type req = Tree.t * Store.path and type res = Tree.t option
+
+      (** Deallocate a single tree *)
+      module Cleanup : CMD with type req = Tree.t and type res = unit
+
+      (** Convert tree to concrete representation *)
+      module To_local : CMD with type req = Tree.t and type res = Tree.concrete
+
+      (** Check if a path is set to a value in a tree *)
+      module Mem : CMD with type req = Tree.t * Store.path and type res = bool
+
+      (** Check if a path is set to a tree *)
+      module Mem_tree :
+        CMD with type req = Tree.t * Store.path and type res = bool
+
+      (** List items in one level of a tree *)
+      module List :
+        CMD
+          with type req = Tree.t * Store.path
+           and type res = (Store.Path.step * [ `Contents | `Tree ]) list
+
+      (** Clear tree cache *)
+      module Clear : CMD with type req = Tree.t and type res = unit
+
+      (** Get tree hash *)
+      module Hash : CMD with type req = Tree.t and type res = Store.Hash.t
+
+      (** Get tree key *)
+      module Key :
+        CMD with type req = Tree.t and type res = Store.Tree.kinded_key
+
+      (** Deallocate all trees *)
+      module Cleanup_all : CMD with type req = unit and type res = unit
+
+      (** Merge with another tree *)
+      module Merge :
+        CMD with type req = Tree.t * Tree.t * Tree.t and type res = Tree.t
+    end
+
     (* Store *)
     module Store : sig
       (** Find a value in the store *)
@@ -272,107 +362,6 @@ module type S = sig
       module Last_modified :
         CMD with type req = Store.path and type res = Commit.t list
     end
-
-    (* Tree *)
-    module Tree : sig
-      (** Create an empty tree *)
-      module Empty : CMD with type req = unit and type res = Tree.t
-
-      (** Add a value to a tree *)
-      module Add :
-        CMD
-          with type req =
-            Tree.t * Tree.Private.Store.path * Tree.Private.Store.contents
-           and type res = Tree.t
-
-      module Save :
-        CMD
-          with type req = Tree.t
-           and type res =
-            [ `Contents of Tree.Private.Store.contents_key
-            | `Node of Tree.Private.Store.node_key ]
-
-      (** Add multiple trees/values to a tree *)
-      module Batch_update :
-        CMD
-          with type req =
-            Tree.t
-            * (Tree.Private.Store.path
-              * [ `Contents of
-                  [ `Hash of Tree.Private.Store.hash
-                  | `Value of Tree.Private.Store.contents ]
-                  * Tree.Private.Store.metadata option
-                | `Tree of Tree.t ]
-                option)
-              list
-           and type res = Tree.t
-
-      (** Add a tree to a tree *)
-      module Add_tree :
-        CMD
-          with type req = Tree.t * Tree.Private.Store.path * Tree.t
-           and type res = Tree.t
-
-      (** Remove path from a tree *)
-      module Remove :
-        CMD
-          with type req = Tree.t * Tree.Private.Store.path
-           and type res = Tree.t
-
-      (** Find a value from a tree *)
-      module Find :
-        CMD
-          with type req = Tree.t * Tree.Private.Store.path
-           and type res = Tree.Private.Store.contents option
-
-      (** Find a tree from a tree *)
-      module Find_tree :
-        CMD
-          with type req = Tree.t * Tree.Private.Store.path
-           and type res = Tree.t option
-
-      (** Deallocate a single tree *)
-      module Cleanup : CMD with type req = Tree.t and type res = unit
-
-      (** Convert tree to concrete representation *)
-      module To_local :
-        CMD with type req = Tree.t and type res = Tree.Local.concrete
-
-      (** Check if a path is set to a value in a tree *)
-      module Mem :
-        CMD with type req = Tree.t * Tree.Private.Store.path and type res = bool
-
-      (** Check if a path is set to a tree *)
-      module Mem_tree :
-        CMD with type req = Tree.t * Tree.Private.Store.path and type res = bool
-
-      (** List items in one level of a tree *)
-      module List :
-        CMD
-          with type req = Tree.t * Tree.Private.Store.path
-           and type res =
-            (Tree.Private.Store.Path.step * [ `Contents | `Tree ]) list
-
-      (** Clear tree cache *)
-      module Clear : CMD with type req = Tree.t and type res = unit
-
-      (** Get tree hash *)
-      module Hash :
-        CMD with type req = Tree.t and type res = Tree.Private.Store.Hash.t
-
-      (** Get tree key *)
-      module Key :
-        CMD
-          with type req = Tree.t
-           and type res = Tree.Private.Store.Tree.kinded_key
-
-      (** Deallocate all trees *)
-      module Cleanup_all : CMD with type req = unit and type res = unit
-
-      (** Merge with another tree *)
-      module Merge :
-        CMD with type req = Tree.t * Tree.t * Tree.t and type res = Tree.t
-    end
   end
 end
 
@@ -385,7 +374,7 @@ module type Command = sig
       (Store : Irmin.Generic_key.S) :
     S
       with module Store = Store
-       and module Tree.Private.Store = Store
-       and type Tree.Local.t = Store.tree
+       and type Tree.kinded_key = Store.Tree.kinded_key
+       and type Tree.concrete = Store.Tree.concrete
        and module Conn.IO = IO
 end

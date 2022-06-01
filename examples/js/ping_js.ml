@@ -1,7 +1,6 @@
 open Lwt.Syntax
 module S = Irmin_mem.KV.Make (Irmin.Contents.String)
-module Client = Irmin_client_jsoo.Make (S)
-module Store = Irmin_client_jsoo.Store.Make (S)
+module Store = Irmin_client_jsoo.Make (S)
 
 let display_text result =
   let open Brr in
@@ -11,19 +10,18 @@ let display_text result =
       El.set_prop (El.Prop.jstr (Jstr.v "innerHTML")) (Jstr.v result) elem
   | None -> ()
 
+let config = Irmin_client_jsoo.config Utils.Util.server_uri
+
 let ping () =
   display_text "";
-  let uri = Utils.Util.server_uri in
-  let* client = Client.connect ~uri () in
-  let+ res = Client.ping client in
+  let* client = Store.Repo.v config in
+  let+ res = Store.ping client in
   match res with
   | Ok () -> display_text "OK"
   | Error e -> display_text (Irmin_client.Error.to_string e)
 
 let send_data () =
   display_text "";
-  let uri = Utils.Util.server_uri in
-  let config = Irmin_client_jsoo.Store.config uri in
   let* repo = Store.Repo.v config in
   let* t = Store.main repo in
   let* () = Store.set_exn t ~info:Store.Info.none [ "a"; "b"; "c" ] "123" in

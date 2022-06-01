@@ -5,7 +5,9 @@ module Make
     (IO : Conn.IO)
     (Codec : Conn.Codec.S)
     (St : Irmin.Generic_key.S)
-    (Tree : Tree.S with module Private.Store = St and type Local.t = St.tree) =
+    (Tree : Tree.S
+              with type kinded_key = St.Tree.kinded_key
+               and type concrete = St.Tree.concrete) =
 struct
   module Server_info = struct
     type t = { start_time : float }
@@ -55,7 +57,7 @@ struct
       match tree with
       | Tree.ID x -> Lwt.return @@ (Some x, Hashtbl.find_opt ctx.trees x)
       | Key x -> St.Tree.of_key ctx.repo x >|= fun x -> (None, x)
-      | Local x -> Lwt.return (None, Some (Tree.Local.of_concrete x))
+      | Concrete x -> Lwt.return (None, Some (St.Tree.of_concrete x))
     in
     match tree with
     | Some t -> Lwt.return (id, t)

@@ -1,10 +1,10 @@
 open Lwt.Syntax
 module S = Irmin_mem.KV.Make (Irmin.Contents.String)
-module Store = Irmin_client_unix.Store.Make (S)
+module Store = Irmin_client_unix.Make (S)
 
 let main =
   let uri = Utils.Util.get_url in
-  let config = Irmin_client_unix.Store.config uri in
+  let config = Irmin_client_unix.config uri in
   let* repo = Store.Repo.v config in
   let* t = Store.main repo in
   let* w = Store.watch t (fun _ -> Lwt_io.printl "UPDATED") in

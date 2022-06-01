@@ -5,12 +5,14 @@ module Make
     (Codec : Conn.Codec.S)
     (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
-              with module Private.Store = Store
-               and type Local.t = Store.tree)
+              with type concrete = Store.Tree.concrete
+               and type kinded_key = Store.Tree.kinded_key)
     (Commit : Commit.S with type hash = Store.hash and type tree = Tree.t) =
 struct
   include Context.Make (IO) (Codec) (Store) (Tree)
   module Return = Conn.Return
+
+  type t = Tree.t
 
   module Empty = struct
     type req = unit [@@deriving irmin]
@@ -192,13 +194,13 @@ struct
 
   module To_local = struct
     type req = Tree.t [@@deriving irmin]
-    type res = Tree.Local.concrete [@@deriving irmin]
+    type res = Tree.concrete [@@deriving irmin]
 
     let name = "tree.to_local"
 
     let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
-      let* tree = Tree.Local.to_concrete tree in
+      let* tree = Store.Tree.to_concrete tree in
       Return.v conn res_t tree
   end
 

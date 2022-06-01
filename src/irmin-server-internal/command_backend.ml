@@ -5,8 +5,8 @@ module Make
     (Codec : Conn.Codec.S)
     (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
-              with module Private.Store = Store
-               and type Local.t = Store.tree)
+              with type concrete = Store.Tree.concrete
+               and type kinded_key = Store.Tree.kinded_key)
     (Commit : Commit.S
                 with type hash = Store.hash
                  and type tree = Tree.t
