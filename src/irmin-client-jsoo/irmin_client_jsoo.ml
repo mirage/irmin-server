@@ -48,7 +48,6 @@ module Buff = struct
 
   let create len = of_bigstring ~off:0 ~len:0 (Bigstringaf.create len)
   let writable_space t = Bigstringaf.length t.buf - t.len
-  let trailing_space t = Bigstringaf.length t.buf - (t.off + t.len)
 
   let compress t =
     Bigstringaf.unsafe_blit t.buf ~src_off:t.off t.buf ~dst_off:0 ~len:t.len;
@@ -62,15 +61,17 @@ module Buff = struct
       new_len := 3 * !new_len / 2
     done;
     let new_buf = Bigstringaf.create !new_len in
-    Bigstringaf.unsafe_blit t.buf ~src_off:t.off new_buf ~dst_off:0 ~len:t.len;
+    Bigstringaf.unsafe_blit t.buf ~src_off:t.off new_buf ~dst_off:0
+      ~len:(t.len - t.off);
     t.buf <- new_buf;
+    t.len <- t.len - t.off;
     t.off <- 0
 
   let ensure t to_copy =
-    if trailing_space t < to_copy then
-      if writable_space t >= to_copy then compress t else grow t to_copy
+    if writable_space t >= to_copy then () else grow t to_copy
 
   let write_pos t = t.len
+  let unread_data t = t.len - t.off
 
   let wakeup t =
     if Lwt_dllist.is_empty t.waiters then ()
@@ -78,8 +79,6 @@ module Buff = struct
 
   let add_string t str =
     let off = 0 and len = String.length str in
-    assert (off >= 0);
-    assert (String.length str >= len - off);
     ensure t len;
     Bigstringaf.unsafe_blit_from_string str ~src_off:off t.buf
       ~dst_off:(write_pos t) ~len;
@@ -97,8 +96,6 @@ module Buff = struct
     Bigstringaf.set t.buf (write_pos t) i;
     t.len <- t.len + 1;
     wakeup t
-
-  let unread_data t = t.len - t.off
 
   let read_int64_be t =
     let get_int64 t =
@@ -139,7 +136,7 @@ end
 
 module IO = struct
   type flow = unit
-  type channel = { mutable closed : bool; buff : Buff.t }
+  type channel = { closed : Lwt_switch.t; buff : Buff.t }
   type ctx = unit
 
   let default_ctx = Lazy.from_val ()
@@ -149,7 +146,7 @@ module IO = struct
 
   exception Timeout
 
-  let is_closed { closed; _ } = closed
+  let is_closed { closed; _ } = not (Lwt_switch.is_on closed)
   let write_int64_be { buff; _ } i = Lwt.return @@ Buff.add_int64_be buff i
   let read_int64_be { buff; _ } = Buff.read_int64_be buff
   let write { buff; _ } i = Lwt.return @@ Buff.add_string buff i
@@ -224,8 +221,14 @@ module IO = struct
       Websocket.send_string ws (Jstr.v content);
       send_oc false channel ws
     in
-    let c1 = { closed = false; buff = Buff.create 4096 } in
-    let c2 = { closed = false; buff = Buff.create 4096 } in
+    let c1_switch = Lwt_switch.create () in
+    Lwt_switch.add_hook (Some c1_switch) (fun () ->
+        Lwt.return @@ Websocket.close ws);
+    let c2_switch = Lwt_switch.create () in
+    Lwt_switch.add_hook (Some c2_switch) (fun () ->
+        Lwt.return @@ Websocket.close ws);
+    let c1 = { closed = c1_switch; buff = Buff.create 4096 } in
+    let c2 = { closed = c1_switch; buff = Buff.create 4096 } in
     Brr.Ev.listen Message.Ev.message (fill_ic c1) (Websocket.as_target ws);
     Lwt.async (fun () -> send_oc true c2 ws);
     (c1, c2)
@@ -240,14 +243,19 @@ module IO = struct
         Brr.Ev.listen Brr.Ev.open'
           (fun _ -> Lwt.wakeup_later r ())
           (Websocket.as_target ws);
+        Brr.Ev.listen Brr.Ev.error
+          (fun _err ->
+            Lwt.wakeup_later_exn r (Invalid_argument "Websocket Failure"))
+          (Websocket.as_target ws);
+        if Websocket.ready_state ws = Websocket.Ready_state.open' then
+          Lwt.wakeup_later r ();
         p >|= fun () -> websocket_to_flow ws
     | `Ws _ | `TLS _ | `TCP _ | `Unix_domain_socket _ ->
         failwith "Unsupported Websocket Protocol"
 
   let close (ic, oc) =
-    ic.closed <- true;
-    oc.closed <- true;
-    Lwt.return ()
+    let open Lwt.Infix in
+    Lwt_switch.turn_off ic.closed >>= fun () -> Lwt_switch.turn_off oc.closed
 end
 
 let normalize_uri ?hostname uri =
