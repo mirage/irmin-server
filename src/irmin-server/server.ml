@@ -258,6 +258,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
       match Uri.scheme t.uri with
       | Some "ws" | Some "wss" ->
           Websocket_lwt_unix.establish_standard_server ~ctx:t.ctx ~mode:t.server
+            ~on_exn
             ~check_request:(fun _ -> true)
             (websocket_handler t)
       | _ ->
