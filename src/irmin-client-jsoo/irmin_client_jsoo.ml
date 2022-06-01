@@ -48,9 +48,12 @@ module Buff = struct
 
   let create len = of_bigstring ~off:0 ~len:0 (Bigstringaf.create len)
   let writable_space t = Bigstringaf.length t.buf - t.len
+  let trailing_space t = Bigstringaf.length t.buf - (t.off + t.len)
 
   let compress t =
-    Bigstringaf.unsafe_blit t.buf ~src_off:t.off t.buf ~dst_off:0 ~len:t.len;
+    Bigstringaf.unsafe_blit t.buf ~src_off:t.off t.buf ~dst_off:0
+      ~len:(t.len - t.off);
+    t.len <- t.len - t.off;
     t.off <- 0
 
   let grow t to_copy =
@@ -68,7 +71,8 @@ module Buff = struct
     t.off <- 0
 
   let ensure t to_copy =
-    if writable_space t >= to_copy then () else grow t to_copy
+    if trailing_space t < to_copy then
+      if writable_space t >= to_copy then compress t else grow t to_copy
 
   let write_pos t = t.len
   let unread_data t = t.len - t.off
