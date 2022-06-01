@@ -12,7 +12,6 @@ depends: [
   "irmin-server-internal" {= version}
   "conduit-lwt-unix"
   "websocket-lwt-unix"
-  "base64"
 ]
 build: [
   ["dune" "subst"] {pinned}
