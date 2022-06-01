@@ -223,18 +223,13 @@ module IO = struct
       else Websocket_protocol.read_request channel)
       >>= fun content ->
       Logs.debug (fun f -> f ">>> Client sent frame");
+      let len = String.length content in
+      let content = Bigstringaf.of_string ~off:0 ~len content in
       let content =
-        Bigstringaf.of_string ~off:0 ~len:(String.length content) content
+        Js_of_ocaml.Typed_array.Bigstring.to_arrayBuffer content
+        |> Jv.repr |> Tarray.Buffer.of_jv
       in
-      let content :
-          (int, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
-          =
-        Obj.magic content
-        (* TODO: figure out how to convert from string -> Tarray.Buffer.t without this *)
-      in
-      let arr = Tarray.of_bigarray1 content in
-      let buf = Tarray.buffer arr in
-      Websocket.send_array_buffer ws buf;
+      Websocket.send_array_buffer ws content;
       send_oc false channel ws
     in
     let c1 = { closed = false; buff = Buff.create 4096 } in
