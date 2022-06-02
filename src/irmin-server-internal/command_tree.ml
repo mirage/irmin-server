@@ -27,6 +27,55 @@ struct
       Return.v conn res_t (ID id)
   end
 
+  module Of_path = struct
+    type req = Store.path [@@deriving irmin]
+    type res = Tree.t option [@@deriving irmin]
+
+    let name = "tree.of_path"
+
+    let run conn ctx _ path =
+      let* tree = Store.find_tree ctx.store path in
+      match tree with
+      | None -> Return.v conn res_t None
+      | Some tree ->
+          let id = incr_id () in
+          Hashtbl.replace ctx.trees id tree;
+          Return.v conn res_t (Some (ID id))
+  end
+
+  module Of_hash = struct
+    type req = Store.hash [@@deriving irmin]
+    type res = Tree.t option [@@deriving irmin]
+
+    let name = "tree.of_hash"
+
+    let run conn ctx _ hash =
+      let* tree = Store.Tree.of_hash ctx.repo (`Node hash) in
+      match tree with
+      | None -> Return.v conn res_t None
+      | Some tree ->
+          let id = incr_id () in
+          Hashtbl.replace ctx.trees id tree;
+          Return.v conn res_t (Some (ID id))
+  end
+
+  module Of_commit = struct
+    type req = Store.hash [@@deriving irmin]
+    type res = Tree.t option [@@deriving irmin]
+
+    let name = "tree.of_commit"
+
+    let run conn ctx _ hash =
+      let* commit = Store.Commit.of_hash ctx.repo hash in
+      match commit with
+      | None -> Return.v conn res_t None
+      | Some commit ->
+          let tree = Store.Commit.tree commit in
+          let id = incr_id () in
+          Hashtbl.replace ctx.trees id tree;
+          Return.v conn res_t (Some (ID id))
+  end
+
   module Save = struct
     type req = Tree.t [@@deriving irmin]
 
@@ -58,7 +107,7 @@ struct
       Return.v conn res_t (ID id)
   end
 
-  module Batch_update = struct
+  module Batch_apply = struct
     type req =
       Tree.t
       * (Store.path
@@ -72,7 +121,7 @@ struct
 
     type res = Tree.t [@@deriving irmin]
 
-    let name = "tree.batch_update"
+    let name = "tree.batch_apply"
 
     let run conn ctx _ (tree, l) =
       let* _, tree = resolve_tree ctx tree in
@@ -299,7 +348,7 @@ struct
     [
       cmd (module Empty);
       cmd (module Add);
-      cmd (module Batch_update);
+      cmd (module Batch_apply);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Cleanup_all);
@@ -314,5 +363,8 @@ struct
       cmd (module Hash);
       cmd (module Merge);
       cmd (module Save);
+      cmd (module Of_path);
+      cmd (module Of_hash);
+      cmd (module Of_commit);
     ]
 end

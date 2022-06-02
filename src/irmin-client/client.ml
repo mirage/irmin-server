@@ -165,186 +165,7 @@ struct
       let save t contents = request t (module Commands.Contents_save) contents
     end*)
 
-  (*module Tree = struct
-      type store = t
-      type key = Store.Tree.kinded_key
-
-      let key_t = Store.Tree.kinded_key_t
-
-      let rec build (t : store) ?tree b : tree Error.result Lwt.t =
-        let tree =
-          match tree with
-          | Some tree -> tree
-          | None ->
-              let _, tree, _ = empty t in
-              tree
-        in
-        match b with
-        | [] -> Lwt.return_ok (t, tree, [])
-        | b -> batch_update (t, tree, b) []
-
-      and batch_update (((t : store), tree, batch) : tree) l =
-        wrap t
-          (request t
-             (module Commands.Tree.Batch_update)
-             (tree, List.rev_append batch (List.rev l)))
-
-      and wrap ?(batch = []) store tree =
-        tree >>= fun tree ->
-        Lwt.return (Result.map (fun tree -> (store, tree, batch)) tree)
-
-      and empty (t : store) : tree = (t, Tree.Concrete (`Tree []), [])
-
-      let split t = t
-      let v t ?(batch = []) tr = (t, tr, batch)
-      let of_key t k = (t, Private.Tree.Key k, [])
-
-      let map_tree tree f =
-        Result.map (fun (_, tree, _) -> f tree) tree |> function
-        | Ok x -> (
-            x >>= function
-            | Ok x -> Lwt.return_ok x
-            | Error e -> Lwt.return_error e)
-        | Error e -> Lwt.return_error e
-
-      let clear (t, tree, batch) =
-        let* tree = build t ~tree batch in
-        map_tree tree (fun tree -> request t (module Commands.Tree.Clear) tree)
-
-      let key (t, tree, batch) =
-        let* tree = build t ~tree batch in
-        map_tree tree (fun tree -> request t (module Commands.Tree.Key) tree)
-
-      let add' (t, tree, batch) path value =
-        wrap ~batch t (request t (module Commands.Tree.Add) (tree, path, value))
-
-      let add ((t, tree, batch) : tree) path ?metadata value =
-        let hash = St.Contents.hash value in
-        let exists = Cache.Contents.mem Cache.contents hash in
-        let batch =
-          if exists then Batch.add_hash batch ?metadata path hash
-          else Batch.add batch ?metadata path value
-        in
-        if List.length batch > t.conf.batch_size then build t ~tree batch
-        else Lwt.return_ok (t, tree, batch)
-
-      let flush (t, tree, batch) = build t ~tree batch
-
-      let add_tree ((t, tree, batch) : tree) path tr =
-        let batch = Batch.add_tree batch path tr in
-        if List.length batch > t.conf.batch_size then build t ~tree batch
-        else Lwt.return_ok (t, tree, batch)
-
-      let add_tree' (t, tree, batch) path (_, tr, batch') =
-        wrap ~batch:(batch @ batch') t
-          (request t (module Commands.Tree.Add_tree) (tree, path, tr))
-
-      let find ((t, tree, batch) : tree) path : contents option Error.result Lwt.t
-          =
-        let x = Batch.find batch path in
-        match x with
-        | Some (`Contents (`Value x, _)) -> Lwt.return_ok (Some x)
-        | Some (`Contents (`Hash x, _)) -> Contents.of_hash t x
-        | _ -> request t (module Commands.Tree.Find) (tree, path)
-
-      let find_tree ((t, tree, batch) : tree) path :
-          tree option Error.result Lwt.t =
-        let x = Batch.find_tree batch path in
-        match x with
-        | Some (`Tree x) -> Lwt.return_ok (Some (t, x, []))
-        | _ ->
-            let+ tree = request t (module Commands.Tree.Find_tree) (tree, path) in
-            Result.map (Option.map (fun tree -> (t, tree, []))) tree
-
-      let remove (t, tree, batch) path =
-        let batch = Batch.remove batch path in
-        wrap ~batch t (request t (module Commands.Tree.Remove) (tree, path))
-
-      let cleanup (t, tree, _) = request t (module Commands.Tree.Cleanup) tree
-
-      let mem (t, tree, batch) path =
-        if Batch.mem batch path then Lwt.return_ok true
-        else request t (module Commands.Tree.Mem) (tree, path)
-
-      let mem_tree (t, tree, batch) path =
-        if Batch.mem_tree batch path then Lwt.return_ok true
-        else request t (module Commands.Tree.Mem_tree) (tree, path)
-
-      let list (t, tree, batch) path =
-        let* tree = build t ~tree batch in
-        map_tree tree (fun tree ->
-            request t (module Commands.Tree.List) (tree, path))
-
-      let merge ~old:(_, old, old') (t, a, a') (_, b, b') =
-        let* _, old, _ = build t ~tree:old old' >|= Error.unwrap "build:old" in
-        let* _, a, _ = build t ~tree:a a' >|= Error.unwrap "build:a" in
-        let* _, b, _ = build t ~tree:b b' >|= Error.unwrap "build:b" in
-        wrap t (request t (module Commands.Tree.Merge) (old, a, b))
-
-      module Local = struct
-        include Store.Tree
-
-        type t = Store.tree
-      end
-
-      let hash (t, tree, batch) =
-        let* tree = build t ~tree batch in
-        match tree with
-        | Error e -> Lwt.return_error e
-        | Ok (_, tree, _) -> request t (module Commands.Tree.Hash) tree
-
-      let cleanup_all t = request t (module Commands.Tree.Cleanup_all) ()
-
-      type t = tree
-    end
-
-    let find t path = request t (module Commands.Store.Find) path
-
-    let set t ~info path value =
-      request t (module Commands.Store.Set) (path, info (), value)
-
-    let test_and_set t ~info path ~test ~set =
-      request t (module Commands.Store.Test_and_set) (path, info (), (test, set))
-
-    let remove t ~info path =
-      request t (module Commands.Store.Remove) (path, info ())
-
-    let find_tree t path =
-      let+ tree = request t (module Commands.Store.Find_tree) path in
-      Result.map (fun x -> Option.map (fun x -> (t, x, [])) x) tree
-
-    let set_tree t ~info path (_, tree, batch) =
-      let* tree = Tree.build t ~tree batch in
-      match tree with
-      | Error e -> Lwt.return_error e
-      | Ok (_, tree, _) ->
-          let+ tree =
-            request t (module Commands.Store.Set_tree) (path, info (), tree)
-          in
-          Result.map (fun tree -> (t, tree, [])) tree
-
-    let test_and_set_tree t ~info path ~test ~set =
-      let test = Option.map (fun (_, x, _) -> x) test in
-      let set = Option.map (fun (_, x, _) -> x) set in
-      let+ tree =
-        request t
-          (module Commands.Store.Test_and_set_tree)
-          (path, info (), (test, set))
-      in
-      Result.map (Option.map (fun tree -> (t, tree, []))) tree
-
-    let mem t path = request t (module Commands.Store.Mem) path
-    let mem_tree t path = request t (module Commands.Store.Mem_tree) path
-
-    let merge t ~info branch =
-      request t (module Commands.Store.Merge) (info (), branch)
-
-    let merge_commit t ~info commit =
-      request t (module Commands.Store.Merge_commit) (info (), commit)
-
-    let last_modified t path =
-      request t (module Commands.Store.Last_modified) path
-
+  (*
     module Commit = struct
       include C.Commit
 
@@ -411,8 +232,16 @@ struct
 
   let dup client =
     let* c = connect client.Client.conf in
-    if client.closed then c.closed <- true;
-    Lwt.return c
+    if client.closed then
+      let () = c.closed <- true in
+      Lwt.return c
+    else
+      let* branch =
+        request client (module Commands.Get_current_branch) ()
+        >|= Error.unwrap "dup:get_current_branch"
+      in
+      let* _ = request c (module Commands.Set_current_branch) branch in
+      Lwt.return c
 
   let uri t = t.Client.conf.uri
 
@@ -672,9 +501,23 @@ struct
     module Tree' = Tree
 
     module Tree = struct
+      type store = t
+
       include Command.Tree
 
       let empty (t : repo) = request t (module Commands.Tree.Empty) ()
+
+      let of_path t path =
+        let t = repo t in
+        request t (module Commands.Tree.Of_path) path
+
+      let of_hash (t : repo) hash =
+        request t (module Commands.Tree.Of_hash) hash
+
+      let of_commit (t : repo) hash =
+        request t (module Commands.Tree.Of_commit) hash
+
+      let of_key key = Key key
 
       let to_local t tree =
         let+ res = request t (module Commands.Tree.To_local) tree in
@@ -689,6 +532,33 @@ struct
         Concrete x
 
       let save t tree = request t (module Commands.Tree.Save) tree
+      let key t tree = request t (module Commands.Tree.Key) tree
+      let hash t tree = request t (module Commands.Tree.Hash) tree
+
+      let add t tree path value =
+        request t (module Commands.Tree.Add) (tree, path, value)
+
+      let add_tree t tree path tree' =
+        request t (module Commands.Tree.Add_tree) (tree, path, tree')
+
+      let find t tree path : contents option Error.result Lwt.t =
+        request t (module Commands.Tree.Find) (tree, path)
+
+      let find_tree t tree path : t option Error.result Lwt.t =
+        request t (module Commands.Tree.Find_tree) (tree, path)
+
+      let remove t tree path =
+        request t (module Commands.Tree.Remove) (tree, path)
+
+      let cleanup t tree = request t (module Commands.Tree.Cleanup) tree
+      let cleanup_all t = request t (module Commands.Tree.Cleanup_all) ()
+      let mem t tree path = request t (module Commands.Tree.Mem) (tree, path)
+
+      let mem_tree t tree path =
+        request t (module Commands.Tree.Mem_tree) (tree, path)
+
+      let list t tree path = request t (module Commands.Tree.List) (tree, path)
+      let merge t ~old a b = request t (module Commands.Tree.Merge) (old, a, b)
     end
 
     type batch_contents =
@@ -702,7 +572,7 @@ struct
 
     let apply (t : repo) (tree : tree) (batch : t) =
       let* tree = Tree'.to_concrete tree in
-      request t (module Commands.Tree.Batch_update) (Tree.Concrete tree, batch)
+      request t (module Commands.Tree.Batch_apply) (Tree.Concrete tree, batch)
 
     let path_equal = Irmin.Type.(unstage (equal Path.t))
 
@@ -753,6 +623,7 @@ struct
   end
 
   (* Overrides *)
+
   let main repo =
     let* () =
       request repo (module Commands.Set_current_branch) Store.Branch.main
@@ -766,4 +637,20 @@ struct
       >|= Error.unwrap "Store.of_branch"
     in
     of_branch repo branch
+
+  let clone ~src ~dst =
+    let* () =
+      request (repo src) (module Commands.Set_current_branch) dst
+      >|= Error.unwrap "Store.clone"
+    in
+    clone ~src ~dst
+
+  let mem store key =
+    let repo = repo store in
+    request repo (module Commands.Store.Mem) key >|= Error.unwrap "mem"
+
+  let mem_tree store key =
+    let repo = repo store in
+    request repo (module Commands.Store.Mem_tree) key
+    >|= Error.unwrap "mem_tree"
 end

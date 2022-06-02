@@ -23,13 +23,12 @@ module Make (R : R) = struct
   let config = Irmin_client_unix.config R.uri
   let client = Lwt_main.run (Client.Repo.v config)
   let clean ~config:_ = Client.Branch.remove client "main"
-  let init ~config:_ = Client.Branch.remove client "main"
 
   module X = Irmin_mem.KV.Make (Irmin.Contents.String)
   module Store = Irmin_client_unix.Make (X)
 
   let suite =
-    Irmin_test.Suite.create_generic_key ~name:R.kind ~init
+    Irmin_test.Suite.create_generic_key ~name:R.kind
       ~store:(module Store)
       ~config ~clean ()
 end

@@ -42,12 +42,17 @@ module type S = sig
 
   module Batch : sig
     module Tree : sig
+      type store = t
+
       include
         Irmin_server_internal.Tree.S
           with type concrete = Tree.concrete
            and type kinded_key = Tree.kinded_key
 
       val empty : repo -> t Error.result Lwt.t
+      val of_hash : repo -> hash -> t option Error.result Lwt.t
+      val of_path : store -> path -> t option Error.result Lwt.t
+      val of_commit : repo -> hash -> t option Error.result Lwt.t
 
       val save :
         repo ->
@@ -56,6 +61,50 @@ module type S = sig
 
       val to_local : repo -> t -> tree Error.result Lwt.t
       val of_local : tree -> t Lwt.t
+
+      val of_key : kinded_key -> t
+      (** Create a tree from a key that specifies a tree that already exists in the store *)
+
+      val key : repo -> t -> kinded_key Error.result Lwt.t
+      (** Get key of tree *)
+
+      val add : repo -> t -> path -> contents -> t Error.result Lwt.t
+      (** Add contents to a tree *)
+
+      val add_tree : repo -> t -> path -> t -> t Error.result Lwt.t
+
+      val find : repo -> t -> path -> contents option Error.result Lwt.t
+      (** Find the value associated with the given path *)
+
+      val find_tree : repo -> t -> path -> t option Error.result Lwt.t
+      (** Find the tree associated with the given path *)
+
+      val remove : repo -> t -> path -> t Error.result Lwt.t
+      (** Remove value from a tree, returning a new tree *)
+
+      val cleanup : repo -> t -> unit Error.result Lwt.t
+      (** Invalidate a tree, this frees the tree on the server side *)
+
+      val cleanup_all : repo -> unit Error.result Lwt.t
+      (** Cleanup all trees *)
+
+      val mem : repo -> t -> path -> bool Error.result Lwt.t
+      (** Check if a path is associated with a value *)
+
+      val mem_tree : repo -> t -> path -> bool Error.result Lwt.t
+      (** Check if a path is associated with a tree *)
+
+      val list :
+        repo ->
+        t ->
+        path ->
+        (Path.step * [ `Contents | `Tree ]) list Error.result Lwt.t
+      (** List entries at the specified root *)
+
+      val merge : repo -> old:t -> t -> t -> t Error.result Lwt.t
+      (** Three way merge *)
+
+      val hash : repo -> t -> hash Error.result Lwt.t
     end
 
     type batch_contents =

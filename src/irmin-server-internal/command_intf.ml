@@ -181,8 +181,17 @@ module type S = sig
            and type res =
             [ `Contents of Store.contents_key | `Node of Store.node_key ]
 
+      module Of_path :
+        CMD with type req = Store.path and type res = Tree.t option
+
+      module Of_hash :
+        CMD with type req = Store.hash and type res = Tree.t option
+
+      module Of_commit :
+        CMD with type req = Store.hash and type res = Tree.t option
+
       (** Add multiple trees/values to a tree *)
-      module Batch_update :
+      module Batch_apply :
         CMD
           with type req =
             Tree.t
