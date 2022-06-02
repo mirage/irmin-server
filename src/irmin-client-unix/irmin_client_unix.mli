@@ -34,5 +34,4 @@ module Make_json (Store : Irmin.Generic_key.S) :
      and type contents_key = Store.contents_key
      and type node_key = Store.node_key
 
-val config :
-  ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
+val config : ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config

@@ -13,19 +13,17 @@ module Conf = struct
     Irmin.Backend.Conf.key ~spec "uri" uri
       (Uri.of_string "tcp://127.0.0.1:9181")
 
-  let batch_size = Irmin.Backend.Conf.key ~spec "client" Irmin.Type.int 32
   let tls = Irmin.Backend.Conf.key ~spec "tls" Irmin.Type.bool false
 
   let hostname =
     Irmin.Backend.Conf.key ~spec "hostname" Irmin.Type.string "127.0.0.1"
 end
 
-let config ?(batch_size = 32) ?(tls = false) ?hostname uri =
+let config ?(tls = false) ?hostname uri =
   let default_host = Uri.host_with_default ~default:"127.0.0.1" uri in
   let config =
     Irmin.Backend.Conf.add (Irmin.Backend.Conf.empty Conf.spec) Conf.uri uri
   in
-  let config = Irmin.Backend.Conf.add config Conf.batch_size batch_size in
   let config =
     Irmin.Backend.Conf.add config Conf.hostname
       (Option.value ~default:default_host hostname)
@@ -38,13 +36,7 @@ struct
   open C
   module IO = I
 
-  type conf = {
-    uri : Uri.t;
-    tls : bool;
-    hostname : string;
-    batch_size : int;
-    ctx : IO.ctx;
-  }
+  type conf = { uri : Uri.t; tls : bool; hostname : string; ctx : IO.ctx }
 
   type t = {
     conf : conf;
@@ -464,11 +456,9 @@ struct
       let v config =
         let uri = Irmin.Backend.Conf.get config Conf.uri in
         let tls = Irmin.Backend.Conf.get config Conf.tls in
-        let batch_size = Irmin.Backend.Conf.get config Conf.batch_size in
         let hostname = Irmin.Backend.Conf.get config Conf.hostname in
         let conf =
-          Client.
-            { uri; tls; batch_size; hostname; ctx = Lazy.force IO.default_ctx }
+          Client.{ uri; tls; hostname; ctx = Lazy.force IO.default_ctx }
         in
         connect conf
 
@@ -490,8 +480,8 @@ struct
   let import t slice = request t (module Commands.Import) slice
   let close t = Client.close t
 
-  let connect ?batch_size ?tls ?hostname uri =
-    let conf = config ?batch_size ?tls ?hostname uri in
+  let connect ?tls ?hostname uri =
+    let conf = config ?tls ?hostname uri in
     Repo.v conf
 
   let current_branch (t : t) =
@@ -623,6 +613,45 @@ struct
   end
 
   (* Overrides *)
+
+  module Commit = struct
+    include Commit
+
+    module Cache = struct
+      module Key = Irmin.Backend.Lru.Make (struct
+        type t = commit_key
+
+        let hash = Hashtbl.hash
+        let equal = Irmin.Type.(unstage (equal commit_key_t))
+      end)
+
+      module Hash = Irmin.Backend.Lru.Make (struct
+        type t = hash
+
+        let hash = Hashtbl.hash
+        let equal = Irmin.Type.(unstage (equal hash_t))
+      end)
+
+      let key : commit Key.t = Key.create 32
+      let hash : commit Hash.t = Hash.create 32
+    end
+
+    let of_key repo key =
+      if Cache.Key.mem Cache.key key then
+        Lwt.return_some (Cache.Key.find Cache.key key)
+      else
+        let+ x = of_key repo key in
+        Option.iter (Cache.Key.add Cache.key key) x;
+        x
+
+    let of_hash repo hash =
+      if Cache.Hash.mem Cache.hash hash then
+        Lwt.return_some (Cache.Hash.find Cache.hash hash)
+      else
+        let+ x = of_hash repo hash in
+        Option.iter (Cache.Hash.add Cache.hash hash) x;
+        x
+  end
 
   let main repo =
     let* () =

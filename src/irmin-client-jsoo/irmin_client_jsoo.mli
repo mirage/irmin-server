@@ -8,8 +8,7 @@ module Info (I : Irmin.Info.S) : sig
   val v : ?author:string -> ('b, Format.formatter, unit, f) format4 -> 'b
 end
 
-val config :
-  ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
+val config : ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
 
 module Make (Store : Irmin.Generic_key.S) :
   Irmin_client.S

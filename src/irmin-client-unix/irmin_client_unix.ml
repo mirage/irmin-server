@@ -30,11 +30,9 @@ let normalize_uri ?hostname uri =
   in
   (uri, Option.value ~default:addr hostname)
 
-let config ?batch_size ?tls ?hostname uri =
+let config ?tls ?hostname uri =
   let uri, addr = normalize_uri ?hostname uri in
-  Irmin_client.config ?batch_size ?tls
-    ~hostname:(Option.value ~default:addr hostname)
-    uri
+  Irmin_client.config ?tls ~hostname:(Option.value ~default:addr hostname) uri
 
 module Make_codec
     (Codec : Irmin_server_internal.Conn.Codec.S)

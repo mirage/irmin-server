@@ -19,9 +19,7 @@ end
 module type S = sig
   include Irmin.Generic_key.S
 
-  val connect :
-    ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> repo Lwt.t
-
+  val connect : ?tls:bool -> ?hostname:string -> Uri.t -> repo Lwt.t
   val reconnect : repo -> unit Lwt.t
 
   val uri : repo -> Uri.t
@@ -349,8 +347,7 @@ module type Client = sig
 
   module type IO = IO
 
-  val config :
-    ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
+  val config : ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
 
   module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
     S

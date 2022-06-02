@@ -9,8 +9,7 @@ module type Irmin_client = sig
 
   type addr = Client.addr
 
-  val config :
-    ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
+  val config : ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
 
   module Make (IO : Client.IO) (Store : Irmin.Generic_key.S) :
     S
