@@ -241,9 +241,6 @@ module type S = sig
           with type req = Tree.t * Store.path
            and type res = (Store.Path.step * [ `Contents | `Tree ]) list
 
-      (** Clear tree cache *)
-      module Clear : CMD with type req = Tree.t and type res = unit
-
       (** Get tree hash *)
       module Hash : CMD with type req = Tree.t and type res = Store.Hash.t
 
@@ -262,44 +259,44 @@ module type S = sig
     (* Store *)
     module Store : sig
       (** Find a value in the store *)
-      module Find :
-        CMD with type req = Store.path and type res = Store.contents option
+      (*module Find :
+        CMD with type req = Store.path and type res = Store.contents option*)
 
       (** Add a new value to the store *)
-      module Set :
+      (*module Set :
         CMD
           with type req = Store.path * Store.Info.t * Store.contents
-           and type res = unit
+           and type res = unit*)
 
       (** Add a value to the store if [test] matches the existing value *)
-      module Test_and_set :
+      (*module Test_and_set :
         CMD
           with type req =
             Store.path
             * Store.Info.t
             * (Store.contents option * Store.contents option)
-           and type res = unit
+           and type res = unit*)
 
       (** Remove a value from the store *)
-      module Remove :
-        CMD with type req = Store.path * Store.Info.t and type res = unit
+      (*module Remove :
+        CMD with type req = Store.path * Store.Info.t and type res = unit*)
 
       (** Get a tree from the store *)
-      module Find_tree :
-        CMD with type req = Store.path and type res = Tree.t option
+      (*module Find_tree :
+        CMD with type req = Store.path and type res = Tree.t option*)
 
       (** Add a tree to the store *)
-      module Set_tree :
+      (*module Set_tree :
         CMD
           with type req = Store.path * Store.Info.t * Tree.t
-           and type res = Tree.t
+           and type res = Tree.t*)
 
       (** Add a tree to the store if [test] matches the existing tree *)
-      module Test_and_set_tree :
+      (*module Test_and_set_tree :
         CMD
           with type req =
             Store.path * Store.Info.t * (Tree.t option * Tree.t option)
-           and type res = Tree.t option
+           and type res = Tree.t option*)
 
       (** Check for the existence of a value in the store *)
       module Mem : CMD with type req = Store.path and type res = bool
@@ -308,16 +305,16 @@ module type S = sig
       module Mem_tree : CMD with type req = Store.path and type res = bool
 
       (** Merge the current branch with another branch *)
-      module Merge :
-        CMD with type req = Store.Info.t * Store.Branch.t and type res = unit
+      (*module Merge :
+        CMD with type req = Store.Info.t * Store.Branch.t and type res = unit*)
 
       (** Merge the current branch with a commit *)
-      module Merge_commit :
-        CMD with type req = Store.Info.t * Commit.t and type res = unit
+      (*module Merge_commit :
+        CMD with type req = Store.Info.t * Commit.t and type res = unit*)
 
       (** Get a list of commits that modified a specific path *)
-      module Last_modified :
-        CMD with type req = Store.path and type res = Commit.t list
+      (*module Last_modified :
+        CMD with type req = Store.path and type res = Commit.t list*)
     end
   end
 end

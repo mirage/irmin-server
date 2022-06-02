@@ -297,18 +297,6 @@ struct
       Return.v conn res_t x
   end
 
-  module Clear = struct
-    type req = Tree.t [@@deriving irmin]
-    type res = unit [@@deriving irmin]
-
-    let name = "tree.clear"
-
-    let run conn ctx _ tree =
-      let* _, tree = resolve_tree ctx tree in
-      Store.Tree.clear tree;
-      Return.v conn res_t ()
-  end
-
   module Hash = struct
     type req = Tree.t [@@deriving irmin]
     type res = Store.Hash.t [@@deriving irmin]
@@ -359,7 +347,6 @@ struct
       cmd (module Find);
       cmd (module Find_tree);
       cmd (module Add_tree);
-      cmd (module Clear);
       cmd (module Hash);
       cmd (module Merge);
       cmd (module Save);
