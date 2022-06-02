@@ -72,7 +72,6 @@ module type S = sig
         module Add : CMD with type req = value and type res = key
         module Unsafe_add : CMD with type req = hash * value and type res = key
         module Index : CMD with type req = hash and type res = key option
-        module Clear : CMD with type req = unit and type res = unit
 
         module Merge :
           CMD
@@ -90,7 +89,6 @@ module type S = sig
         module Add : CMD with type req = value and type res = key
         module Unsafe_add : CMD with type req = hash * value and type res = key
         module Index : CMD with type req = hash and type res = key option
-        module Clear : CMD with type req = unit and type res = unit
 
         module Merge :
           CMD
@@ -108,7 +106,6 @@ module type S = sig
         module Add : CMD with type req = value and type res = key
         module Unsafe_add : CMD with type req = hash * value and type res = key
         module Index : CMD with type req = hash and type res = key option
-        module Clear : CMD with type req = unit and type res = unit
 
         module Merge :
           CMD
