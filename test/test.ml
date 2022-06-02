@@ -24,11 +24,11 @@ module Make (R : R) = struct
   let config = Irmin_client_unix.Store.config R.uri
   let client () = Client.dup client
 
-  let clean () =
+  let clean ~config:_ =
     let* client = client () in
     Client.Branch.remove client "main" >|= Error.unwrap "remove"
 
-  let init () =
+  let init ~config:_ =
     let* client = client () in
     Client.Branch.remove client "main" >|= Error.unwrap "remove"
 
@@ -36,7 +36,7 @@ module Make (R : R) = struct
   module Store = Irmin_client_unix.Store.Make (X)
 
   let suite =
-    Irmin_test.Suite.create ~name:R.kind ~init ~clear_supported:true
+    Irmin_test.Suite.create ~name:R.kind ~init
       ~store:(module Store)
       ~config ~clean ()
 end

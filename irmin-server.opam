@@ -21,8 +21,8 @@ depends: [
 pin-depends: [
   ["graphql.dev" "git+https://github.com/andreas/ocaml-graphql-server#520ccd4013943ee0b2557aa66367b83aaa67084c"]
   ["graphql-cohttp.dev" "git+https://github.com/andreas/ocaml-graphql-server#520ccd4013943ee0b2557aa66367b83aaa67084c"]
-  ["irmin-graphql.3.2.1" "git+https://github.com/patricoferris/irmin#83f5a5401bb3273a84959e5e427e6af884c00a6a"]
-  ["irmin-unix.3.2.1" "git+https://github.com/patricoferris/irmin#83f5a5401bb3273a84959e5e427e6af884c00a6a"]
+  ["irmin-graphql.3.2.1" "git+https://github.com/patricoferris/irmin#4949da37cfa44e18cc2ca357705e6c9a8ff1ad9d"]
+  ["irmin-unix.3.2.1" "git+https://github.com/patricoferris/irmin#4949da37cfa44e18cc2ca357705e6c9a8ff1ad9d"]
 ]
 build: [
   ["dune" "subst"] {pinned}
