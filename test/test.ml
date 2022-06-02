@@ -19,24 +19,17 @@ module type R = sig
 end
 
 module Make (R : R) = struct
-  let () = at_exit (fun () -> Unix.kill R.pid Sys.sigint)
+  let () = at_exit (fun () -> try Unix.kill R.pid Sys.sigint with _ -> ())
   let config = Irmin_client_unix.config R.uri
   let client = Lwt_main.run (Client.Repo.v config)
-  let client () = Client.dup client
-
-  let clean ~config:_ =
-    let* client = client () in
-    Client.Branch.remove client "main"
-
-  let init ~config:_ =
-    let* client = client () in
-    Client.Branch.remove client "main"
+  let clean ~config:_ = Client.Branch.remove client "main"
+  let init ~config:_ = Client.Branch.remove client "main"
 
   module X = Irmin_mem.KV.Make (Irmin.Contents.String)
   module Store = Irmin_client_unix.Make (X)
 
   let suite =
-    Irmin_test.Suite.create ~name:R.kind ~init
+    Irmin_test.Suite.create_generic_key ~name:R.kind ~init
       ~store:(module Store)
       ~config ~clean ()
 end
