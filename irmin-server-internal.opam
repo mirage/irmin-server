@@ -10,7 +10,7 @@ depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
   "optint" {>= "0.1.0"}
-  "irmin" {>= "3.2"}
+  "irmin" {>= "dev"}
   "uri"
   "fmt"
   "checkseum" {>= "0.3.0"}
@@ -18,11 +18,11 @@ depends: [
   "digestif" {>= "0.9.0"}
   "logs" {>= "0.7.0"}
   "lwt" {>= "5.4.0"}
-  "ppx_irmin" {>= "3.2"}
+  "ppx_irmin" {>= "dev"}
 ]
 pin-depends: [
-  ["irmin.3.2.1" "git+https://github.com/patricoferris/irmin#4949da37cfa44e18cc2ca357705e6c9a8ff1ad9d"]
-  ["ppx_irmin.3.2.1" "git+https://github.com/patricoferris/irmin#4949da37cfa44e18cc2ca357705e6c9a8ff1ad9d"]
+  ["irmin.dev" "git+https://github.com/patricoferris/irmin#4949da37cfa44e18cc2ca357705e6c9a8ff1ad9d"]
+  ["ppx_irmin.dev" "git+https://github.com/patricoferris/irmin#4949da37cfa44e18cc2ca357705e6c9a8ff1ad9d"]
 ]
 build: [
   ["dune" "subst"] {pinned}
