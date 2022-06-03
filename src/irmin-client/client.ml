@@ -45,8 +45,6 @@ struct
     lock : Lwt_mutex.t;
   }
 
-  (*let uri t = t.conf.uri*)
-
   let close t =
     t.closed <- true;
     IO.close (t.conn.ic, t.conn.oc)
@@ -112,86 +110,6 @@ struct
     let* _status = Conn.Response.read_header t.conn in
     Conn.read t.conn (Irmin.Diff.t Store.commit_key_t)
     >|= Error.unwrap "recv_branch_key_diff"
-
-  (*module Cache = struct
-      module Contents = Irmin.Backend.Lru.Make (struct
-        type t = Store.Hash.t
-
-        let hash = Hashtbl.hash
-        let equal = Irmin.Type.(unstage (equal Store.Hash.t))
-      end)
-
-      module Commit = Irmin.Backend.Lru.Make (struct
-        type t = Store.commit_key
-
-        let hash = Hashtbl.hash
-        let equal = Irmin.Type.(unstage (equal Store.commit_key_t))
-      end)
-
-      let commit : Store.commit Commit.t = Commit.create 64
-      let contents : Store.contents Contents.t = Contents.create 64
-    end*)
-
-  (*module Contents = struct
-      include Store.Contents
-
-      type key = Store.contents_key
-
-      let of_hash t hash =
-        if Cache.Contents.mem Cache.contents hash then
-          Lwt.return_ok (Some (Cache.Contents.find Cache.contents hash))
-        else request t (module Commands.Contents_of_hash) hash
-
-      let exists' t contents =
-        let hash = hash contents in
-        if Cache.Contents.mem Cache.contents hash then Lwt.return_ok (hash, true)
-        else
-          let* res = request t (module Commands.Contents_exists) hash in
-          match res with
-          | Ok true ->
-              Cache.Contents.add Cache.contents hash contents;
-              Lwt.return_ok (hash, true)
-          | x -> Lwt.return (Result.map (fun y -> (hash, y)) x)
-
-      let exists t contents = exists' t contents >|= Result.map snd
-      let save t contents = request t (module Commands.Contents_save) contents
-    end*)
-
-  (*
-    module Commit = struct
-      include C.Commit
-
-      let v t ~info ~parents ((_, tree, batch) : Tree.t) : t Error.result Lwt.t =
-        let* tree = Tree.build t ~tree batch in
-        match tree with
-        | Error e -> Lwt.return_error e
-        | Ok (_, tree, _) -> (
-            request t (module Commands.Commit_v) (info (), parents, tree)
-            >|= function
-            | Error e -> Error e
-            | Ok (x : t) ->
-                let key = Commit.key x in
-                Cache.Commit.add Cache.commit key x;
-                Ok x)
-
-      let of_key t key =
-        if Cache.(Commit.mem commit key) then
-          Lwt.return_ok (Some Cache.(Commit.find commit key))
-        else
-          let* commit = request t (module Commands.Commit_of_key) key in
-          match commit with
-          | Ok c ->
-              Option.iter (Cache.Commit.add Cache.commit key) c;
-              Lwt.return_ok c
-          | Error e -> Lwt.return_error e
-
-      let of_hash t hash = request t (module Commands.Commit_of_hash) hash
-
-      let hash t commit =
-        request t (module Commands.Commit_hash_of_key) (key commit)
-
-      let tree t commit = (t, tree commit, [])
-    end*)
 end
 
 module Make (IO : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
@@ -646,6 +564,29 @@ struct
         let+ x = of_key repo key in
         Option.iter (Cache.Key.add Cache.key key) x;
         x
+
+    let of_hash repo hash =
+      if Cache.Hash.mem Cache.hash hash then
+        Lwt.return_some (Cache.Hash.find Cache.hash hash)
+      else
+        let+ x = of_hash repo hash in
+        Option.iter (Cache.Hash.add Cache.hash hash) x;
+        x
+  end
+
+  module Contents = struct
+    include Contents
+
+    module Cache = struct
+      module Hash = Irmin.Backend.Lru.Make (struct
+        type t = hash
+
+        let hash = Hashtbl.hash
+        let equal = Irmin.Type.(unstage (equal hash_t))
+      end)
+
+      let hash : contents Hash.t = Hash.create 32
+    end
 
     let of_hash repo hash =
       if Cache.Hash.mem Cache.hash hash then

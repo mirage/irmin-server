@@ -1,4 +1,3 @@
-open! Lwt.Syntax
 open Irmin_server_internal
 module Error = Error
 module IO = IO
