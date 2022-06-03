@@ -131,25 +131,29 @@ let remove client path author message =
       let+ () = Client.remove_exn client path ~info in
       Logs.app (fun l -> l "OK"))
 
-(*let export client filename =
-    run (fun () ->
-        client >>= fun (S ((module Client), client)) ->
-        let* slice = Client.export client >|= Error.unwrap "export" in
-        let s = Irmin.Type.(unstage (to_bin_string Client.slice_t) slice) in
-        Lwt_io.chars_to_file filename (Lwt_stream.of_string s))
+let export client filename =
+  run (fun () ->
+      client >>= fun (S ((module Client), client)) ->
+      let* slice =
+        Client.export (Client.repo client) >|= Error.unwrap "export"
+      in
+      let s = Irmin.Type.(unstage (to_bin_string Client.slice_t) slice) in
+      Lwt_io.chars_to_file filename (Lwt_stream.of_string s))
 
-  let import client filename =
-    run (fun () ->
-        client >>= fun (S ((module Client), client)) ->
-        let* slice = Lwt_io.chars_of_file filename |> Lwt_stream.to_string in
-        let slice =
-          Irmin.Type.(unstage (of_bin_string Client.slice_t) slice)
-          |> Error.unwrap "slice"
-        in
-        let+ () = Client.import client slice >|= Error.unwrap "import" in
-        Logs.app (fun l -> l "OK"))*)
+let import client filename =
+  run (fun () ->
+      client >>= fun (S ((module Client), client)) ->
+      let* slice = Lwt_io.chars_of_file filename |> Lwt_stream.to_string in
+      let slice =
+        Irmin.Type.(unstage (of_bin_string Client.slice_t) slice)
+        |> Error.unwrap "slice"
+      in
+      let+ () =
+        Client.import (Client.repo client) slice >|= Error.unwrap "import"
+      in
+      Logs.app (fun l -> l "OK"))
 
-(*let replicate client author message prefix =
+let replicate client author message prefix =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
       let module Info = Irmin_client_unix.Info (Client.Info) in
@@ -164,7 +168,7 @@ let remove client path author message =
       in
       let rec loop () =
         let* input = Lwt_io.read_line Lwt_io.stdin in
-        let batch : Client.batch =
+        let batch : Client.Batch.t =
           List.fold_left
             (fun acc (k, diff) ->
               match diff with
@@ -180,29 +184,20 @@ let remove client path author message =
           | Some p -> Irmin.Type.of_string Client.Path.t p |> Result.get_ok
           | None -> Client.Path.empty
         in
-        let* tree =
-          Client.find_tree client prefix >|= Error.unwrap "find_tree"
-        in
-        let tree =
-          match tree with Some t -> t | None -> Client.Tree.empty client
-        in
-        let* tree =
-          Client.Tree.batch_update tree batch >|= Error.unwrap "build"
-        in
-        let* _ =
-          Client.set_tree client ~info prefix tree >|= Error.unwrap "set_tree"
+        let* () =
+          Client.Batch.apply ~info client prefix batch >|= Error.unwrap "apply"
         in
         loop ()
       in
-      loop () )*)
+      loop () )
 
-(*let watch client =
+let watch client =
   Lwt_main.run
     ( client >>= fun (S ((module Client), client)) ->
-      let pp = Irmin.Type.pp Client.Commit.t in
+      let repo = Client.repo client in
+      let pp = Irmin.Type.pp (Client.Commit.t repo) in
       let* _w =
-        Client.watch
-          (fun x ->
+        Client.watch client (fun x ->
             match x with
             | `Updated (a, b) ->
                 Logs.app (fun l -> l "Updated (%a, %a)" pp a pp b);
@@ -213,11 +208,9 @@ let remove client path author message =
             | `Removed a ->
                 Logs.app (fun l -> l "Removed %a" pp a);
                 Lwt.return_unit)
-          client
-        >|= Error.unwrap "watch"
       in
       let x, _ = Lwt.wait () in
-      x )*)
+      x )
 
 let pr_str = Format.pp_print_string
 
@@ -326,16 +319,16 @@ let[@alert "-deprecated"] () =
              $ iterations,
              Term.info ~doc:"Remove value associated with the given path"
                "remove" );
-         (*( Term.(const import $ config $ filename 0 $ time $ iterations),
-             Term.info ~doc:"Import from dump file" "import" );
-           ( Term.(const export $ config $ filename 0 $ time $ iterations),
-             Term.info ~doc:"Export to dump file" "export" );*)
+         ( Term.(const import $ config $ filename 0 $ time $ iterations),
+           Term.info ~doc:"Import from dump file" "import" );
+         ( Term.(const export $ config $ filename 0 $ time $ iterations),
+           Term.info ~doc:"Export to dump file" "export" );
          ( Term.(const mem $ config $ path 0 $ time $ iterations),
            Term.info ~doc:"Check if path is set" "mem" );
          ( Term.(const mem_tree $ config $ path 0 $ time $ iterations),
-           Term.info ~doc:"Check if path is set to a tree value" "mem_tree" )
-         (*( Term.(const watch $ config),
-             Term.info ~doc:"Watch for updates" "watch" );
-           ( Term.(const replicate $ config $ author $ message $ prefix),
-             Term.info ~doc:"Replicate changes from irmin CLI" "replicate" );*);
+           Term.info ~doc:"Check if path is set to a tree value" "mem_tree" );
+         ( Term.(const watch $ config),
+           Term.info ~doc:"Watch for updates" "watch" );
+         ( Term.(const replicate $ config $ author $ message $ prefix),
+           Term.info ~doc:"Replicate changes from irmin CLI" "replicate" );
        ]

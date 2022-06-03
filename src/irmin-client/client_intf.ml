@@ -39,9 +39,9 @@ module type S = sig
   val current_branch : t -> branch Error.result Lwt.t
 
   module Batch : sig
-    module Tree : sig
-      type store = t
+    type store = t
 
+    module Tree : sig
       include
         Irmin_server_internal.Tree.S
           with type concrete = Tree.concrete
@@ -111,7 +111,8 @@ module type S = sig
     type t =
       (path * [ `Contents of batch_contents | `Tree of Tree.t ] option) list
 
-    val apply : repo -> tree -> t -> Tree.t Error.result Lwt.t
+    val apply : info:Info.f -> store -> path -> t -> unit Error.result Lwt.t
+    val build_tree : repo -> t -> Tree.t -> Tree.t Error.result Lwt.t
     val find : t -> path -> batch_contents option
     val find_tree : t -> path -> Tree.t option
     val mem : t -> path -> bool

@@ -13,6 +13,7 @@ struct
   type t = (module CMD)
 
   module Commands = struct
+    module Tree' = Tree
     module Tree = Command_tree.Make (IO) (Codec) (Store) (Tree) (Commit)
 
     module Ping = struct
@@ -575,6 +576,35 @@ struct
               let* x = Store.Tree.to_concrete x in
               Return.v conn res_t (Some x)
       end
+
+      type write_options = int option * bool option * Store.hash list option
+      [@@deriving irmin]
+
+      let mk_parents ctx parents =
+        match parents with
+        | None -> Lwt.return None
+        | Some parents ->
+            let* parents =
+              Lwt_list.filter_map_s
+                (fun hash -> Store.Commit.of_hash ctx.repo hash)
+                parents
+            in
+            Lwt.return_some parents
+
+      module Remove = struct
+        type req = write_options * Store.path * Store.Info.t [@@deriving irmin]
+        type res = unit [@@deriving irmin]
+
+        let name = "store.remove"
+
+        let run conn ctx _ ((retries, allow_empty, parents), path, info) =
+          let* parents = mk_parents ctx parents in
+          let* () =
+            Store.remove_exn ?retries ?allow_empty ?parents ctx.store path
+              ~info:(fun () -> info)
+          in
+          Return.v conn res_t ()
+      end
     end
   end
 
@@ -618,6 +648,7 @@ struct
       cmd (module Store.Mem_tree);
       cmd (module Store.Find);
       cmd (module Store.Find_tree);
+      cmd (module Store.Remove);
     ]
     @ Tree.commands
 

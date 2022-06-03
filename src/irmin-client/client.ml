@@ -490,9 +490,9 @@ struct
   module Batch = struct
     module Tree' = Tree
 
-    module Tree = struct
-      type store = t
+    type store = t
 
+    module Tree = struct
       include Command.Tree
 
       let empty (t : repo) = request t (module Commands.Tree.Empty) ()
@@ -560,9 +560,12 @@ struct
       list
     [@@deriving irmin]
 
-    let apply (t : repo) (tree : tree) (batch : t) =
-      let* tree = Tree'.to_concrete tree in
-      request t (module Commands.Tree.Batch_apply) (Tree.Concrete tree, batch)
+    let build_tree (t : repo) (batch : t) tree =
+      request t (module Commands.Tree.Batch_build_tree) (tree, batch)
+
+    let apply ~info t path (batch : t) =
+      let t = repo t in
+      request t (module Commands.Tree.Batch_apply) (path, info (), batch)
 
     let path_equal = Irmin.Type.(unstage (equal Path.t))
 
@@ -689,6 +692,18 @@ struct
   let find store path =
     let repo = repo store in
     request repo (module Commands.Store.Find) path >|= Error.unwrap "find"
+
+  let remove_exn ?retries ?allow_empty ?parents ~info store path =
+    let parents = Option.map (List.map (fun c -> Commit.hash c)) parents in
+    let repo = repo store in
+    request repo
+      (module Commands.Store.Remove)
+      ((retries, allow_empty, parents), path, info ())
+    >|= Error.unwrap "remove"
+
+  let remove ?retries ?allow_empty ?parents ~info store path =
+    let* x = remove_exn ?retries ?allow_empty ?parents ~info store path in
+    Lwt.return_ok x
 
   let get store path =
     let* x = find store path in

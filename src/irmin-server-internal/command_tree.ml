@@ -109,6 +109,49 @@ struct
 
   module Batch_apply = struct
     type req =
+      Store.path
+      * Store.info
+      * (Store.path
+        * [ `Contents of
+            [ `Hash of Store.Hash.t | `Value of Store.contents ]
+            * Store.metadata option
+          | `Tree of Tree.t ]
+          option)
+        list
+    [@@deriving irmin]
+
+    type res = unit [@@deriving irmin]
+
+    let name = "tree.batch.apply"
+
+    let run conn ctx _ (path, info, l) =
+      let* () =
+        Store.with_tree_exn ctx.store path
+          ~info:(fun () -> info)
+          (fun tree ->
+            let tree = Option.value ~default:(Store.Tree.empty ()) tree in
+            let* tree =
+              Lwt_list.fold_left_s
+                (fun tree (path, value) ->
+                  match value with
+                  | Some (`Contents (`Hash value, metadata)) ->
+                      let* value = Store.Contents.of_hash ctx.repo value in
+                      Store.Tree.add tree path ?metadata (Option.get value)
+                  | Some (`Contents (`Value value, metadata)) ->
+                      Store.Tree.add tree path ?metadata value
+                  | Some (`Tree t) ->
+                      let* _, tree' = resolve_tree ctx t in
+                      Store.Tree.add_tree tree path tree'
+                  | None -> Store.Tree.remove tree path)
+                tree l
+            in
+            Lwt.return (Some tree))
+      in
+      Return.v conn res_t ()
+  end
+
+  module Batch_build_tree = struct
+    type req =
       Tree.t
       * (Store.path
         * [ `Contents of
@@ -121,7 +164,7 @@ struct
 
     type res = Tree.t [@@deriving irmin]
 
-    let name = "tree.batch_apply"
+    let name = "tree.batch.build_tree"
 
     let run conn ctx _ (tree, l) =
       let* _, tree = resolve_tree ctx tree in
@@ -337,6 +380,7 @@ struct
       cmd (module Empty);
       cmd (module Add);
       cmd (module Batch_apply);
+      cmd (module Batch_build_tree);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Cleanup_all);

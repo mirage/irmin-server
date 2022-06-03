@@ -186,10 +186,10 @@ module type S = sig
         CMD with type req = Store.hash and type res = Tree.t option
 
       (** Add multiple trees/values to a tree *)
-      module Batch_apply :
+      module Batch_build_tree :
         CMD
           with type req =
-            Tree.t
+            t
             * (Store.path
               * [ `Contents of
                   [ `Hash of Store.hash | `Value of Store.contents ]
@@ -198,6 +198,20 @@ module type S = sig
                 option)
               list
            and type res = Tree.t
+
+      module Batch_apply :
+        CMD
+          with type req =
+            Store.path
+            * Store.info
+            * (Store.path
+              * [ `Contents of
+                  [ `Hash of Store.hash | `Value of Store.contents ]
+                  * Store.metadata option
+                | `Tree of Tree.t ]
+                option)
+              list
+           and type res = unit
 
       (** Add a tree to a tree *)
       module Add_tree :
@@ -253,63 +267,31 @@ module type S = sig
 
     (* Store *)
     module Store : sig
+      type write_options = int option * bool option * Store.hash list option
+      [@@deriving irmin]
+
       (** Find a value in the store *)
       module Find :
         CMD with type req = Store.path and type res = Store.contents option
 
-      (** Add a new value to the store *)
-      (*module Set :
-        CMD
-          with type req = Store.path * Store.Info.t * Store.contents
-           and type res = unit*)
-
-      (** Add a value to the store if [test] matches the existing value *)
-      (*module Test_and_set :
+      (** Remove a value from the store *)
+      module Remove :
         CMD
           with type req =
-            Store.path
+            (int option * bool option * Store.hash list option)
+            * Store.path
             * Store.Info.t
-            * (Store.contents option * Store.contents option)
-           and type res = unit*)
-
-      (** Remove a value from the store *)
-      (*module Remove :
-        CMD with type req = Store.path * Store.Info.t and type res = unit*)
+           and type res = unit
 
       (** Get a tree from the store *)
       module Find_tree :
         CMD with type req = Store.path and type res = Store.Tree.concrete option
-
-      (** Add a tree to the store *)
-      (*module Set_tree :
-        CMD
-          with type req = Store.path * Store.Info.t * Tree.t
-           and type res = Tree.t*)
-
-      (** Add a tree to the store if [test] matches the existing tree *)
-      (*module Test_and_set_tree :
-        CMD
-          with type req =
-            Store.path * Store.Info.t * (Tree.t option * Tree.t option)
-           and type res = Tree.t option*)
 
       (** Check for the existence of a value in the store *)
       module Mem : CMD with type req = Store.path and type res = bool
 
       (** Check for the existence of a tree in the store *)
       module Mem_tree : CMD with type req = Store.path and type res = bool
-
-      (** Merge the current branch with another branch *)
-      (*module Merge :
-        CMD with type req = Store.Info.t * Store.Branch.t and type res = unit*)
-
-      (** Merge the current branch with a commit *)
-      (*module Merge_commit :
-        CMD with type req = Store.Info.t * Commit.t and type res = unit*)
-
-      (** Get a list of commits that modified a specific path *)
-      (*module Last_modified :
-        CMD with type req = Store.path and type res = Commit.t list*)
     end
   end
 end
