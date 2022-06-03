@@ -254,8 +254,8 @@ module type S = sig
     (* Store *)
     module Store : sig
       (** Find a value in the store *)
-      (*module Find :
-        CMD with type req = Store.path and type res = Store.contents option*)
+      module Find :
+        CMD with type req = Store.path and type res = Store.contents option
 
       (** Add a new value to the store *)
       (*module Set :
@@ -277,8 +277,8 @@ module type S = sig
         CMD with type req = Store.path * Store.Info.t and type res = unit*)
 
       (** Get a tree from the store *)
-      (*module Find_tree :
-        CMD with type req = Store.path and type res = Tree.t option*)
+      module Find_tree :
+        CMD with type req = Store.path and type res = Store.Tree.concrete option
 
       (** Add a tree to the store *)
       (*module Set_tree :

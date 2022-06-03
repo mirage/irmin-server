@@ -668,18 +668,40 @@ struct
     of_branch repo branch
 
   let clone ~src ~dst =
+    let repo = repo src in
+    let* repo = dup repo in
     let* () =
-      request (repo src) (module Commands.Set_current_branch) dst
-      >|= Error.unwrap "Store.clone"
+      Head.find src >>= function
+      | None -> Branch.remove repo dst
+      | Some h -> Branch.set repo dst h
     in
-    clone ~src ~dst
+    of_branch repo dst
 
-  let mem store key =
+  let mem store path =
     let repo = repo store in
-    request repo (module Commands.Store.Mem) key >|= Error.unwrap "mem"
+    request repo (module Commands.Store.Mem) path >|= Error.unwrap "mem"
 
-  let mem_tree store key =
+  let mem_tree store path =
     let repo = repo store in
-    request repo (module Commands.Store.Mem_tree) key
+    request repo (module Commands.Store.Mem_tree) path
     >|= Error.unwrap "mem_tree"
+
+  let find store path =
+    let repo = repo store in
+    request repo (module Commands.Store.Find) path >|= Error.unwrap "find"
+
+  let get store path =
+    let* x = find store path in
+    match x with
+    | None ->
+        invalid_arg ("Contents not found: " ^ Irmin.Type.to_string path_t path)
+    | Some x -> Lwt.return x
+
+  let find_tree store path =
+    let repo = repo store in
+    let+ concrete =
+      request repo (module Commands.Store.Find_tree) path
+      >|= Error.unwrap "find_tree"
+    in
+    Option.map Tree.of_concrete concrete
 end

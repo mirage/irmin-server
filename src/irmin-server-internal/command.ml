@@ -549,6 +549,32 @@ struct
           let* res = Store.mem_tree ctx.store path in
           Return.v conn res_t res
       end
+
+      module Find = struct
+        type req = Store.path [@@deriving irmin]
+        type res = Store.contents option [@@deriving irmin]
+
+        let name = "store.find"
+
+        let run conn ctx _ path =
+          let* x = Store.find ctx.store path in
+          Return.v conn res_t x
+      end
+
+      module Find_tree = struct
+        type req = Store.path [@@deriving irmin]
+        type res = Store.Tree.concrete option [@@deriving irmin]
+
+        let name = "store.find_tree"
+
+        let run conn ctx _ path =
+          let* x = Store.find_tree ctx.store path in
+          match x with
+          | None -> Return.v conn res_t None
+          | Some x ->
+              let* x = Store.Tree.to_concrete x in
+              Return.v conn res_t (Some x)
+      end
     end
   end
 
@@ -590,6 +616,8 @@ struct
       cmd (module Branch.Watch_key);
       cmd (module Store.Mem);
       cmd (module Store.Mem_tree);
+      cmd (module Store.Find);
+      cmd (module Store.Find_tree);
     ]
     @ Tree.commands
 
