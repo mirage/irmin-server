@@ -1,5 +1,4 @@
 open Lwt.Syntax
-open! Lwt.Infix
 open Irmin_client_unix
 open Util
 module Info = Info (Client.Info)

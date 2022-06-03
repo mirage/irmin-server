@@ -134,9 +134,7 @@ let remove client path author message =
 let export client filename =
   run (fun () ->
       client >>= fun (S ((module Client), client)) ->
-      let* slice =
-        Client.export (Client.repo client) >|= Error.unwrap "export"
-      in
+      let* slice = Client.export (Client.repo client) in
       let s = Irmin.Type.(unstage (to_bin_string Client.slice_t) slice) in
       Lwt_io.chars_to_file filename (Lwt_stream.of_string s))
 
@@ -148,9 +146,7 @@ let import client filename =
         Irmin.Type.(unstage (of_bin_string Client.slice_t) slice)
         |> Error.unwrap "slice"
       in
-      let+ () =
-        Client.import (Client.repo client) slice >|= Error.unwrap "import"
-      in
+      let+ () = Client.import (Client.repo client) slice in
       Logs.app (fun l -> l "OK"))
 
 let replicate client author message prefix =
@@ -184,9 +180,7 @@ let replicate client author message prefix =
           | Some p -> Irmin.Type.of_string Client.Path.t p |> Result.get_ok
           | None -> Client.Path.empty
         in
-        let* () =
-          Client.Batch.apply ~info client prefix batch >|= Error.unwrap "apply"
-        in
+        let* () = Client.Batch.apply ~info client prefix batch in
         loop ()
       in
       loop () )

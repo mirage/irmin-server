@@ -140,16 +140,17 @@ struct
     t.conn <- conn.conn;
     t.closed <- false
 
+  let current_branch repo =
+    request repo (module Commands.Get_current_branch) ()
+    >|= Error.unwrap "current_branch"
+
   let dup client =
     let* c = connect client.Client.conf in
     if client.closed then
       let () = c.closed <- true in
       Lwt.return c
     else
-      let* branch =
-        request client (module Commands.Get_current_branch) ()
-        >|= Error.unwrap "dup:get_current_branch"
-      in
+      let* branch = current_branch client in
       let* _ = request c (module Commands.Set_current_branch) branch in
       Lwt.return c
 
@@ -394,16 +395,24 @@ struct
   include Irmin.Of_backend (X)
 
   let ping t = request t (module Commands.Ping) ()
-  let export ?depth t = request t (module Commands.Export) depth
-  let import t slice = request t (module Commands.Import) slice
+
+  let export ?depth t =
+    request t (module Commands.Export) depth >|= Error.unwrap "export"
+
+  let import t slice =
+    request t (module Commands.Import) slice >|= Error.unwrap "import"
+
   let close t = Client.close t
 
   let connect ?tls ?hostname uri =
     let conf = config ?tls ?hostname uri in
     Repo.v conf
 
-  let current_branch (t : t) =
-    request (repo t) (module Commands.Get_current_branch) ()
+  let current_branch t = current_branch (repo t)
+
+  let set_current_branch (repo : repo) b =
+    request repo (module Commands.Set_current_branch) b
+    >|= Error.unwrap "set_current_branch"
 
   module Batch = struct
     module Tree' = Tree
@@ -413,60 +422,87 @@ struct
     module Tree = struct
       include Command.Tree
 
-      let empty (t : repo) = request t (module Commands.Tree.Empty) ()
+      let empty (t : repo) =
+        request t (module Commands.Tree.Empty) () >|= Error.unwrap "Tree.empty"
 
       let of_path t path =
         let t = repo t in
         request t (module Commands.Tree.Of_path) path
+        >|= Error.unwrap "Tree.of_path"
 
       let of_hash (t : repo) hash =
         request t (module Commands.Tree.Of_hash) hash
+        >|= Error.unwrap "Tree.of_hash"
 
       let of_commit (t : repo) hash =
         request t (module Commands.Tree.Of_commit) hash
+        >|= Error.unwrap "Tree.of_commit"
 
       let of_key key = Key key
 
       let to_local t tree =
-        let+ res = request t (module Commands.Tree.To_local) tree in
-        match res with
-        | Ok x ->
-            let x = Tree.of_concrete x in
-            Ok (x : tree)
-        | Error e -> Error e
+        let+ x =
+          request t (module Commands.Tree.To_local) tree
+          >|= Error.unwrap "Tree.to_local"
+        in
+        Tree.of_concrete x
 
       let of_local x =
         let+ x = Tree.to_concrete x in
         Concrete x
 
-      let save t tree = request t (module Commands.Tree.Save) tree
-      let key t tree = request t (module Commands.Tree.Key) tree
-      let hash t tree = request t (module Commands.Tree.Hash) tree
+      let save t tree =
+        request t (module Commands.Tree.Save) tree >|= Error.unwrap "Tree.save"
+
+      let key t tree =
+        request t (module Commands.Tree.Key) tree >|= Error.unwrap "Tree.key"
+
+      let hash t tree =
+        request t (module Commands.Tree.Hash) tree >|= Error.unwrap "Tree.hash"
 
       let add t tree path value =
         request t (module Commands.Tree.Add) (tree, path, value)
+        >|= Error.unwrap "Tree.add"
 
       let add_tree t tree path tree' =
         request t (module Commands.Tree.Add_tree) (tree, path, tree')
+        >|= Error.unwrap "Tree.add_tree"
 
-      let find t tree path : contents option Error.result Lwt.t =
+      let find t tree path : contents option Lwt.t =
         request t (module Commands.Tree.Find) (tree, path)
+        >|= Error.unwrap "Tree.find"
 
-      let find_tree t tree path : t option Error.result Lwt.t =
+      let find_tree t tree path : t option Lwt.t =
         request t (module Commands.Tree.Find_tree) (tree, path)
+        >|= Error.unwrap "Tree.find_tree"
 
       let remove t tree path =
         request t (module Commands.Tree.Remove) (tree, path)
+        >|= Error.unwrap "Tree.remove"
 
-      let cleanup t tree = request t (module Commands.Tree.Cleanup) tree
-      let cleanup_all t = request t (module Commands.Tree.Cleanup_all) ()
-      let mem t tree path = request t (module Commands.Tree.Mem) (tree, path)
+      let cleanup t tree =
+        request t (module Commands.Tree.Cleanup) tree
+        >|= Error.unwrap "Tree.cleanup"
+
+      let cleanup_all t =
+        request t (module Commands.Tree.Cleanup_all) ()
+        >|= Error.unwrap "Tree.cleanup_all"
+
+      let mem t tree path =
+        request t (module Commands.Tree.Mem) (tree, path)
+        >|= Error.unwrap "Tree.mem"
 
       let mem_tree t tree path =
         request t (module Commands.Tree.Mem_tree) (tree, path)
+        >|= Error.unwrap "Tree.mem_tree"
 
-      let list t tree path = request t (module Commands.Tree.List) (tree, path)
-      let merge t ~old a b = request t (module Commands.Tree.Merge) (old, a, b)
+      let list t tree path =
+        request t (module Commands.Tree.List) (tree, path)
+        >|= Error.unwrap "Tree.list"
+
+      let merge t ~old a b =
+        request t (module Commands.Tree.Merge) (old, a, b)
+        >|= Error.unwrap "Tree.merge"
     end
 
     type batch_contents =
@@ -478,12 +514,16 @@ struct
       list
     [@@deriving irmin]
 
+    let v () = []
+
     let build_tree (t : repo) (batch : t) tree =
       request t (module Commands.Tree.Batch_build_tree) (tree, batch)
+      >|= Error.unwrap "Batch.build_tree"
 
     let apply ~info t path (batch : t) =
       let t = repo t in
       request t (module Commands.Tree.Batch_apply) (path, info (), batch)
+      >|= Error.unwrap "Tree.build_tree"
 
     let path_equal = Irmin.Type.(unstage (equal Path.t))
 
@@ -598,17 +638,11 @@ struct
   end
 
   let main repo =
-    let* () =
-      request repo (module Commands.Set_current_branch) Store.Branch.main
-      >|= Error.unwrap "Store.main"
-    in
+    let* () = set_current_branch repo Store.Branch.main in
     main repo
 
   let of_branch repo branch =
-    let* () =
-      request repo (module Commands.Set_current_branch) branch
-      >|= Error.unwrap "Store.of_branch"
-    in
+    let* () = set_current_branch repo branch in
     of_branch repo branch
 
   let clone ~src ~dst =

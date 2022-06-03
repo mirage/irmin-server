@@ -6,8 +6,8 @@ module Client = Make (Store)
 module Info = Info (Client.Info)
 
 let main =
-  let uri = Utils.Util.get_url in
-  let* repo = Client.Repo.v (Irmin_client.config uri) in
+  let uri = Utils.get_url in
+  let* repo = Client.connect uri in
   let* client = Client.main repo in
 
   (* Create an empty tree. This tree will remain on the client-side until
