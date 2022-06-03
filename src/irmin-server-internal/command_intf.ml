@@ -60,87 +60,82 @@ module type S = sig
   (** A list of all registered commands *)
 
   module Commands : sig
-    module Backend : sig
-      module Schema : Irmin.Schema.S
-      module Hash : Irmin.Hash.S with type t = Schema.Hash.t
+    module Contents : sig
+      type key = Store.Backend.Contents.key
+      type value = Store.Backend.Contents.value
+      type hash = Store.Backend.Contents.hash
 
-      module Contents : sig
-        type key = Store.Backend.Contents.key
-        type value = Store.Backend.Contents.value
-        type hash = Store.Backend.Contents.hash
+      module Mem : CMD with type req = key and type res = bool
+      module Find : CMD with type req = key and type res = value option
+      module Add : CMD with type req = value and type res = key
+      module Unsafe_add : CMD with type req = hash * value and type res = key
+      module Index : CMD with type req = hash and type res = key option
 
-        module Mem : CMD with type req = key and type res = bool
-        module Find : CMD with type req = key and type res = value option
-        module Add : CMD with type req = value and type res = key
-        module Unsafe_add : CMD with type req = hash * value and type res = key
-        module Index : CMD with type req = hash and type res = key option
+      module Merge :
+        CMD
+          with type req = key option option * key option * key option
+           and type res = (key option, Irmin.Merge.conflict) Result.t
+    end
 
-        module Merge :
-          CMD
-            with type req = key option option * key option * key option
-             and type res = (key option, Irmin.Merge.conflict) Result.t
-      end
+    module Node : sig
+      type key = Store.Backend.Node.key
+      type value = Store.Backend.Node.value
+      type hash = Store.Backend.Node.hash
 
-      module Node : sig
-        type key = Store.Backend.Node.key
-        type value = Store.Backend.Node.value
-        type hash = Store.Backend.Node.hash
+      module Mem : CMD with type req = key and type res = bool
+      module Find : CMD with type req = key and type res = value option
+      module Add : CMD with type req = value and type res = key
+      module Unsafe_add : CMD with type req = hash * value and type res = key
+      module Index : CMD with type req = hash and type res = key option
 
-        module Mem : CMD with type req = key and type res = bool
-        module Find : CMD with type req = key and type res = value option
-        module Add : CMD with type req = value and type res = key
-        module Unsafe_add : CMD with type req = hash * value and type res = key
-        module Index : CMD with type req = hash and type res = key option
+      module Merge :
+        CMD
+          with type req = key option option * key option * key option
+           and type res = (key option, Irmin.Merge.conflict) Result.t
+    end
 
-        module Merge :
-          CMD
-            with type req = key option option * key option * key option
-             and type res = (key option, Irmin.Merge.conflict) Result.t
-      end
+    module Commit : sig
+      type key = Store.Backend.Commit.key
+      type value = Store.Backend.Commit.value
+      type hash = Store.Backend.Commit.hash
 
-      module Commit : sig
-        type key = Store.Backend.Commit.key
-        type value = Store.Backend.Commit.value
-        type hash = Store.Backend.Commit.hash
+      module Mem : CMD with type req = key and type res = bool
+      module Find : CMD with type req = key and type res = value option
+      module Add : CMD with type req = value and type res = key
+      module Unsafe_add : CMD with type req = hash * value and type res = key
+      module Index : CMD with type req = hash and type res = key option
 
-        module Mem : CMD with type req = key and type res = bool
-        module Find : CMD with type req = key and type res = value option
-        module Add : CMD with type req = value and type res = key
-        module Unsafe_add : CMD with type req = hash * value and type res = key
-        module Index : CMD with type req = hash and type res = key option
+      module Merge :
+        CMD
+          with type req =
+            Store.Info.t * (key option option * key option * key option)
+           and type res = (key option, Irmin.Merge.conflict) Result.t
+    end
 
-        module Merge :
-          CMD
-            with type req =
-              Store.Info.t * (key option option * key option * key option)
-             and type res = (key option, Irmin.Merge.conflict) Result.t
-      end
+    module Branch : sig
+      type key = Store.Backend.Branch.key
+      type value = Store.Backend.Branch.value
 
-      module Branch : sig
-        type key = Store.Backend.Branch.key
-        type value = Store.Backend.Branch.value
+      module Mem : CMD with type req = key and type res = bool
+      module Find : CMD with type req = key and type res = value option
+      module Set : CMD with type req = key * value and type res = unit
 
-        module Mem : CMD with type req = key and type res = bool
-        module Find : CMD with type req = key and type res = value option
-        module Set : CMD with type req = key * value and type res = unit
+      module Test_and_set :
+        CMD
+          with type req = key * value option * value option
+           and type res = bool
 
-        module Test_and_set :
-          CMD
-            with type req = key * value option * value option
-             and type res = bool
+      module Remove : CMD with type req = key and type res = unit
+      module List : CMD with type req = unit and type res = key list
+      module Clear : CMD with type req = unit and type res = unit
 
-        module Remove : CMD with type req = key and type res = unit
-        module List : CMD with type req = unit and type res = key list
-        module Clear : CMD with type req = unit and type res = unit
+      module Watch :
+        CMD with type req = (key * value) list option and type res = unit
 
-        module Watch :
-          CMD with type req = (key * value) list option and type res = unit
+      module Watch_key :
+        CMD with type req = value option * key and type res = unit
 
-        module Watch_key :
-          CMD with type req = value option * key and type res = unit
-
-        module Unwatch : CMD with type req = unit and type res = unit
-      end
+      module Unwatch : CMD with type req = unit and type res = unit
     end
 
     (** Check connectivity *)

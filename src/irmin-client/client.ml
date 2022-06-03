@@ -245,7 +245,7 @@ struct
     module Contents = struct
       type nonrec 'a t = Client.t
 
-      open Commands.Backend.Contents
+      open Commands.Contents
       module Key = St.Backend.Contents.Key
       module Val = St.Backend.Contents.Val
       module Hash = St.Backend.Contents.Hash
@@ -287,7 +287,7 @@ struct
     module Node = struct
       type nonrec 'a t = Client.t
 
-      open Commands.Backend.Node
+      open Commands.Node
       module Key = St.Backend.Node.Key
       module Val = St.Backend.Node.Val
       module Hash = St.Backend.Node.Hash
@@ -329,7 +329,7 @@ struct
     module Commit = struct
       type nonrec 'a t = Client.t
 
-      open Commands.Backend.Commit
+      open Commands.Commit
       module Key = St.Backend.Commit.Key
       module Val = St.Backend.Commit.Val
       module Hash = St.Backend.Commit.Hash
@@ -375,7 +375,7 @@ struct
     module Branch = struct
       type nonrec t = Client.t
 
-      open Commands.Backend.Branch
+      open Commands.Branch
       module Key = St.Backend.Branch.Key
       module Val = St.Backend.Branch.Val
 

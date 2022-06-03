@@ -1,5 +1,3 @@
-open Lwt.Syntax
-
 module Make
     (IO : Conn.IO)
     (Codec : Conn.Codec.S)
@@ -140,28 +138,6 @@ struct
              set)
     end*)
 
-  module Mem = struct
-    type req = Store.path [@@deriving irmin]
-    type res = bool [@@deriving irmin]
-
-    let name = "store.mem"
-
-    let run conn ctx _ path =
-      let* res = Store.mem ctx.store path in
-      Return.v conn res_t res
-  end
-
-  module Mem_tree = struct
-    type req = Store.path [@@deriving irmin]
-    type res = bool [@@deriving irmin]
-
-    let name = "store.mem_tree"
-
-    let run conn ctx _ path =
-      let* res = Store.mem_tree ctx.store path in
-      Return.v conn res_t res
-  end
-
   (*module Merge = struct
       type req = Store.Info.t * Store.Branch.t [@@deriving irmin]
       type res = unit [@@deriving irmin]
@@ -211,18 +187,14 @@ struct
     end*)
 
   let commands =
-    [
-      (*cmd (module Find);
+    [ (*cmd (module Find);
         cmd (module Set);
         cmd (module Remove);
         cmd (module Find_tree);
         cmd (module Set_tree);*)
-      cmd (module Mem);
-      cmd (module Mem_tree)
       (*cmd (module Test_and_set);
         cmd (module Test_and_set_tree);
         cmd (module Merge);
         cmd (module Merge_commit);
-        cmd (module Last_modified);*);
-    ]
+        cmd (module Last_modified);*) ]
 end
