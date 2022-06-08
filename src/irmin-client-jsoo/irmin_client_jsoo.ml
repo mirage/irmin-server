@@ -21,13 +21,6 @@ module Info (I : Irmin.Info.S) = struct
       fmt
 end
 
-module type S = sig
-  include Irmin_client.S
-
-  val connect :
-    ?ctx:IO.ctx -> ?batch_size:int -> ?tls:bool -> uri:Uri.t -> unit -> t Lwt.t
-end
-
 (* Buff is trying to be a single buffer that the Websocket shim can read
    handshakes and requests from and write responses too, whilst the internal
    irmin-server logic can write requests to it and read the responses from it. *)
@@ -277,40 +270,25 @@ let normalize_uri ?hostname uri =
   let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
   (uri, Option.value ~default:addr hostname)
 
-module Make_ext
+let config ?tls ?hostname uri =
+  let uri, addr = normalize_uri ?hostname uri in
+  Irmin_client.config ?tls ~hostname:(Option.value ~default:addr hostname) uri
+
+module Make_codec
     (Codec : Irmin_server_internal.Conn.Codec.S)
     (Store : Irmin.Generic_key.S) =
 struct
-  include Irmin_client.Make_ext (IO) (Codec) (Store)
+  include Irmin_client.Make_codec (IO) (Codec) (Store)
 
-  let conf ?(ctx = Lazy.force IO.default_ctx) ?(batch_size = 32) ?(tls = false)
-      ~uri () =
-    let uri, hostname = normalize_uri uri in
-    { ctx; tls; hostname; batch_size; uri }
-
-  let connect ?ctx ?batch_size ?tls ~uri () =
-    let client = conf ?ctx ?batch_size ?tls ~uri () in
-    connect client
+  let connect ?tls ?hostname uri =
+    let uri, hostname = normalize_uri ?hostname uri in
+    connect ?tls ~hostname uri
 end
 
 module Make (Store : Irmin.Generic_key.S) = struct
-  include Make_ext (Conn.Codec.Bin) (Store)
+  include Make_codec (Conn.Codec.Bin) (Store)
 end
 
 module Make_json (Store : Irmin.Generic_key.S) = struct
-  include Make_ext (Conn.Codec.Json) (Store)
-end
-
-module Store = struct
-  let config ?batch_size ?tls ?hostname uri =
-    let uri, addr = normalize_uri ?hostname uri in
-    Irmin_client.Store.config ?batch_size ?tls
-      ~hostname:(Option.value ~default:addr hostname)
-      uri
-
-  module Make (Store : Irmin.Generic_key.S) =
-    Irmin_client.Store.Make (IO) (Conn.Codec.Bin) (Store)
-
-  module Make_json (Store : Irmin.Generic_key.S) =
-    Irmin_client.Store.Make (IO) (Conn.Codec.Json) (Store)
+  include Make_codec (Conn.Codec.Json) (Store)
 end

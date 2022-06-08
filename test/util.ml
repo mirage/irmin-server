@@ -1,8 +1,7 @@
 open Lwt.Infix
-module Codec = Irmin_server_internal.Conn.Codec.Bin
 module Store = Irmin_mem.KV.Make (Irmin.Contents.String)
-module Client = Irmin_client_unix.Make_ext (Codec) (Store)
-module Server = Irmin_server.Make_ext (Codec) (Store)
+module Client = Irmin_client_unix.Make (Store)
+module Server = Irmin_server.Make (Store)
 
 let test name f client _switch () =
   Logs.debug (fun l -> l "Running: %s" name);

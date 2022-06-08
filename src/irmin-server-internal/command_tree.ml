@@ -5,12 +5,14 @@ module Make
     (Codec : Conn.Codec.S)
     (Store : Irmin.Generic_key.S)
     (Tree : Tree.S
-              with module Private.Store = Store
-               and type Local.t = Store.tree)
+              with type concrete = Store.Tree.concrete
+               and type kinded_key = Store.Tree.kinded_key)
     (Commit : Commit.S with type hash = Store.hash and type tree = Tree.t) =
 struct
   include Context.Make (IO) (Codec) (Store) (Tree)
   module Return = Conn.Return
+
+  type t = Tree.t
 
   module Empty = struct
     type req = unit [@@deriving irmin]
@@ -23,6 +25,55 @@ struct
       let id = incr_id () in
       Hashtbl.replace ctx.trees id (empty ());
       Return.v conn res_t (ID id)
+  end
+
+  module Of_path = struct
+    type req = Store.path [@@deriving irmin]
+    type res = Tree.t option [@@deriving irmin]
+
+    let name = "tree.of_path"
+
+    let run conn ctx _ path =
+      let* tree = Store.find_tree ctx.store path in
+      match tree with
+      | None -> Return.v conn res_t None
+      | Some tree ->
+          let id = incr_id () in
+          Hashtbl.replace ctx.trees id tree;
+          Return.v conn res_t (Some (ID id))
+  end
+
+  module Of_hash = struct
+    type req = Store.hash [@@deriving irmin]
+    type res = Tree.t option [@@deriving irmin]
+
+    let name = "tree.of_hash"
+
+    let run conn ctx _ hash =
+      let* tree = Store.Tree.of_hash ctx.repo (`Node hash) in
+      match tree with
+      | None -> Return.v conn res_t None
+      | Some tree ->
+          let id = incr_id () in
+          Hashtbl.replace ctx.trees id tree;
+          Return.v conn res_t (Some (ID id))
+  end
+
+  module Of_commit = struct
+    type req = Store.hash [@@deriving irmin]
+    type res = Tree.t option [@@deriving irmin]
+
+    let name = "tree.of_commit"
+
+    let run conn ctx _ hash =
+      let* commit = Store.Commit.of_hash ctx.repo hash in
+      match commit with
+      | None -> Return.v conn res_t None
+      | Some commit ->
+          let tree = Store.Commit.tree commit in
+          let id = incr_id () in
+          Hashtbl.replace ctx.trees id tree;
+          Return.v conn res_t (Some (ID id))
   end
 
   module Save = struct
@@ -56,7 +107,50 @@ struct
       Return.v conn res_t (ID id)
   end
 
-  module Batch_update = struct
+  module Batch_apply = struct
+    type req =
+      Store.path
+      * Store.info
+      * (Store.path
+        * [ `Contents of
+            [ `Hash of Store.Hash.t | `Value of Store.contents ]
+            * Store.metadata option
+          | `Tree of Tree.t ]
+          option)
+        list
+    [@@deriving irmin]
+
+    type res = unit [@@deriving irmin]
+
+    let name = "tree.batch.apply"
+
+    let run conn ctx _ (path, info, l) =
+      let* () =
+        Store.with_tree_exn ctx.store path
+          ~info:(fun () -> info)
+          (fun tree ->
+            let tree = Option.value ~default:(Store.Tree.empty ()) tree in
+            let* tree =
+              Lwt_list.fold_left_s
+                (fun tree (path, value) ->
+                  match value with
+                  | Some (`Contents (`Hash value, metadata)) ->
+                      let* value = Store.Contents.of_hash ctx.repo value in
+                      Store.Tree.add tree path ?metadata (Option.get value)
+                  | Some (`Contents (`Value value, metadata)) ->
+                      Store.Tree.add tree path ?metadata value
+                  | Some (`Tree t) ->
+                      let* _, tree' = resolve_tree ctx t in
+                      Store.Tree.add_tree tree path tree'
+                  | None -> Store.Tree.remove tree path)
+                tree l
+            in
+            Lwt.return (Some tree))
+      in
+      Return.v conn res_t ()
+  end
+
+  module Batch_build_tree = struct
     type req =
       Tree.t
       * (Store.path
@@ -70,7 +164,7 @@ struct
 
     type res = Tree.t [@@deriving irmin]
 
-    let name = "tree.batch_update"
+    let name = "tree.batch.build_tree"
 
     let run conn ctx _ (tree, l) =
       let* _, tree = resolve_tree ctx tree in
@@ -192,13 +286,13 @@ struct
 
   module To_local = struct
     type req = Tree.t [@@deriving irmin]
-    type res = Tree.Local.concrete [@@deriving irmin]
+    type res = Tree.concrete [@@deriving irmin]
 
     let name = "tree.to_local"
 
     let run conn ctx _ tree =
       let* _, tree = resolve_tree ctx tree in
-      let* tree = Tree.Local.to_concrete tree in
+      let* tree = Store.Tree.to_concrete tree in
       Return.v conn res_t tree
   end
 
@@ -246,18 +340,6 @@ struct
       Return.v conn res_t x
   end
 
-  module Clear = struct
-    type req = Tree.t [@@deriving irmin]
-    type res = unit [@@deriving irmin]
-
-    let name = "tree.clear"
-
-    let run conn ctx _ tree =
-      let* _, tree = resolve_tree ctx tree in
-      Store.Tree.clear tree;
-      Return.v conn res_t ()
-  end
-
   module Hash = struct
     type req = Tree.t [@@deriving irmin]
     type res = Store.Hash.t [@@deriving irmin]
@@ -297,7 +379,8 @@ struct
     [
       cmd (module Empty);
       cmd (module Add);
-      cmd (module Batch_update);
+      cmd (module Batch_apply);
+      cmd (module Batch_build_tree);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Cleanup_all);
@@ -308,9 +391,11 @@ struct
       cmd (module Find);
       cmd (module Find_tree);
       cmd (module Add_tree);
-      cmd (module Clear);
       cmd (module Hash);
       cmd (module Merge);
       cmd (module Save);
+      cmd (module Of_path);
+      cmd (module Of_hash);
+      cmd (module Of_commit);
     ]
 end

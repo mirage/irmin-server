@@ -9,61 +9,32 @@ module type Irmin_client = sig
 
   type addr = Client.addr
 
-  module Make_ext
+  val config : ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
+
+  module Make (IO : Client.IO) (Store : Irmin.Generic_key.S) :
+    S
+      with module Schema = Store.Schema
+       and type Backend.Remote.endpoint = unit
+       and type commit_key = Store.commit_key
+       and type contents_key = Store.contents_key
+       and type node_key = Store.node_key
+
+  module Make_codec
       (IO : Client.IO)
       (Codec : Conn.Codec.S)
       (Store : Irmin.Generic_key.S) :
     S
-      with type hash = Store.hash
-       and type contents = Store.contents
-       and type branch = Store.branch
-       and type path = Store.path
-       and type step = Store.step
-       and type metadata = Store.metadata
-       and type slice = Store.slice
-       and module Schema = Store.Schema
-       and type Private.Store.tree = Store.tree
-       and module IO = IO
-
-  module Make (IO : Client.IO) (Store : Irmin.Generic_key.S) :
-    S
-      with type hash = Store.hash
-       and type contents = Store.contents
-       and type branch = Store.branch
-       and type path = Store.path
-       and type step = Store.step
-       and type metadata = Store.metadata
-       and type slice = Store.slice
-       and module Schema = Store.Schema
-       and type Private.Store.tree = Store.tree
-       and module IO = IO
+      with module Schema = Store.Schema
+       and type Backend.Remote.endpoint = unit
+       and type commit_key = Store.commit_key
+       and type contents_key = Store.contents_key
+       and type node_key = Store.node_key
 
   module Make_json (IO : Client.IO) (Store : Irmin.Generic_key.S) :
     S
-      with type hash = Store.hash
-       and type contents = Store.contents
-       and type branch = Store.branch
-       and type path = Store.path
-       and type step = Store.step
-       and type metadata = Store.metadata
-       and type slice = Store.slice
-       and module Schema = Store.Schema
-       and type Private.Store.tree = Store.tree
-       and module IO = IO
-
-  module Store : sig
-    val config :
-      ?batch_size:int -> ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
-
-    module Make
-        (IO : Client.IO)
-        (Codec : Conn.Codec.S)
-        (Store : Irmin.Generic_key.S) :
-      Irmin.Generic_key.S
-        with module Schema = Store.Schema
-         and type Backend.Remote.endpoint = unit
-         and type commit_key = Store.commit_key
-         and type contents_key = Store.contents_key
-         and type node_key = Store.node_key
-  end
+      with module Schema = Store.Schema
+       and type Backend.Remote.endpoint = unit
+       and type commit_key = Store.commit_key
+       and type contents_key = Store.contents_key
+       and type node_key = Store.node_key
 end

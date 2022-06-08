@@ -7,7 +7,9 @@ module Client = Client
 
 type addr = Client_intf.addr
 
-module Make_ext
+let config = Client.config
+
+module Make_codec
     (IO : Client.IO)
     (Codec : Irmin_server_internal.Conn.Codec.S)
     (Store : Irmin.Generic_key.S) =
@@ -16,13 +18,7 @@ struct
 end
 
 module Make (IO : Client.IO) (Store : Irmin.Generic_key.S) =
-  Make_ext (IO) (Conn.Codec.Bin) (Store)
+  Make_codec (IO) (Conn.Codec.Bin) (Store)
 
 module Make_json (IO : Client.IO) (Store : Irmin.Generic_key.S) =
-  Make_ext (IO) (Conn.Codec.Json) (Store)
-
-module Store = struct
-  let config = Client.config
-
-  module Make = Client.Make_store
-end
+  Make_codec (IO) (Conn.Codec.Json) (Store)
