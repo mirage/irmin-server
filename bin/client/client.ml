@@ -180,7 +180,7 @@ let replicate client author message prefix =
           | Some p -> Irmin.Type.of_string Client.Path.t p |> Result.get_ok
           | None -> Client.Path.empty
         in
-        let* () = Client.Batch.apply ~info client prefix batch in
+        let* () = Client.Batch.commit ~info client prefix batch in
         loop ()
       in
       loop () )

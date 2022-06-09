@@ -98,6 +98,7 @@ module type S = sig
       (** Three way merge *)
 
       val hash : repo -> t -> hash Lwt.t
+      val clear : repo -> t -> unit Lwt.t
     end
 
     type batch_contents =
@@ -107,7 +108,10 @@ module type S = sig
       (path * [ `Contents of batch_contents | `Tree of Tree.t ] option) list
 
     val v : unit -> t
-    val apply : info:Info.f -> store -> path -> t -> unit Lwt.t
+
+    val commit :
+      ?parents:Commit.t list -> info:Info.f -> store -> path -> t -> unit Lwt.t
+
     val build_tree : repo -> t -> Tree.t -> Tree.t Lwt.t
     val find : t -> path -> batch_contents option
     val find_tree : t -> path -> Tree.t option

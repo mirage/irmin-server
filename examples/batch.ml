@@ -17,7 +17,7 @@ let main =
 
   let* main = Client.main client in
   let* () = Client.set_exn ~info main [ "testing" ] "testing" in
-  let* () = Client.Batch.apply ~info main [] batch in
+  let* () = Client.Batch.commit ~info main [] batch in
 
   let* foo = Client.get main [ "foo" ] in
   let* abc = Client.get main [ "a"; "b"; "c" ] in

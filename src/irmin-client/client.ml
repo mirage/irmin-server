@@ -503,6 +503,10 @@ struct
       let merge t ~old a b =
         request t (module Commands.Tree.Merge) (old, a, b)
         >|= Error.unwrap "Tree.merge"
+
+      let clear t tree =
+        request t (module Commands.Tree.Clear) tree
+        >|= Error.unwrap "Tree.clear"
     end
 
     type batch_contents =
@@ -520,10 +524,13 @@ struct
       request t (module Commands.Tree.Batch_build_tree) (tree, batch)
       >|= Error.unwrap "Batch.build_tree"
 
-    let apply ~info t path (batch : t) =
+    let commit ?parents ~info t path (batch : t) =
       let t = repo t in
-      request t (module Commands.Tree.Batch_apply) (path, info (), batch)
-      >|= Error.unwrap "Tree.build_tree"
+      let parents = Option.map (List.map (fun c -> Commit.hash c)) parents in
+      request t
+        (module Commands.Tree.Batch_commit)
+        (path, (parents, info ()), batch)
+      >|= Error.unwrap "Tree.commit"
 
     let path_equal = Irmin.Type.(unstage (equal Path.t))
 

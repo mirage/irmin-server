@@ -27,6 +27,18 @@ struct
       Return.v conn res_t (ID id)
   end
 
+  module Clear = struct
+    type req = Tree.t [@@deriving irmin]
+    type res = unit [@@deriving irmin]
+
+    let name = "tree.clear"
+
+    let run conn ctx _ tree =
+      let* _, tree = resolve_tree ctx tree in
+      Store.Tree.clear tree;
+      Return.v conn res_t ()
+  end
+
   module Of_path = struct
     type req = Store.path [@@deriving irmin]
     type res = Tree.t option [@@deriving irmin]
@@ -107,10 +119,10 @@ struct
       Return.v conn res_t (ID id)
   end
 
-  module Batch_apply = struct
+  module Batch_commit = struct
     type req =
       Store.path
-      * Store.info
+      * (Store.hash list option * Store.info)
       * (Store.path
         * [ `Contents of
             [ `Hash of Store.Hash.t | `Value of Store.contents ]
@@ -122,11 +134,23 @@ struct
 
     type res = unit [@@deriving irmin]
 
-    let name = "tree.batch.apply"
+    let name = "tree.batch.commit"
 
-    let run conn ctx _ (path, info, l) =
+    let mk_parents ctx parents =
+      match parents with
+      | None -> Lwt.return None
+      | Some parents ->
+          let* parents =
+            Lwt_list.filter_map_s
+              (fun hash -> Store.Commit.of_hash ctx.repo hash)
+              parents
+          in
+          Lwt.return_some parents
+
+    let run conn ctx _ (path, (parents, info), l) =
+      let* parents = mk_parents ctx parents in
       let* () =
-        Store.with_tree_exn ctx.store path
+        Store.with_tree_exn ctx.store path ?parents
           ~info:(fun () -> info)
           (fun tree ->
             let tree = Option.value ~default:(Store.Tree.empty ()) tree in
@@ -378,8 +402,9 @@ struct
   let commands =
     [
       cmd (module Empty);
+      cmd (module Clear);
       cmd (module Add);
-      cmd (module Batch_apply);
+      cmd (module Batch_commit);
       cmd (module Batch_build_tree);
       cmd (module Remove);
       cmd (module Cleanup);
