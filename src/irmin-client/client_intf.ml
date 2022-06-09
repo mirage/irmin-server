@@ -108,6 +108,8 @@ module type S = sig
       (path * [ `Contents of batch_contents | `Tree of Tree.t ] option) list
 
     val v : unit -> t
+    val of_tree : ?path:path -> Tree.t -> t
+    val of_contents : ?path:path -> ?metadata:metadata -> contents -> t
 
     val commit :
       ?parents:Commit.t list -> info:Info.f -> store -> path -> t -> unit Lwt.t

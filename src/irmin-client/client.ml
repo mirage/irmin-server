@@ -519,6 +519,10 @@ struct
     [@@deriving irmin]
 
     let v () = []
+    let of_tree ?(path = Path.empty) t = [ (path, Some (`Tree t)) ]
+
+    let of_contents ?(path = Path.empty) ?metadata c =
+      [ (path, Some (`Contents (`Value c, metadata))) ]
 
     let build_tree (t : repo) (batch : t) tree =
       request t (module Commands.Tree.Batch_build_tree) (tree, batch)
