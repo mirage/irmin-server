@@ -524,9 +524,9 @@ struct
     let of_contents ?(path = Path.empty) ?metadata c =
       [ (path, Some (`Contents (`Value c, metadata))) ]
 
-    let build_tree (t : repo) (batch : t) tree =
-      request t (module Commands.Tree.Batch_build_tree) (tree, batch)
-      >|= Error.unwrap "Batch.build_tree"
+    let tree (t : repo) (batch : t) tree =
+      request t (module Commands.Tree.Batch_tree) (tree, batch)
+      >|= Error.unwrap "Batch.tree"
 
     let commit ?parents ~info t path (batch : t) =
       let t = repo t in

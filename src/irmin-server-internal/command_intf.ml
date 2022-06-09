@@ -185,8 +185,7 @@ module type S = sig
       module Of_commit :
         CMD with type req = Store.hash and type res = Tree.t option
 
-      (** Add multiple trees/values to a tree *)
-      module Batch_build_tree :
+      module Batch_tree :
         CMD
           with type req =
             t

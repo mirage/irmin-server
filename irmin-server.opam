@@ -19,7 +19,7 @@ depends: [
   "websocket-lwt-unix"
 ]
 pin-depends: [
-  ["graphql.dev" "git+https://github.com/andreas/ocaml-graphql-server#520ccd4013943ee0b2557aa66367b83aaa67084c"]
+  ["graphql.dev" "git+https://github.com/andreas/ocaml-graphql-server#34a08dcaa9b9a6569e7b75e2c161aa7042312db5"]
   ["graphql-cohttp.dev" "git+https://github.com/andreas/ocaml-graphql-server#520ccd4013943ee0b2557aa66367b83aaa67084c"]
   ["irmin-graphql.dev" "git+https://github.com/patricoferris/irmin#4949da37cfa44e18cc2ca357705e6c9a8ff1ad9d"]
   ["irmin-unix.dev" "git+https://github.com/patricoferris/irmin#4949da37cfa44e18cc2ca357705e6c9a8ff1ad9d"]

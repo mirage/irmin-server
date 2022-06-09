@@ -174,7 +174,7 @@ struct
       Return.v conn res_t ()
   end
 
-  module Batch_build_tree = struct
+  module Batch_tree = struct
     type req =
       Tree.t
       * (Store.path
@@ -188,7 +188,7 @@ struct
 
     type res = Tree.t [@@deriving irmin]
 
-    let name = "tree.batch.build_tree"
+    let name = "tree.batch.tree"
 
     let run conn ctx _ (tree, l) =
       let* _, tree = resolve_tree ctx tree in
@@ -405,7 +405,7 @@ struct
       cmd (module Clear);
       cmd (module Add);
       cmd (module Batch_commit);
-      cmd (module Batch_build_tree);
+      cmd (module Batch_tree);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Cleanup_all);

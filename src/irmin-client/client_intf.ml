@@ -114,7 +114,7 @@ module type S = sig
     val commit :
       ?parents:Commit.t list -> info:Info.f -> store -> path -> t -> unit Lwt.t
 
-    val build_tree : repo -> t -> Tree.t -> Tree.t Lwt.t
+    val tree : repo -> t -> Tree.t -> Tree.t Lwt.t
     val find : t -> path -> batch_contents option
     val find_tree : t -> path -> Tree.t option
     val mem : t -> path -> bool
