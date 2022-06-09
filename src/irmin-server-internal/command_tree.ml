@@ -27,6 +27,18 @@ struct
       Return.v conn res_t (ID id)
   end
 
+  module Clear = struct
+    type req = Tree.t [@@deriving irmin]
+    type res = unit [@@deriving irmin]
+
+    let name = "tree.clear"
+
+    let run conn ctx _ tree =
+      let* _, tree = resolve_tree ctx tree in
+      Store.Tree.clear tree;
+      Return.v conn res_t ()
+  end
+
   module Of_path = struct
     type req = Store.path [@@deriving irmin]
     type res = Tree.t option [@@deriving irmin]
@@ -107,10 +119,23 @@ struct
       Return.v conn res_t (ID id)
   end
 
+  module Batch_commit = struct
+    type req = (Store.commit_key list * Store.info) * Tree.t [@@deriving irmin]
+    type res = Store.commit_key [@@deriving irmin]
+
+    let name = "tree.batch.commit"
+
+    let run conn ctx _ ((parents, info), tree) =
+      let* _, tree = resolve_tree ctx tree in
+      let* commit = Store.Commit.v ctx.repo ~info ~parents tree in
+      let key = Store.Commit.key commit in
+      Return.v conn res_t key
+  end
+
   module Batch_apply = struct
     type req =
       Store.path
-      * Store.info
+      * (Store.hash list option * Store.info)
       * (Store.path
         * [ `Contents of
             [ `Hash of Store.Hash.t | `Value of Store.contents ]
@@ -124,9 +149,21 @@ struct
 
     let name = "tree.batch.apply"
 
-    let run conn ctx _ (path, info, l) =
+    let mk_parents ctx parents =
+      match parents with
+      | None -> Lwt.return None
+      | Some parents ->
+          let* parents =
+            Lwt_list.filter_map_s
+              (fun hash -> Store.Commit.of_hash ctx.repo hash)
+              parents
+          in
+          Lwt.return_some parents
+
+    let run conn ctx _ (path, (parents, info), l) =
+      let* parents = mk_parents ctx parents in
       let* () =
-        Store.with_tree_exn ctx.store path
+        Store.with_tree_exn ctx.store path ?parents
           ~info:(fun () -> info)
           (fun tree ->
             let tree = Option.value ~default:(Store.Tree.empty ()) tree in
@@ -150,7 +187,7 @@ struct
       Return.v conn res_t ()
   end
 
-  module Batch_build_tree = struct
+  module Batch_tree = struct
     type req =
       Tree.t
       * (Store.path
@@ -164,7 +201,7 @@ struct
 
     type res = Tree.t [@@deriving irmin]
 
-    let name = "tree.batch.build_tree"
+    let name = "tree.batch.tree"
 
     let run conn ctx _ (tree, l) =
       let* _, tree = resolve_tree ctx tree in
@@ -378,9 +415,11 @@ struct
   let commands =
     [
       cmd (module Empty);
+      cmd (module Clear);
       cmd (module Add);
+      cmd (module Batch_commit);
       cmd (module Batch_apply);
-      cmd (module Batch_build_tree);
+      cmd (module Batch_tree);
       cmd (module Remove);
       cmd (module Cleanup);
       cmd (module Cleanup_all);

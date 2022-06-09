@@ -6,15 +6,15 @@
   (pps ppx_irmin)))
 
 (executables
- (names ping tree store batch)
+ (names ping tree store batch batch_commit)
  (libraries irmin.mem irmin-client-unix fmt.tty utils)
- (modules ping tree store batch)
+ (modules ping tree store batch batch_commit)
  (preprocess
   (pps ppx_irmin)))
 
 (alias
  (name examples)
- (deps server.exe ping.exe tree.exe store.exe batch.exe))
+ (deps server.exe ping.exe tree.exe store.exe batch.exe batch_commit.exe))
 
 (alias
  (name runtest)

@@ -503,6 +503,10 @@ struct
       let merge t ~old a b =
         request t (module Commands.Tree.Merge) (old, a, b)
         >|= Error.unwrap "Tree.merge"
+
+      let clear t tree =
+        request t (module Commands.Tree.Clear) tree
+        >|= Error.unwrap "Tree.clear"
     end
 
     type batch_contents =
@@ -515,15 +519,30 @@ struct
     [@@deriving irmin]
 
     let v () = []
+    let of_tree ?(path = Path.empty) t = [ (path, Some (`Tree t)) ]
 
-    let build_tree (t : repo) (batch : t) tree =
-      request t (module Commands.Tree.Batch_build_tree) (tree, batch)
-      >|= Error.unwrap "Batch.build_tree"
+    let of_contents ?(path = Path.empty) ?metadata c =
+      [ (path, Some (`Contents (`Value c, metadata))) ]
 
-    let apply ~info t path (batch : t) =
+    let tree (t : repo) (batch : t) tree =
+      request t (module Commands.Tree.Batch_tree) (tree, batch)
+      >|= Error.unwrap "Batch.tree"
+
+    let apply ?parents ~info t path (batch : t) =
       let t = repo t in
-      request t (module Commands.Tree.Batch_apply) (path, info (), batch)
-      >|= Error.unwrap "Tree.build_tree"
+      let parents = Option.map (List.map (fun c -> Commit.hash c)) parents in
+      request t
+        (module Commands.Tree.Batch_apply)
+        (path, (parents, info ()), batch)
+      >|= Error.unwrap "Tree.apply"
+
+    let commit ~parents ~info t (tree : Tree.t) =
+      let parents = List.map (fun c -> Commit.key c) parents in
+      let* key =
+        request t (module Commands.Tree.Batch_commit) ((parents, info ()), tree)
+        >|= Error.unwrap "Tree.commit"
+      in
+      Commit.of_key t key >|= Option.get
 
     let path_equal = Irmin.Type.(unstage (equal Path.t))
 
