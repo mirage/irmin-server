@@ -6,6 +6,8 @@ include Client_intf
 exception Continue
 
 module Conf = struct
+  include Irmin.Backend.Conf
+
   let spec = Irmin.Backend.Conf.Spec.v "irmin-client"
   let uri = Irmin.Type.(map string) Uri.of_string Uri.to_string
 
@@ -36,10 +38,9 @@ struct
   open C
   module IO = I
 
-  type conf = { uri : Uri.t; tls : bool; hostname : string; ctx : IO.ctx }
-
   type t = {
-    conf : conf;
+    ctx : IO.ctx;
+    config : Conf.t;
     mutable conn : Conn.t;
     mutable closed : bool;
     lock : Lwt_mutex.t;
@@ -49,7 +50,10 @@ struct
     t.closed <- true;
     IO.close (t.conn.ic, t.conn.oc)
 
-  let mk_client { uri; tls; hostname; _ } =
+  let mk_client conf =
+    let uri = Conf.get conf Conf.uri in
+    let hostname = Conf.get conf Conf.hostname in
+    let tls = Conf.get conf Conf.tls in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
     let client =
@@ -122,21 +126,22 @@ struct
 
   let request = Client.request
 
-  let rec connect conf =
-    let client = Client.mk_client conf in
-    let* ic, oc = IO.connect ~ctx:conf.ctx client in
+  let rec connect ?ctx config =
+    let ctx = Option.value ~default:(Lazy.force IO.default_ctx) ctx in
+    let client = Client.mk_client config in
+    let* ic, oc = IO.connect ~ctx client in
     let conn = Conn.v ic oc in
     let+ ok = Conn.Handshake.V1.send (module Store) conn in
     if not ok then Error.raise_error "invalid handshake"
     else
       let t =
-        Client.{ conf; conn; closed = false; lock = Lwt_mutex.create () }
+        Client.{ config; ctx; conn; closed = false; lock = Lwt_mutex.create () }
       in
       t
 
   and reconnect t =
     let* () = Lwt.catch (fun () -> Client.close t) (fun _ -> Lwt.return_unit) in
-    let+ conn = connect t.Client.conf in
+    let+ conn = connect ~ctx:t.ctx t.Client.config in
     t.conn <- conn.conn;
     t.closed <- false
 
@@ -145,7 +150,7 @@ struct
     >|= Error.unwrap "current_branch"
 
   let dup client =
-    let* c = connect client.Client.conf in
+    let* c = connect ~ctx:client.Client.ctx client.Client.config in
     if client.closed then
       let () = c.closed <- true in
       Lwt.return c
@@ -154,7 +159,7 @@ struct
       let* _ = request c (module Commands.Set_current_branch) branch in
       Lwt.return c
 
-  let uri t = t.Client.conf.uri
+  let uri t = Conf.get t.Client.config Conf.uri
 
   module X = struct
     open Lwt.Infix
@@ -372,15 +377,8 @@ struct
     module Repo = struct
       type nonrec t = Client.t
 
-      let v config =
-        let uri = Irmin.Backend.Conf.get config Conf.uri in
-        let tls = Irmin.Backend.Conf.get config Conf.tls in
-        let hostname = Irmin.Backend.Conf.get config Conf.hostname in
-        let conf =
-          Client.{ uri; tls; hostname; ctx = Lazy.force IO.default_ctx }
-        in
-        connect conf
-
+      let v config = connect config
+      let config (t : t) = t.Client.config
       let close (t : t) = Client.close t
       let contents_t (t : t) = t
       let node_t (t : t) = t
