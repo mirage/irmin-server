@@ -136,6 +136,13 @@ module type Client = sig
 
   module type IO = IO
 
+  module Conf : sig
+    val spec : Irmin.Backend.Conf.Spec.t
+    val uri : Uri.t Irmin.Backend.Conf.key
+    val hostname : string Irmin.Backend.Conf.key
+    val tls : bool Irmin.Backend.Conf.key
+  end
+
   val config : ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
 
   module Make (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) :
