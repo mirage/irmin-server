@@ -1,13 +1,6 @@
 open Irmin_server_internal
+include Client
 module Error = Error
-
-module type S = Client.S
-
-module Client = Client
-
-type addr = Client_intf.addr
-
-let config = Client.config
 
 module Make_codec
     (IO : Client.IO)
