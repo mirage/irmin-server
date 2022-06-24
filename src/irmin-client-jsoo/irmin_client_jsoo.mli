@@ -1,5 +1,5 @@
 module Error = Irmin_client.Error
-module IO : Irmin_client.Client.IO
+module IO : Irmin_client.IO
 
 module Info (I : Irmin.Info.S) : sig
   include Irmin.Info.S with type t = I.t

@@ -3,9 +3,10 @@ module Error = Error
 
 module type Irmin_client = sig
   module type S = Client.S
+  module type IO = Client.IO
 
+  module Conf = Client.Conf
   module Error = Error
-  module Client = Client
 
   type addr = Client.addr
 
