@@ -6,9 +6,9 @@
   (pps ppx_irmin)))
 
 (executables
- (names ping tree store batch batch_commit)
+ (names ping tree store batch batch_commit sync)
  (libraries irmin.mem irmin-client-unix fmt.tty utils)
- (modules ping tree store batch batch_commit)
+ (modules ping tree store batch batch_commit sync)
  (preprocess
   (pps ppx_irmin)))
 
