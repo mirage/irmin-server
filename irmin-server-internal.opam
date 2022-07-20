@@ -21,8 +21,8 @@ depends: [
   "ppx_irmin" {>= "dev"}
 ]
 pin-depends: [
-  ["irmin.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["ppx_irmin.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
+  ["irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["ppx_irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
 ]
 build: [
   ["dune" "subst"] {pinned}

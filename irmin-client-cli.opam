@@ -10,21 +10,19 @@ depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
   "irmin-client" {= version}
-  "irmin-unix" {>= "dev"}
+  "irmin-cli" {>= "dev"}
 ]
 pin-depends: [
-  ["graphql.dev" "git+https://github.com/zshipko/ocaml-graphql-server#b2be4daeca46005ddbe79f6e8a38a9c272af0fb5"]
-  ["graphql-cohttp.dev" "git+https://github.com/zshipko/ocaml-graphql-server#b2be4daeca46005ddbe79f6e8a38a9c272af0fb5"]
-  ["irmin-graphql.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["irmin-unix.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["irmin.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["irmin-pack.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["irmin-git.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["irmin-fs.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["irmin-http.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["irmin-tezos.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["irmin-test.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
-  ["ppx_irmin.dev" "git+https://github.com/patricoferris/irmin#5876116b6c468ce2a4a94e112257bc71f8288cb1"]
+  ["irmin-graphql.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin-unix.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin-pack.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin-git.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin-fs.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin-http.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin-tezos.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin-test.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["ppx_irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
 ]
 build: [
   ["dune" "subst"] {pinned}

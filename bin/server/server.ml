@@ -16,13 +16,13 @@ let setup_log =
 let main ~readonly ~root ~uri ~tls ~store ~contents ~hash ~config_path
     (module Codec : Conn.Codec.S) fingerprint =
   let store, config =
-    Irmin_unix.Resolver.load_config ?root ?config_path ?store ?hash ?contents ()
+    Irmin_cli.Resolver.load_config ?root ?config_path ?store ?hash ?contents ()
   in
   let config =
     match uri with Some uri -> Irmin_http.config uri config | None -> config
   in
   let (module Store : Irmin.Generic_key.S) =
-    Irmin_unix.Resolver.Store.generic_keyed store
+    Irmin_cli.Resolver.Store.generic_keyed store
   in
   let module Server = Irmin_server.Make_ext (Codec) (Store) in
   if fingerprint then
@@ -88,7 +88,7 @@ let fingerprint =
 let main_term =
   Term.(
     const main $ readonly $ root $ Cli.uri $ tls
-    $ Irmin_unix.Resolver.Store.term ()
+    $ Irmin_cli.Resolver.Store.term ()
     $ Cli.codec $ Cli.config_path $ fingerprint $ setup_log)
 
 let[@alert "-deprecated"] () =

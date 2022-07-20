@@ -264,13 +264,13 @@ let config =
     in
     let (module Codec) = codec in
     let store, config =
-      Irmin_unix.Resolver.load_config ?config_path ?store ?hash ?contents ()
+      Irmin_cli.Resolver.load_config ?config_path ?store ?hash ?contents ()
     in
     let config =
       match uri with Some uri -> Irmin_http.config uri config | None -> config
     in
     let (module Store : Irmin.Generic_key.S) =
-      Irmin_unix.Resolver.Store.generic_keyed store
+      Irmin_cli.Resolver.Store.generic_keyed store
     in
     let module Client = Irmin_client_unix.Make_codec (Codec) (Store) in
     let uri =
@@ -281,7 +281,7 @@ let config =
   in
   Term.(
     const create $ Cli.uri $ branch $ tls
-    $ Irmin_unix.Resolver.Store.term ()
+    $ Irmin_cli.Resolver.Store.term ()
     $ Cli.codec $ Cli.config_path $ setup_log)
 
 let help =
