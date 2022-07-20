@@ -69,10 +69,7 @@ let ping () =
   Logs.debug (fun l -> l "AFTER PING");
   Alcotest.(check (result unit error)) "ping" (Ok ()) r
 
-let misc =
-  let run f () = Lwt_main.run (f ()) in
-  [ ("ping", `Quick, run ping) ]
-
+let misc = [ ("ping", `Quick, ping) ]
 let misc = [ ("misc", misc) ]
 
 let () =
@@ -91,4 +88,5 @@ let () =
           (`Quick, Websocket.suite);
         ]
   in
-  Irmin_test.Store.run "irmin-server" ~slow ~misc tests
+  Lwt_main.run
+    (Irmin_test.Store.run "irmin-server" ~sleep:Lwt_unix.sleep ~slow ~misc tests)
