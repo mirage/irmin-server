@@ -14,7 +14,7 @@ depends: [
 ]
 pin-depends: [
   ["irmin-graphql.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin-unix.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  ["irmin-cli.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
   ["irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
   ["irmin-pack.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
   ["irmin-git.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
