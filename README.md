@@ -12,6 +12,11 @@ To run the server:
 $ dune exec bin/server/server.exe -- --root ./data
 ```
 
+Run the server with web-based dashboard on port 9999:
+
+```shell
+$ dune exec bin/server/server.exe -- --root ./data --dashboard 9999
+
 For more information:
 
 ```shell
