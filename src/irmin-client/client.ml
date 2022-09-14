@@ -7,30 +7,10 @@ exception Continue
 
 module Conf = struct
   include Irmin.Backend.Conf
-
-  let spec = Irmin.Backend.Conf.Spec.v "irmin-client"
-  let uri = Irmin.Type.(map string) Uri.of_string Uri.to_string
-
-  let uri =
-    Irmin.Backend.Conf.key ~spec "uri" uri
-      (Uri.of_string "tcp://127.0.0.1:9181")
-
-  let tls = Irmin.Backend.Conf.key ~spec "tls" Irmin.Type.bool false
-
-  let hostname =
-    Irmin.Backend.Conf.key ~spec "hostname" Irmin.Type.string "127.0.0.1"
+  include Conf
 end
 
-let config ?(tls = false) ?hostname uri =
-  let default_host = Uri.host_with_default ~default:"127.0.0.1" uri in
-  let config =
-    Irmin.Backend.Conf.add (Irmin.Backend.Conf.empty Conf.spec) Conf.uri uri
-  in
-  let config =
-    Irmin.Backend.Conf.add config Conf.hostname
-      (Option.value ~default:default_host hostname)
-  in
-  Irmin.Backend.Conf.add config Conf.tls tls
+let config = Conf.v
 
 module Client (I : IO) (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) =
 struct
@@ -51,9 +31,9 @@ struct
     IO.close (t.conn.ic, t.conn.oc)
 
   let mk_client conf =
-    let uri = Conf.get conf Conf.uri in
-    let hostname = Conf.get conf Conf.hostname in
-    let tls = Conf.get conf Conf.tls in
+    let uri = Conf.get conf Conf.Key.uri in
+    let hostname = Conf.get conf Conf.Key.hostname in
+    let tls = Conf.get conf Conf.Key.tls in
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let addr = Uri.host_with_default ~default:"127.0.0.1" uri in
     let client =
@@ -159,7 +139,7 @@ struct
       let* _ = request c (module Commands.Set_current_branch) branch in
       Lwt.return c
 
-  let uri t = Conf.get t.Client.config Conf.uri
+  let uri t = Conf.get t.Client.config Conf.Key.uri
 
   module X = struct
     open Lwt.Infix

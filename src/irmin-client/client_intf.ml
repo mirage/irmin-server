@@ -138,9 +138,12 @@ module type Client = sig
 
   module Conf : sig
     val spec : Irmin.Backend.Conf.Spec.t
-    val uri : Uri.t Irmin.Backend.Conf.key
-    val hostname : string Irmin.Backend.Conf.key
-    val tls : bool Irmin.Backend.Conf.key
+
+    module Key : sig
+      val uri : Uri.t Irmin.Backend.Conf.key
+      val hostname : string Irmin.Backend.Conf.key
+      val tls : bool Irmin.Backend.Conf.key
+    end
   end
 
   val config : ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config

@@ -7,4 +7,5 @@
   conduit-lwt-unix
   websocket-lwt-unix
   digestif.ocaml
-  irmin-pack))
+  irmin-pack)
+ (preprocess (pps ppx_blob)))

@@ -11,6 +11,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
   type t = {
     ctx : Conduit_lwt_unix.ctx;
     uri : Uri.t;
+    dashboard : Conduit_lwt_unix.server option;
     server : Conduit_lwt_unix.server;
     config : Irmin.config;
     repo : Store.Repo.t;
@@ -30,7 +31,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
   let readonly conf =
     Irmin.Backend.Conf.add conf Irmin_pack.Conf.Key.readonly true
 
-  let v ?tls_config ~uri config =
+  let v ?tls_config ?dashboard ~uri config =
     let scheme = Uri.scheme uri |> Option.value ~default:"tcp" in
     let* ctx, server =
       match String.lowercase_ascii scheme with
@@ -64,7 +65,7 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
     let clients = Hashtbl.create 8 in
     let start_time = Unix.time () in
     let info = Command.Server_info.{ start_time } in
-    { ctx; uri; server; config; repo; clients; info }
+    { ctx; uri; server; dashboard; config; repo; clients; info }
 
   let commands = Hashtbl.create (List.length Command.commands)
   let () = Hashtbl.replace_seq commands (List.to_seq Command.commands)
@@ -238,6 +239,107 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
 
   let on_exn x = Logs.err (fun l -> l "EXCEPTION: %s" (Printexc.to_string x))
 
+  let dashboard t mode =
+    let list store prefix =
+      let* keys = Store.list store prefix in
+      let+ keys =
+        Lwt_list.map_s
+          (fun (path, tree) ->
+            let path = Store.Path.rcons prefix path in
+            let* kind = Store.Tree.kind tree Store.Path.empty in
+            match kind with
+            | Some `Contents ->
+                Lwt.return_some (path, "contents", Store.Tree.hash tree)
+            | Some `Node -> Lwt.return_some (path, "node", Store.Tree.hash tree)
+            | None -> Lwt.return_none)
+          keys
+      in
+      List.filter_map Fun.id keys
+    in
+    let data_callback prefix branch =
+      let* store =
+        match branch with
+        | `Hash commit -> (
+            let* commit = Store.Commit.of_hash t.repo commit in
+            match commit with
+            | Some commit -> Store.of_commit commit
+            | None -> failwith "Invalid commit")
+        | `Branch branch -> Store.of_branch t.repo branch
+      in
+      let* is_contents =
+        Store.kind store prefix >|= fun x -> x = Some `Contents
+      in
+      let res = Cohttp_lwt_unix.Response.make () in
+      if is_contents then
+        let* contents = Store.get store prefix in
+        let contents' = Irmin.Type.to_json_string Store.contents_t contents in
+        let* last_mod = Store.last_modified store prefix in
+        let last_mod =
+          String.concat ", "
+            (List.map
+               (fun c ->
+                 Store.Commit.hash c |> Irmin.Type.to_json_string Store.hash_t)
+               last_mod)
+        in
+        let body =
+          Cohttp_lwt.Body.of_string
+            (Printf.sprintf
+               {|{"contents": %s, "hash": %s, "last_modified": [%s]}|} contents'
+               (Irmin.Type.to_json_string Store.hash_t
+                  (Store.Contents.hash contents))
+               last_mod)
+        in
+        Lwt.return (res, body)
+      else
+        let* keys = list store prefix in
+        let* keys =
+          Lwt_list.map_s
+            (fun (path, kind, hash) ->
+              Format.sprintf {|{"path": "%s", "kind": "%s", "hash": "%s"}|}
+                (Irmin.Type.to_string Store.path_t path)
+                kind
+                (Irmin.Type.to_string Store.hash_t hash)
+              |> Lwt.return)
+            keys
+        in
+        let keys = String.concat "," keys in
+        let body = Cohttp_lwt.Body.of_string (Printf.sprintf "[%s]" keys) in
+        Lwt.return (res, body)
+    in
+    let callback _conn req body =
+      let* () = Cohttp_lwt.Body.drain_body body in
+      let uri = Cohttp_lwt_unix.Request.uri req in
+      let path = Uri.path uri in
+      let branch_name =
+        Uri.get_query_param uri "branch" |> Option.value ~default:"main"
+      in
+      let branch =
+        match Irmin.Type.of_string Store.hash_t branch_name with
+        | Ok x -> `Hash x
+        | Error _ ->
+            `Branch
+              (Result.get_ok @@ Irmin.Type.of_string Store.branch_t branch_name)
+      in
+      let prefix = Irmin.Type.of_string Store.path_t path |> Result.get_ok in
+      let meth = Cohttp_lwt_unix.Request.meth req in
+      match meth with
+      | `POST -> data_callback prefix branch
+      | `GET ->
+          let res = Cohttp_lwt_unix.Response.make () in
+          let body =
+            Cohttp_lwt.Body.of_string
+            @@ Printf.sprintf [%blob "index.html"] branch_name path
+          in
+          Lwt.return (res, body)
+      | _ ->
+          let status = `Not_found in
+          let res = Cohttp_lwt_unix.Response.make ~status () in
+          let body = Cohttp_lwt.Body.of_string "Not found" in
+          Lwt.return (res, body)
+    in
+    let server = Cohttp_lwt_unix.Server.make ~callback () in
+    Cohttp_lwt_unix.Server.create ~mode server
+
   let serve ?stop t =
     let unlink () =
       match Uri.scheme t.uri with
@@ -254,7 +356,12 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
           unlink ();
           exit 0)
     in
-    let* () =
+    let dashboard =
+      match t.dashboard with
+      | Some server -> dashboard t server
+      | None -> Lwt.return_unit
+    in
+    let server =
       match Uri.scheme t.uri with
       | Some "ws" | Some "wss" ->
           Websocket_lwt_unix.establish_standard_server ~ctx:t.ctx ~mode:t.server
@@ -265,5 +372,6 @@ module Make (Codec : Conn.Codec.S) (Store : Irmin.Generic_key.S) = struct
           Conduit_lwt_unix.serve ?stop ~ctx:t.ctx ~on_exn ~mode:t.server
             (fun _ ic oc -> callback t ic oc)
     in
+    let* () = Lwt.join [ server; dashboard ] in
     Lwt.wrap (fun () -> unlink ())
 end
