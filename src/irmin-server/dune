@@ -8,4 +8,5 @@
   websocket-lwt-unix
   digestif.ocaml
   irmin-pack)
- (preprocess (pps ppx_blob)))
+ (preprocess
+  (pps ppx_blob)))

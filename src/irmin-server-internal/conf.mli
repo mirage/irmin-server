@@ -7,4 +7,3 @@ module Key : sig
 end
 
 val v : ?tls:bool -> ?hostname:string -> Uri.t -> Irmin.config
-
