@@ -11,24 +11,12 @@ depends: [
   "dune" {>= "2.0.0"}
   "irmin-server-internal"
   "conduit-lwt-unix"
-  "irmin-pack"
+  "irmin-pack" {>= "3.4.1"}
   "alcotest-lwt" {with-test & >= "1.0.0"}
-  "irmin-cli" {with-test}
-  "irmin-test" {with-test}
+  "irmin-cli" {with-test & >= "3.4.1"}
+  "irmin-test" {with-test & >= "3.4.1"}
   "irmin-client-unix" {with-test}
   "websocket-lwt-unix"
-]
-pin-depends: [
-  ["irmin-graphql.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin-cli.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin-pack.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin-git.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin-fs.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin-http.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin-tezos.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["irmin-test.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["ppx_irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
 ]
 build: [
   ["dune" "subst"] {pinned}
