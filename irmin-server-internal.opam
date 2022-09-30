@@ -10,7 +10,7 @@ depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
   "optint" {>= "0.1.0"}
-  "irmin" {>= "dev"}
+  "irmin" {>= "3.4.1"}
   "uri"
   "fmt"
   "checkseum" {>= "0.3.0"}
@@ -18,11 +18,7 @@ depends: [
   "digestif" {>= "0.9.0"}
   "logs" {>= "0.7.0"}
   "lwt" {>= "5.4.0"}
-  "ppx_irmin" {>= "dev"}
-]
-pin-depends: [
-  ["irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
-  ["ppx_irmin.dev" "git+https://github.com/mirage/irmin#3b18b671889fdbd1c8d1b2510dd48c55f3f29744"]
+  "ppx_irmin" {>= "3.4.1"}
 ]
 build: [
   ["dune" "subst"] {pinned}
