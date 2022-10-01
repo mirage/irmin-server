@@ -1,6 +1,7 @@
 (library
  (name irmin_server)
  (public_name irmin-server)
+ (preprocessor_deps index.html)
  (libraries
   irmin-server-internal
   lwt.unix
