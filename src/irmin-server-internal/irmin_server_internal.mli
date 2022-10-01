@@ -3,3 +3,4 @@ module Error = Error
 module Cli = Cli
 module Conn = Conn
 module Tree = Tree
+module Conf = Conf

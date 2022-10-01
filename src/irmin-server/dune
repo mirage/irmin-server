@@ -1,10 +1,13 @@
 (library
  (name irmin_server)
  (public_name irmin-server)
+ (preprocessor_deps index.html)
  (libraries
   irmin-server-internal
   lwt.unix
   conduit-lwt-unix
   websocket-lwt-unix
   digestif.ocaml
-  irmin-pack))
+  irmin-pack)
+ (preprocess
+  (pps ppx_blob)))

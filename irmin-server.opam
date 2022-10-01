@@ -17,6 +17,7 @@ depends: [
   "irmin-test" {with-test & >= "3.4.1"}
   "irmin-client-unix" {with-test}
   "websocket-lwt-unix"
+  "ppx_blob"
 ]
 build: [
   ["dune" "subst"] {pinned}

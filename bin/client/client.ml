@@ -267,7 +267,10 @@ let config =
       Irmin_cli.Resolver.load_config ?config_path ?store ?hash ?contents ()
     in
     let config =
-      match uri with Some uri -> Irmin_http.config uri config | None -> config
+      match uri with
+      | Some uri ->
+          Irmin.Backend.Conf.add config Irmin_server_internal.Conf.Key.uri uri
+      | None -> config
     in
     let (module Store : Irmin.Generic_key.S) =
       Irmin_cli.Resolver.Store.generic_keyed store
